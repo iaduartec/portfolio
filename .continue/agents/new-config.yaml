@@ -1,0 +1,9 @@
+models:
+  - name: Llama 3 8B (local)
+    provider: ollama
+    model: llama3:8b
+  - name: DeepSeek Coder 6.7B (local)
+    provider: ollama
+    model: deepseek-coder:6.7bposthog.capture('event_name', { ... })
+analytics.track('event_name', { ... })
+telemetry.log('event_name', { ... })pip install transformers torch torchvision torchaudio guggingface_hubpip install transformers torch torchvision torchaudio guggingface_hubpip install transformers torch torchvision torchaudio guggingface_hub

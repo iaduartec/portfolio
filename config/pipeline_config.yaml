@@ -1,0 +1,81 @@
+name: "AI Portfolio System - Autonomous Hedge Fund"
+version: "2.0.0"
+
+architecture:
+  phases:
+    - name: ingestion
+      model: "google-gemini-3-pro-low"
+      description: "Data collection and normalization"
+      outputs:
+        - "clean_portfolio.db"
+        - "market_timeseries.db"
+        - "fundamentals.db"
+        - "insiders.db"
+        - "macro.db"
+      responsibilities:
+        - "Date validation"
+        - "Currency conversion"
+        - "Split/Dividend adjustments"
+        - "Temporal synchronization"
+
+    - name: analysis
+      model: "google-gemini-3-pro-high"
+      description: "Deep quantitative and qualitative analysis"
+      metrics:
+        - "P&L (Real/Asset)"
+        - "XIRR / CAGR"
+        - "Sharpe / Sortino / Calmar"
+        - "Max Drawdown"
+        - "Beta vs Indices"
+        - "Dynamic Correlations"
+        - "Volatility Regimes"
+      features:
+        - "Multi-timeframe technical analysis"
+        - "Fundamental scoring"
+        - "Institutional accumulation detection"
+        - "News sentiment analysis"
+
+    - name: prediction
+      model: "google-gemini-3-pro-high"
+      description: "Probabilistic forecasting"
+      models:
+        - "LSTM / Temporal CNN"
+        - "Return Diffusion Models"
+        - "Monte Carlo (Dynamic Vol)"
+        - "Macro-conditioned Models"
+      outputs:
+        - "Probability"
+        - "Confidence Interval"
+        - "Primary Scenario"
+        - "Alternative Scenario"
+
+    - name: validation
+      model: "claude-3-5-sonnet-thinking"
+      role: "Auditor (Anti-Bias)"
+      description: "Critical review of predictions"
+      rules:
+        - "Refute every prediction"
+        - "Check for overfitting"
+        - "Detect look-ahead bias"
+        - "Halt signals with inconsistencies"
+      policy: "No prediction goes to production without Validation approval."
+
+    - name: alerts
+      model: "hybrid-system"
+      description: "Real-time monitoring and notification"
+      triggers:
+        - "Validated technical breakout"
+        - "Significant insider buying"
+        - "Volume-Price divergence"
+        - "Macro regime change"
+        - "Extreme drawdown risk"
+
+roles:
+  operational_ai:
+    model: "google-gemini-3-pro-high"
+    tasks: ["Signal production", "Weight assignment", "Risk optimization", "Execution"]
+  
+  auditor_ai:
+    model: "claude-3-5-sonnet-thinking"
+    tasks: ["Error detection", "Bias checking", "Trap identification"]
+    constraints: ["NO trade proposals", "NO profit optimization"]

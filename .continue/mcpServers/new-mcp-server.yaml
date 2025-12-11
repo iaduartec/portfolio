@@ -1,0 +1,10 @@
+models:
+  - name: Autodetect
+    provider: ollama
+    model: AUTODETECT
+    roles:
+      - chat
+      - edit
+      - apply
+      - rerank
+      - autocomplete

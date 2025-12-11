@@ -1,0 +1,44 @@
+# Variables de entorno con claves secretas
+.env
+.env.local
+.env.development.local
+.env.production.local
+
+# Archivos CSV de Revolut (datos personales)
+revolut*.csv
+
+# Archivos de salida generados
+simulacion_portfolio.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ignorar dependencias y builds de Node/Next
+node_modules/
+.next/
+dist/
+build/
+
+# Ignorar archivos de configuración sensibles adicionales
+.npmrc
+# si no quieres ignorar el lockfile, comenta la siguiente línea:
+# .pnpm-lock.yaml
