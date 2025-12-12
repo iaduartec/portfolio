@@ -42,3 +42,4 @@ build/
 .npmrc
 # si no quieres ignorar el lockfile, comenta la siguiente línea:
 # .pnpm-lock.yaml
+.vercel
