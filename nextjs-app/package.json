@@ -1,4 +1,4 @@
-  {
+{
   "name": "nextjs-app",
   "version": "1.0.0",
   "private": true,
@@ -8,15 +8,17 @@
     "start": "next start",
     "lint": "next lint || echo \"no lint script\""
   },
-"dependencies": {
-  "next": "15.0.7",
-  "react": "18.3.1",
-  "react-dom": "18.3.1"
-},
+  "dependencies": {
+    "next": "15.0.7",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
   "devDependencies": {
-    "typescript": "^5.7.0",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1"
+    "@types/react-dom": "^18.3.1",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^16.0.10",
+    "typescript": "^5.7.0"
   }
 }
