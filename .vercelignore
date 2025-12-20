@@ -1,0 +1,7 @@
+# Ignore Python artifacts so Vercel doesn't trigger a Python build
+requirements.txt
+*.py
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
