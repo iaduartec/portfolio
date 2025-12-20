@@ -1,17 +1,64 @@
-import { CsvDropzone } from "@/components/upload/CsvDropzone";
+'use client';
+
+import { useEffect, useState } from "react";
+import { CsvDropzone, SESSION_ID_KEY, TRANSACTIONS_STORAGE_KEY } from "@/components/upload/CsvDropzone";
 import { Shell } from "@/components/layout/Shell";
+import { TransactionsTable } from "@/components/upload/TransactionsTable";
+import { Transaction } from "@/types/transactions";
+
+const parseJson = <T,>(value: string | null, fallback: T): T => {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+};
 
 export default function UploadPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = parseJson<Transaction[]>(window.localStorage.getItem(TRANSACTIONS_STORAGE_KEY), []);
+    setTransactions(saved);
+
+    const existingSession = window.sessionStorage.getItem(SESSION_ID_KEY);
+    if (existingSession) {
+      setSessionId(existingSession);
+    } else {
+      const newSession = new Date().toISOString();
+      window.sessionStorage.setItem(SESSION_ID_KEY, newSession);
+      setSessionId(newSession);
+    }
+  }, []);
+
+  const handleSave = (rows: Transaction[]) => {
+    setTransactions(rows);
+    const sid = window.sessionStorage.getItem(SESSION_ID_KEY);
+    if (sid) setSessionId(sid);
+  };
+
   return (
     <Shell>
       <div className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.08em] text-muted">Datos</p>
         <h1 className="text-3xl font-semibold tracking-tight text-text">Cargar transacciones</h1>
         <p className="max-w-3xl text-sm text-muted">
-          Sube tu CSV de transacciones para reconstruir el portafolio. Usa PapaParse en cliente; pronto añadiremos lógica FIFO y P&L.
+          Sube tu CSV de transacciones para reconstruir el portafolio. Usa PapaParse en cliente; guarda en localStorage + sesión del navegador.
         </p>
+        {sessionId && (
+          <p className="text-xs text-muted">
+            Sesión actual: <span className="font-semibold text-text">{sessionId}</span>
+          </p>
+        )}
       </div>
-      <CsvDropzone />
+      <CsvDropzone onSave={handleSave} />
+      <div className="flex flex-col gap-3">
+        <p className="text-xs uppercase tracking-[0.08em] text-muted">Transacciones guardadas</p>
+        <TransactionsTable transactions={transactions} />
+      </div>
     </Shell>
   );
 }

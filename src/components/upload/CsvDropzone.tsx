@@ -8,7 +8,8 @@ import { Transaction, TransactionType } from "@/types/transactions";
 
 type ParsedRow = Record<string, string | number>;
 
-const STORAGE_KEY = "myinvestview:transactions";
+export const TRANSACTIONS_STORAGE_KEY = "myinvestview:transactions";
+export const SESSION_ID_KEY = "myinvestview:session-id";
 
 const fieldAliases: Record<keyof Transaction, string[]> = {
   date: ["date", "closing time", "close_time", "datetime", "trade_date"],
@@ -125,9 +126,11 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const handleSave = () => {
     if (!transactions.length) return;
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      window.localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
+      const sessionId = new Date().toISOString();
+      window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
       onSave?.(transactions);
-      setSuccess(`Guardadas ${transactions.length} transacciones en local.`);
+      setSuccess(`Guardadas ${transactions.length} transacciones en local (sesión ${sessionId}).`);
     } catch (err) {
       setError("No se pudieron guardar en localStorage.");
     }
