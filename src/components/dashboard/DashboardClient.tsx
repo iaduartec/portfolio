@@ -116,22 +116,25 @@ export function DashboardClient() {
               <p className="text-sm text-muted">Sin allocation todavia.</p>
             )}
           </Card>
-          <Card title="Gráfico de velas" subtitle="Selecciona un activo en la tabla">
-            {selectedHolding ? (
-              <CandlestickChart
-                ticker={selectedHolding.ticker}
-                price={selectedHolding.currentPrice}
-                dayChangePercent={selectedHolding.dayChangePercent}
-                height={320}
-              />
-            ) : (
-              <p className="text-sm text-muted">Selecciona un ticker para ver su gráfico.</p>
-            )}
-          </Card>
           <Card title="Ventas cerradas" subtitle="Registro de entradas y salidas">
             <RealizedTradesTable trades={realizedTrades} />
           </Card>
         </div>
+      </section>
+
+      <section>
+        <Card title="Gráfico de velas" subtitle="Selecciona un activo en la tabla">
+          {selectedHolding ? (
+            <CandlestickChart
+              ticker={selectedHolding.ticker}
+              price={selectedHolding.currentPrice}
+              dayChangePercent={selectedHolding.dayChangePercent}
+              height={360}
+            />
+          ) : (
+            <p className="text-sm text-muted">Selecciona un ticker para ver su gráfico.</p>
+          )}
+        </Card>
       </section>
     </>
   );
