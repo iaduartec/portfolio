@@ -12,16 +12,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
-      <body className="bg-background text-text antialiased">
-        <div className="min-h-screen bg-background text-text">
-          <div className="border-b border-border/60 bg-surface">
-            <TradingViewTickerTape />
-          </div>
-          <Header />
-          <main>
-            {children}
-          </main>
+      <body className="min-h-screen bg-background text-text antialiased">
+        <div className="border-b border-border/60 bg-surface">
+          <TradingViewTickerTape />
         </div>
+        <Header />
+        <main id="main-content">
+          {children}
+        </main>
       </body>
     </html>
   );
