@@ -39,7 +39,17 @@ const buildMockSeries = (basePrice: number): CandlePoint[] => {
     });
     prevClose = close;
   }
-  return points;
+  if (points.length === 0) return points;
+  const lastClose = points[points.length - 1].close;
+  if (!Number.isFinite(lastClose) || lastClose === 0) return points;
+  const scale = basePrice / lastClose;
+  return points.map((point) => ({
+    ...point,
+    open: Number((point.open * scale).toFixed(2)),
+    high: Number((point.high * scale).toFixed(2)),
+    low: Number((point.low * scale).toFixed(2)),
+    close: Number((point.close * scale).toFixed(2)),
+  }));
 };
 
 export function CandlestickChart({ ticker, price = 150, height = 220 }: CandleChartProps) {
