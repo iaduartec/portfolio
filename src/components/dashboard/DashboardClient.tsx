@@ -14,6 +14,8 @@ import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories
 import { TradingViewMarketData } from "@/components/charts/TradingViewMarketData";
 import { TradingViewCompanyProfile } from "@/components/charts/TradingViewCompanyProfile";
 import { TradingViewMarketSummary } from "@/components/charts/TradingViewMarketSummary";
+import { TradingViewMiniChart } from "@/components/charts/TradingViewMiniChart";
+import { TradingViewMarketOverview } from "@/components/charts/TradingViewMarketOverview";
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { formatPercent } from "@/lib/formatters";
@@ -148,6 +150,12 @@ export function DashboardClient() {
               </div>
               <div className="mt-2">
                 <TradingViewMarketSummary direction="horizontal" />
+              </div>
+              <div className="mt-4">
+                <TradingViewMiniChart symbol={selectedHolding.ticker} />
+              </div>
+              <div className="mt-4">
+                <TradingViewMarketOverview width="100%" height={550} />
               </div>
             </div>
           ) : (
