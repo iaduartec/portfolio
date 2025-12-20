@@ -12,8 +12,13 @@ declare global {
       symbol?: string;
       theme?: "dark" | "light";
     };
-    }
+    "tv-ticker-tape": DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement> & {
+      direction?: "horizontal" | "vertical";
+      theme?: "dark" | "light";
+      "show-hover"?: boolean;
+    };
   }
+}
 }
 
 export {};
