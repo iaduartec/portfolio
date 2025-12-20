@@ -6,12 +6,14 @@ interface TradingViewCompanyProfileProps {
   symbol: string;
   width?: number | string;
   height?: number | string;
+  isTransparent?: boolean;
 }
 
 export function TradingViewCompanyProfile({
   symbol,
-  width = 400,
-  height = 550,
+  width = "100%",
+  height = "100%",
+  isTransparent = true,
 }: TradingViewCompanyProfileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -45,11 +47,11 @@ export function TradingViewCompanyProfile({
     script.async = true;
     script.innerHTML = JSON.stringify({
       symbol,
-      colorTheme: "dark",
-      isTransparent: false,
-      locale: "en",
       width,
       height,
+      colorTheme: "dark",
+      isTransparent,
+      locale: "en",
     });
 
     container.appendChild(widget);

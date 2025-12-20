@@ -6,12 +6,16 @@ interface TradingViewTechnicalAnalysisProps {
   symbol: string;
   width?: number | string;
   height?: number | string;
+  interval?: string;
+  isTransparent?: boolean;
 }
 
 export function TradingViewTechnicalAnalysis({
   symbol,
-  width = 425,
-  height = 450,
+  width = "100%",
+  height = "100%",
+  interval = "15m",
+  isTransparent = true,
 }: TradingViewTechnicalAnalysisProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -44,16 +48,15 @@ export function TradingViewTechnicalAnalysis({
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      colorTheme: "dark",
-      displayMode: "single",
-      isTransparent: false,
-      locale: "en",
-      interval: "1m",
-      disableInterval: false,
+      interval,
       width,
+      isTransparent,
       height,
       symbol,
       showIntervalTabs: true,
+      displayMode: "single",
+      locale: "en",
+      colorTheme: "dark",
     });
 
     container.appendChild(widget);

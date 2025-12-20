@@ -5,9 +5,14 @@ import { useEffect, useRef } from "react";
 interface TradingViewSymbolInfoProps {
   symbol: string;
   width?: number | string;
+  isTransparent?: boolean;
 }
 
-export function TradingViewSymbolInfo({ symbol, width = 550 }: TradingViewSymbolInfoProps) {
+export function TradingViewSymbolInfo({
+  symbol,
+  width = "100%",
+  isTransparent = true,
+}: TradingViewSymbolInfoProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -40,10 +45,10 @@ export function TradingViewSymbolInfo({ symbol, width = 550 }: TradingViewSymbol
     script.async = true;
     script.innerHTML = JSON.stringify({
       symbol,
-      colorTheme: "dark",
-      isTransparent: false,
-      locale: "en",
       width,
+      locale: "en",
+      colorTheme: "dark",
+      isTransparent,
     });
 
     container.appendChild(widget);

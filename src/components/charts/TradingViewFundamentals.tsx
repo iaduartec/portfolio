@@ -6,12 +6,14 @@ interface TradingViewFundamentalsProps {
   symbol: string;
   width?: number | string;
   height?: number | string;
+  isTransparent?: boolean;
 }
 
 export function TradingViewFundamentals({
   symbol,
-  width = 400,
-  height = 550,
+  width = "100%",
+  height = 775,
+  isTransparent = true,
 }: TradingViewFundamentalsProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -44,13 +46,14 @@ export function TradingViewFundamentals({
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      symbol,
       colorTheme: "dark",
+      isTransparent,
+      largeChartUrl: "",
       displayMode: "regular",
-      isTransparent: false,
-      locale: "en",
       width,
       height,
+      symbol,
+      locale: "en",
     });
 
     container.appendChild(widget);

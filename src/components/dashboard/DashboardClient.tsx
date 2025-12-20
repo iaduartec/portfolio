@@ -11,11 +11,8 @@ import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo
 import { TradingViewFundamentals } from "@/components/charts/TradingViewFundamentals";
 import { TradingViewTechnicalAnalysis } from "@/components/charts/TradingViewTechnicalAnalysis";
 import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories";
-import { TradingViewMarketData } from "@/components/charts/TradingViewMarketData";
 import { TradingViewCompanyProfile } from "@/components/charts/TradingViewCompanyProfile";
-import { TradingViewMarketSummary } from "@/components/charts/TradingViewMarketSummary";
-import { TradingViewMiniChart } from "@/components/charts/TradingViewMiniChart";
-import { TradingViewMarketOverview } from "@/components/charts/TradingViewMarketOverview";
+import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { formatPercent } from "@/lib/formatters";

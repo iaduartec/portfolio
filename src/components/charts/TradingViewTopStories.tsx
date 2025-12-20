@@ -3,11 +3,20 @@
 import { useEffect, useRef } from "react";
 
 interface TradingViewTopStoriesProps {
+  symbol?: string;
   width?: number | string;
   height?: number | string;
+  feedMode?: "all_symbols" | "symbol";
+  isTransparent?: boolean;
 }
 
-export function TradingViewTopStories({ width = 400, height = 550 }: TradingViewTopStoriesProps) {
+export function TradingViewTopStories({
+  symbol,
+  width = "100%",
+  height = 600,
+  feedMode = "symbol",
+  isTransparent = true,
+}: TradingViewTopStoriesProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -39,13 +48,14 @@ export function TradingViewTopStories({ width = 400, height = 550 }: TradingView
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      displayMode: "regular",
-      feedMode: "all_symbols",
+      feedMode,
+      symbol,
       colorTheme: "dark",
-      isTransparent: false,
-      locale: "en",
+      isTransparent,
+      displayMode: "regular",
       width,
       height,
+      locale: "en",
     });
 
     container.appendChild(widget);
