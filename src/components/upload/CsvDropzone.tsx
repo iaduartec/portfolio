@@ -4,12 +4,10 @@ import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/formatters";
+import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
 import { Transaction, TransactionType } from "@/types/transactions";
 
 type ParsedRow = Record<string, string | number>;
-
-export const TRANSACTIONS_STORAGE_KEY = "myinvestview:transactions";
-export const SESSION_ID_KEY = "myinvestview:session-id";
 
 const fieldAliases: Record<keyof Transaction, string[]> = {
   date: ["date", "closing time", "close_time", "datetime", "trade_date"],
@@ -126,15 +124,15 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
 
   const handleSave = () => {
     if (!transactions.length) return;
-    try {
-      window.localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
-      const sessionId = new Date().toISOString();
-      window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
-      onSave?.(transactions);
-      setSuccess(`Guardadas ${transactions.length} transacciones en local (sesión ${sessionId}).`);
-    } catch {
+    const saved = persistTransactions(transactions);
+    if (!saved) {
       setError("No se pudieron guardar en localStorage.");
+      return;
     }
+    const sessionId = new Date().toISOString();
+    window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
+    onSave?.(transactions);
+    setSuccess(`Guardadas ${transactions.length} transacciones en local (sesión ${sessionId}).`);
   };
 
   return (

@@ -1,24 +1,16 @@
 'use client';
 
 import { useState } from "react";
-import { CsvDropzone, SESSION_ID_KEY, TRANSACTIONS_STORAGE_KEY } from "@/components/upload/CsvDropzone";
+import { CsvDropzone } from "@/components/upload/CsvDropzone";
 import { Shell } from "@/components/layout/Shell";
 import { TransactionsTable } from "@/components/upload/TransactionsTable";
+import { loadStoredTransactions, SESSION_ID_KEY } from "@/lib/storage";
 import { Transaction } from "@/types/transactions";
-
-const parseJson = <T,>(value: string | null, fallback: T): T => {
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
-  }
-};
 
 export default function UploadPage() {
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     if (typeof window === "undefined") return [];
-    return parseJson<Transaction[]>(window.localStorage.getItem(TRANSACTIONS_STORAGE_KEY), []);
+    return loadStoredTransactions();
   });
   const [sessionId, setSessionId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
