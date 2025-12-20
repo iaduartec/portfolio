@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
+import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape";
 
 export const metadata: Metadata = {
   title: "MyInvestView",
@@ -14,6 +15,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-background text-text antialiased">
         <div className="min-h-screen bg-background text-text">
           <Header />
+          <div className="border-b border-border/60 bg-surface">
+            <TradingViewTickerTape />
+          </div>
           <main>
             {children}
           </main>
