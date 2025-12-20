@@ -5,8 +5,18 @@ import { Transaction } from "@/types/transactions";
 
 const computeHoldings = (transactions: Transaction[]): Holding[] => {
   const positions = new Map<string, { quantity: number; cost: number; lastPrice: number }>();
+  const ordered = transactions
+    .map((tx, idx) => ({ tx, idx }))
+    .sort((a, b) => {
+      const timeA = Date.parse(a.tx.date);
+      const timeB = Date.parse(b.tx.date);
+      if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return a.idx - b.idx;
+    });
 
-  transactions.forEach((tx) => {
+  ordered.forEach(({ tx }) => {
     const entry = positions.get(tx.ticker) ?? { quantity: 0, cost: 0, lastPrice: 0 };
     const fee = tx.fee ?? 0;
 

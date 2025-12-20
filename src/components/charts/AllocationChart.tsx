@@ -1,0 +1,38 @@
+import { Pie, PieChart, ResponsiveContainer, Cell } from "recharts";
+
+interface AllocationItem {
+  label: string;
+  value: number;
+}
+
+interface AllocationChartProps {
+  data: AllocationItem[];
+}
+
+const COLORS = ["#2962ff", "#00c074", "#f5a524", "#f6465d", "#7f8596"];
+
+export function AllocationChart({ data }: AllocationChartProps) {
+  return (
+    <div className="h-56 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="label"
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={95}
+            paddingAngle={3}
+            stroke="rgba(255,255,255,0.08)"
+          >
+            {data.map((entry, index) => (
+              <Cell key={entry.label} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}

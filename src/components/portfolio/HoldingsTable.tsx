@@ -31,7 +31,13 @@ const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection)
   return (a[key] - b[key]) * factor;
 };
 
-export function HoldingsTable({ holdings }: { holdings: Holding[] }) {
+interface HoldingsTableProps {
+  holdings: Holding[];
+  selectedTicker?: string | null;
+  onSelect?: (ticker: string) => void;
+}
+
+export function HoldingsTable({ holdings, selectedTicker, onSelect }: HoldingsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
     direction: "desc",
@@ -85,8 +91,16 @@ export function HoldingsTable({ holdings }: { holdings: Holding[] }) {
           <tbody className="divide-y divide-border/60 text-sm">
             {sortedHoldings.map((holding) => {
               const isPositive = holding.pnlValue >= 0;
+              const isSelected = selectedTicker === holding.ticker;
               return (
-                <tr key={holding.ticker} className="hover:bg-surface-muted/50">
+                <tr
+                  key={holding.ticker}
+                  className={cn(
+                    "cursor-pointer hover:bg-surface-muted/50",
+                    isSelected && "bg-surface-muted/70"
+                  )}
+                  onClick={() => onSelect?.(holding.ticker)}
+                >
                   <td className="whitespace-nowrap px-4 py-3 font-semibold text-text">
                     {holding.ticker}
                   </td>
