@@ -34,7 +34,8 @@ const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection)
 interface HoldingsTableProps {
   holdings: Holding[];
   selectedTicker?: string | null;
-  onSelect?: (ticker: string) => void;
+  // eslint-disable-next-line no-unused-vars
+  onSelect?: (value: string) => void;
 }
 
 export function HoldingsTable({ holdings, selectedTicker, onSelect }: HoldingsTableProps) {

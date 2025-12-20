@@ -42,7 +42,7 @@ const buildMockSeries = (basePrice: number): CandlePoint[] => {
 export function CandlestickChart({ ticker, price = 150, height = 220 }: CandleChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const data = useMemo(() => buildMockSeries(price), [price, ticker]);
+  const data = useMemo(() => buildMockSeries(price), [price]);
 
   useEffect(() => {
     if (!containerRef.current) return;
