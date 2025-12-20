@@ -39,9 +39,12 @@ a {
 
 .tradingview-widget-container,
 .tradingview-widget-container__widget {
-  background-color: #131722;
+  background-color: grey;
 }
 
 .tradingview-widget-container iframe {
-  background-color: #131722;
+  background-color: grey ;
+}
+.tradingview-widget-copyright {
+  display: none !important;
 }
