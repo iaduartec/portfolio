@@ -24,6 +24,12 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
   const delta = last - first;
   const deltaPercent = first !== 0 ? (delta / first) * 100 : 0;
   const isPositive = delta >= 0;
+  const values = data.map((point) => point.value);
+  const minValue = values.length ? Math.min(...values) : 0;
+  const maxValue = values.length ? Math.max(...values) : 0;
+  const padding = Math.max((maxValue - minValue) * 0.12, maxValue * 0.02);
+  const rangeStart = data[0]?.label ?? "";
+  const rangeEnd = data[data.length - 1]?.label ?? "";
 
   return (
     <div className="w-full">
@@ -43,7 +49,7 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
           </span>
         </div>
         <div className="ml-auto text-xs text-muted">
-          Últimos 6 meses • Mock
+          {rangeStart && rangeEnd ? `${rangeStart}–${rangeEnd}` : "Últimos 6 meses"} • Mock
         </div>
       </div>
       <div className="h-64 rounded-2xl border border-border bg-surface-muted/30 p-3">
@@ -70,6 +76,8 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
             axisLine={false}
             fontSize={11}
             tickFormatter={(value) => formatCurrency(Number(value))}
+            domain={[minValue - padding, maxValue + padding]}
+            tickCount={5}
           />
           <Tooltip
             cursor={{ stroke: "rgba(41,98,255,0.2)" }}
