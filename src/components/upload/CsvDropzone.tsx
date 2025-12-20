@@ -4,7 +4,7 @@ import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/formatters";
-import { Transaction } from "@/types/transactions";
+import { Transaction, TransactionType } from "@/types/transactions";
 
 type ParsedRow = Record<string, string | number>;
 
@@ -36,13 +36,19 @@ const pickField = (row: ParsedRow, candidates: string[]) => {
   return undefined;
 };
 
-const normalizeType = (raw: string) => {
+const normalizeType = (raw: string): TransactionType => {
   const upper = raw.toUpperCase();
-  if (upper === "BUY" || upper === "SELL") return upper as Transaction["type"];
-  return null;
+  if (upper === "BUY" || upper === "SELL") return upper;
+  if (upper === "DIVIDEND" || upper === "DIV" || upper === "DIVS") return "DIVIDEND";
+  if (upper === "FEE" || upper === "COMMISSION") return "FEE";
+  return "OTHER";
 };
 
-export function CsvDropzone() {
+interface CsvDropzoneProps {
+  onSave?: (transactions: Transaction[]) => void;
+}
+
+export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRow[]>([]);
@@ -61,12 +67,12 @@ export function CsvDropzone() {
 
     const date = dateRaw ? String(dateRaw).trim() : "";
     const ticker = tickerRaw ? String(tickerRaw).trim().toUpperCase() : "";
-    const type = typeRaw ? normalizeType(String(typeRaw).trim()) : null;
-    const quantity = normalizeNumber(qtyRaw);
-    const price = normalizeNumber(priceRaw);
+    const type = typeRaw ? normalizeType(String(typeRaw).trim()) : "OTHER";
+    const quantity = normalizeNumber(qtyRaw) ?? 0;
+    const price = normalizeNumber(priceRaw) ?? 0;
     const fee = feeRaw !== undefined ? normalizeNumber(feeRaw) ?? undefined : undefined;
 
-    if (!date || !ticker || !type || quantity === null || price === null) {
+    if (!date || !ticker) {
       return null;
     }
 
@@ -91,14 +97,12 @@ export function CsvDropzone() {
       skipEmptyLines: true,
       complete: (results: ParseResult<ParsedRow>) => {
         const rows = Array.isArray(results.data) ? results.data : [];
-        const parsed = rows
-          .map(toTransaction)
-          .filter((row): row is Transaction => Boolean(row));
+        const parsed = rows.map(toTransaction).filter((row): row is Transaction => Boolean(row));
         setPreview(rows.slice(0, 5));
         setTransactions(parsed);
         if (parsed.length === 0) {
           setError(
-            "No se pudo leer ninguna transacción válida. Revisa columnas: date/closing time, ticker/symbol, side(type)=BUY|SELL, qty, price, fee (opcional)."
+            "No se pudo leer ninguna transacción válida. Revisa columnas: date/closing time, ticker/symbol, side(type)=BUY|SELL|DIVIDEND|FEE, qty, price, fee (opcional)."
           );
         }
         setIsParsing(false);
@@ -122,6 +126,7 @@ export function CsvDropzone() {
     if (!transactions.length) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      onSave?.(transactions);
       setSuccess(`Guardadas ${transactions.length} transacciones en local.`);
     } catch (err) {
       setError("No se pudieron guardar en localStorage.");

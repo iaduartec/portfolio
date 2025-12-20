@@ -1,0 +1,51 @@
+import { formatCurrency } from "@/lib/formatters";
+import { Transaction } from "@/types/transactions";
+
+interface TransactionsTableProps {
+  transactions: Transaction[];
+}
+
+export function TransactionsTable({ transactions }: TransactionsTableProps) {
+  if (!transactions.length) {
+    return (
+      <p className="text-sm text-muted">
+        No hay transacciones guardadas todavía. Sube un CSV y pulsa “Guardar en local”.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-surface card-glow">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-border/70 text-left text-sm">
+          <thead className="bg-surface-muted/60 text-xs uppercase tracking-[0.08em] text-muted">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Fecha</th>
+              <th className="px-4 py-3 font-semibold">Ticker</th>
+              <th className="px-4 py-3 font-semibold">Tipo</th>
+              <th className="px-4 py-3 font-semibold text-right">Cantidad</th>
+              <th className="px-4 py-3 font-semibold text-right">Precio</th>
+              <th className="px-4 py-3 font-semibold text-right">Fee</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/70 text-text">
+            {transactions.map((tx, idx) => (
+              <tr key={`${tx.ticker}-${tx.date}-${idx}`} className="hover:bg-surface-muted/40">
+                <td className="whitespace-nowrap px-4 py-3 text-muted">{tx.date}</td>
+                <td className="whitespace-nowrap px-4 py-3 font-semibold">{tx.ticker}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs uppercase tracking-[0.08em] text-muted">
+                  {tx.type}
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-right">{tx.quantity}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right">{formatCurrency(tx.price)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right">
+                  {tx.fee !== undefined ? formatCurrency(tx.fee) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

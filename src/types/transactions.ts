@@ -1,4 +1,4 @@
-export type TransactionType = "BUY" | "SELL";
+export type TransactionType = "BUY" | "SELL" | "DIVIDEND" | "FEE" | "OTHER";
 
 export interface Transaction {
   date: string; // YYYY-MM-DD
