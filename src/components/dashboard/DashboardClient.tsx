@@ -6,6 +6,7 @@ import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
 import { CandlestickChart } from "@/components/charts/CandlestickChart";
+import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { formatPercent } from "@/lib/formatters";
@@ -32,6 +33,21 @@ export function DashboardClient() {
   );
   const activeTicker = selectedTicker ?? holdings[0]?.ticker ?? null;
   const selectedHolding = holdings.find((holding) => holding.ticker === activeTicker);
+  const performanceSeries = useMemo(() => {
+    const base = summary.totalValue || 1;
+    const points = [
+      { label: "Ene", value: base * 0.82 },
+      { label: "Feb", value: base * 0.9 },
+      { label: "Mar", value: base * 0.88 },
+      { label: "Abr", value: base * 0.95 },
+      { label: "May", value: base * 1.02 },
+      { label: "Jun", value: base * 1.08 },
+    ];
+    return points.map((point) => ({
+      ...point,
+      value: Number(point.value.toFixed(2)),
+    }));
+  }, [summary.totalValue]);
 
   return (
     <>
@@ -52,6 +68,12 @@ export function DashboardClient() {
           changeVariant="percent"
         />
         <StatCard label="P&amp;L realizado" value={realizedTotal} />
+      </section>
+
+      <section>
+        <Card title="Rendimiento de la cartera" subtitle="Evolución del valor (mock hasta tener histórico)">
+          <PortfolioPerformanceChart data={performanceSeries} />
+        </Card>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
