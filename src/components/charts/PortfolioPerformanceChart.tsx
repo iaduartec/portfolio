@@ -27,7 +27,6 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
   const values = data.map((point) => point.value);
   const minValue = values.length ? Math.min(...values) : 0;
   const maxValue = values.length ? Math.max(...values) : 0;
-  const padding = Math.max((maxValue - minValue) * 0.12, maxValue * 0.02);
   const rangeStart = data[0]?.label ?? "";
   const rangeEnd = data[data.length - 1]?.label ?? "";
 
@@ -76,7 +75,7 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
             axisLine={false}
             fontSize={11}
             tickFormatter={(value) => formatCurrency(Number(value))}
-            domain={[minValue - padding, maxValue + padding]}
+            domain={[0, 1200]}
             tickCount={5}
           />
           <Tooltip
