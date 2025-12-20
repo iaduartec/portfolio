@@ -45,7 +45,7 @@ export function DashboardClient() {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <Card title="Participaciones" subtitle="Solo posiciones abiertas con su precio promedio">
             {holdings.length > 0 ? (
               <HoldingsTable
