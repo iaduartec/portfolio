@@ -121,6 +121,8 @@ export function DashboardClient() {
               <CandlestickChart
                 ticker={selectedHolding.ticker}
                 price={selectedHolding.currentPrice}
+                dayChangePercent={selectedHolding.dayChangePercent}
+                height={320}
               />
             ) : (
               <p className="text-sm text-muted">Selecciona un ticker para ver su gráfico.</p>
