@@ -6,7 +6,13 @@ import { formatCurrency, formatPercent } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 
-type SortKey = "ticker" | "averageBuyPrice" | "currentPrice" | "pnlPercent" | "marketValue";
+type SortKey =
+  | "ticker"
+  | "averageBuyPrice"
+  | "currentPrice"
+  | "pnlPercent"
+  | "dayChangePercent"
+  | "marketValue";
 type SortDirection = "asc" | "desc";
 
 interface Column {
@@ -20,6 +26,7 @@ const columns: Column[] = [
   { key: "averageBuyPrice", label: "Precio medio", align: "right" },
   { key: "currentPrice", label: "Precio actual", align: "right" },
   { key: "pnlPercent", label: "Ganancia %", align: "right" },
+  { key: "dayChangePercent", label: "P&L día %", align: "right" },
   { key: "marketValue", label: "Valor de mercado", align: "right" },
 ];
 
@@ -28,7 +35,9 @@ const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection)
   if (key === "ticker") {
     return a.ticker.localeCompare(b.ticker) * factor;
   }
-  return (a[key] - b[key]) * factor;
+  const valueA = a[key] ?? 0;
+  const valueB = b[key] ?? 0;
+  return (valueA - valueB) * factor;
 };
 
 interface HoldingsTableProps {
@@ -115,6 +124,15 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect }: HoldingsTa
                     <Badge tone={isPositive ? "success" : "danger"}>
                       {formatPercent(holding.pnlPercent / 100)}
                     </Badge>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right">
+                    {holding.dayChangePercent !== undefined ? (
+                      <Badge tone={holding.dayChangePercent >= 0 ? "success" : "danger"}>
+                        {formatPercent(holding.dayChangePercent / 100)}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-muted">—</span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
                     {formatCurrency(holding.marketValue)}
