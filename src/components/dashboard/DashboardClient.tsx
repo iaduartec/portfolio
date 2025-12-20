@@ -7,6 +7,7 @@ import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable"
 import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
 import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget";
+import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { formatPercent } from "@/lib/formatters";
@@ -125,7 +126,10 @@ export function DashboardClient() {
       <section>
         <Card title="Gráfico de velas" subtitle="Selecciona un activo en la tabla">
           {selectedHolding ? (
-            <TradingViewWidget symbol={selectedHolding.ticker} height={420} />
+            <div className="flex flex-col gap-4">
+              <TradingViewWidget symbol={selectedHolding.ticker} height={420} />
+              <TradingViewSymbolInfo symbol={selectedHolding.ticker} width="100%" />
+            </div>
           ) : (
             <p className="text-sm text-muted">Selecciona un ticker para ver su gráfico.</p>
           )}
