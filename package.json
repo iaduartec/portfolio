@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; fuser -k ${PORT}/tcp 2>/dev/null || true; for _ in 1 2 3 4 5; do if ss -ltnp | grep -q ':3000'; then PIDS=\\$(ss -ltnp | awk '/:3000/ {print $NF}' | sed -E 's/.*pid=([0-9]+).*/\\1/' | tr '\\n' ' '); if [ -n \\\"$PIDS\\\" ]; then echo \\\"🛑 Cerrando proceso en puerto ${PORT}: ${PIDS}\\\"; kill -9 $PIDS; fi; sleep 0.4; else break; fi; done; if ss -ltnp | grep -q ':3000'; then echo \\\"⚠ No se pudo liberar el puerto ${PORT}, abortando.\\\"; exit 1; fi; PORT=3000 next dev\"",
+    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; fuser -k ${PORT}/tcp 2>/dev/null || true; for _ in 1 2 3 4 5; do if ss -ltnp | grep -q ':3000'; then PIDS=\\$(ss -ltnp | awk '/:3000/ {print $NF}' | sed -E 's/.*pid=([0-9]+).*/\\1/' | tr '\\n' ' '); if [ -n \\\"$PIDS\\\" ]; then echo \\\"🛑 Cerrando proceso en puerto ${PORT}: ${PIDS}\\\"; kill -9 $PIDS; fi; sleep 0.4; else break; fi; done; if ss -ltnp | grep -q ':3000'; then echo \\\"⚠ Puerto ${PORT} sigue ocupado, intentando pkill...\\\"; pkill -f 'next-server|next dev' 2>/dev/null || true; sleep 0.5; fi; if ss -ltnp | grep -q ':3000'; then echo \\\"⚠ No se pudo liberar el puerto ${PORT}, abortando.\\\"; ss -ltnp | grep ':3000' || true; exit 1; fi; PORT=3000 next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app src --max-warnings=0",
