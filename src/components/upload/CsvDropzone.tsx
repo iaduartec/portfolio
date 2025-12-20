@@ -131,7 +131,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
       window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
       onSave?.(transactions);
       setSuccess(`Guardadas ${transactions.length} transacciones en local (sesión ${sessionId}).`);
-    } catch (err) {
+    } catch {
       setError("No se pudieron guardar en localStorage.");
     }
   };
