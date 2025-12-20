@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "bash -lc \"PORT=\\${PORT:-3000}; if lsof -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then echo '❌ Puerto '$PORT' ya está en uso. Cierra el proceso que lo ocupa y vuelve a intentar.'; exit 1; fi; next dev\"",
+    "dev": "bash -lc \"PORT=\\${PORT:-3000}; PID=\\$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null || true); if [ -n \\\"$PID\\\" ]; then echo '🛑 Cerrando proceso en puerto '$PORT': '$PID; kill -9 $PID; fi; next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app src --max-warnings=0",
