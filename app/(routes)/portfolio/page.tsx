@@ -3,7 +3,7 @@ import { PortfolioClient } from "@/components/portfolio/PortfolioClient";
 
 export default function PortfolioPage() {
   return (
-    <Shell className="max-w-none">
+    <Shell>
       <PortfolioClient />
     </Shell>
   );

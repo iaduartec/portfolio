@@ -91,7 +91,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect }: HoldingsTa
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface card-glow">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border/70">
+        <table className="w-full table-fixed divide-y divide-border/70">
           <thead className="bg-surface-muted/50 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
               {columns.map((column) => {

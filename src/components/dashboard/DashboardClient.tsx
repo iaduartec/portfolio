@@ -24,7 +24,7 @@ export function DashboardClient() {
   const selectedHolding = holdings.find((holding) => holding.ticker === activeTicker);
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 md:py-8 lg:max-w-none">
       <section className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.08em] text-muted">Panel</p>
         <h1 className="text-3xl font-semibold tracking-tight text-text">Portafolio</h1>
@@ -114,6 +114,6 @@ export function DashboardClient() {
           )}
         </Card>
       </section>
-    </>
+    </div>
   );
 }
