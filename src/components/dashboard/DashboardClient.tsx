@@ -6,7 +6,6 @@ import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
 import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
-import { TradingViewWidget } from "@/components/charts/TradingViewWidget";
 import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
 import { TradingViewFundamentals } from "@/components/charts/TradingViewFundamentals";
 import { TradingViewTechnicalAnalysis } from "@/components/charts/TradingViewTechnicalAnalysis";

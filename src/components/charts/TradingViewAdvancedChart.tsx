@@ -11,7 +11,8 @@ declare global {
   // eslint-disable-next-line no-unused-vars
   interface Window {
     TradingView?: {
-      widget: (_config: Record<string, unknown>) => void;
+      // eslint-disable-next-line no-unused-vars
+      widget: (config: Record<string, unknown>) => void;
     };
   }
 }
