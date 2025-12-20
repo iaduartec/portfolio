@@ -15,7 +15,7 @@ const config: Config = {
         "surface-muted": "#1e222d",
         border: "#2a2e39",
         text: "#d1d4dc",
-        muted: "#9aa3b2",
+        muted: "#b1bac8",
         accent: "#2962ff",
         success: "#00c074",
         danger: "#f6465d",
