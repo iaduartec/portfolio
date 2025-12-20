@@ -9,7 +9,7 @@ interface AllocationChartProps {
   data: AllocationItem[];
 }
 
-const COLORS = ["#2962ff", "#00c074", "#f5a524", "#f6465d", "#7f8596"];
+export const ALLOCATION_COLORS = ["#2962ff", "#00c074", "#f5a524", "#f6465d", "#7f8596"];
 
 export function AllocationChart({ data }: AllocationChartProps) {
   return (
@@ -28,7 +28,7 @@ export function AllocationChart({ data }: AllocationChartProps) {
             stroke="rgba(255,255,255,0.08)"
           >
             {data.map((entry, index) => (
-              <Cell key={entry.label} fill={COLORS[index % COLORS.length]} />
+              <Cell key={entry.label} fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]} />
             ))}
           </Pie>
         </PieChart>

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
-import { AllocationChart } from "@/components/charts/AllocationChart";
+import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
 import { CandlestickChart } from "@/components/charts/CandlestickChart";
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
@@ -76,9 +76,15 @@ export function DashboardClient() {
               <>
                 <AllocationChart data={allocation} />
                 <div className="mt-4 space-y-3">
-                  {allocation.map((item) => (
+                  {allocation.map((item, index) => (
                     <div key={item.label} className="flex items-center justify-between text-sm">
-                      <span className="text-text">{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length] }}
+                        />
+                        <span className="text-text">{item.label}</span>
+                      </div>
                       <span className="text-muted">{formatPercent(item.percent)}</span>
                     </div>
                   ))}
