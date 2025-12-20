@@ -20,7 +20,7 @@ export function Header() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
         <Link href="/" className="flex items-center gap-3">
           <Image
-            src="/myinvestor.png?v=2"
+            src="/myinvestor.png"
             alt="MyInvestView"
             width={72}
             height={72}
