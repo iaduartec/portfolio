@@ -61,27 +61,31 @@ export async function GET(request: Request) {
     return NextResponse.json({ quotes: [] });
   }
 
-  const stooqPairs = tickers.map((ticker) => ({
-    ticker,
-    symbol: normalizeSymbolForStooq(ticker),
-  }));
-  const stooqSymbols = stooqPairs.map((pair) => pair.symbol);
-  const stooqUrl = `https://stooq.pl/q/l/?s=${stooqSymbols.join(",")}&f=sd2t2ohlcv&h&e=csv`;
+  const stooqPairs = tickers
+    .map((ticker) => ({
+      ticker,
+      symbol: normalizeSymbolForStooq(ticker),
+    }))
+    .filter((pair) => /^[a-z0-9.]+$/i.test(pair.symbol));
 
   try {
-    const stooqRes = await fetch(stooqUrl, { next: { revalidate: 60 } });
-    const csv = await stooqRes.text();
-    const stooqQuotes = parseStooqCsv(csv).map((quote) => {
-      const match = stooqPairs.find(
-        (pair) => pair.symbol.toUpperCase() === quote.ticker.toUpperCase()
-      );
-      return {
-        ...quote,
-        ticker: match?.ticker ?? quote.ticker,
-      };
-    });
+    const results = await Promise.all(
+      stooqPairs.map(async (pair) => {
+        const url = `https://stooq.pl/q/l/?s=${pair.symbol}&f=sd2t2ohlcv&h&e=csv`;
+        const res = await fetch(url, { next: { revalidate: 60 } });
+        const csv = await res.text();
+        const parsed = parseStooqCsv(csv);
+        if (parsed.length === 0) return null;
+        const quote = parsed[0];
+        if (!Number.isFinite(quote.price)) return null;
+        return {
+          ...quote,
+          ticker: pair.ticker,
+        } as Quote;
+      })
+    );
 
-    return NextResponse.json({ quotes: stooqQuotes });
+    return NextResponse.json({ quotes: results.filter(Boolean) });
   } catch (err) {
     return NextResponse.json({ quotes: [] }, { status: 200, statusText: String(err) });
   }
