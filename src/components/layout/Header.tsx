@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
@@ -17,8 +18,15 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href="/" className="text-lg font-semibold tracking-tight">
-          MyInvestView
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/myinvestor.png"
+            alt="MyInvestView"
+            width={72}
+            height={72}
+            className="h-14 w-14 rounded-full bg-surface-muted/40 object-contain"
+          />
+          <span className="text-lg font-semibold tracking-tight">MyInvestView</span>
         </Link>
         <nav className="flex items-center gap-3 text-sm">
           {navItems.map((item) => {
