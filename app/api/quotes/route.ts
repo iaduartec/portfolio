@@ -7,11 +7,30 @@ type Quote = {
   sourceSymbol?: string;
 };
 
+const exchangeSuffixMap: Record<string, string> = {
+  NASDAQ: ".US",
+  NYSE: ".US",
+  AMEX: ".US",
+  BME: ".MC",
+  BMEF: ".MC",
+  BOL: ".MC",
+  MIL: ".MI",
+  MILAN: ".MI",
+  XETRA: ".DE",
+  FRA: ".DE",
+  LSE: ".L",
+  SWX: ".SW",
+  SIX: ".SW",
+};
+
 const normalizeSymbol = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
-  const withoutExchange = cleaned.includes(":") ? cleaned.split(":")[1] : cleaned;
-  if (withoutExchange.includes(".")) return withoutExchange.toLowerCase();
-  return `${withoutExchange}.us`.toLowerCase();
+  const [exchange, rawSymbol] = cleaned.includes(":")
+    ? cleaned.split(":")
+    : ["", cleaned];
+  if (rawSymbol.includes(".")) return rawSymbol.toLowerCase();
+  const suffix = exchangeSuffixMap[exchange] ?? ".US";
+  return `${rawSymbol}${suffix}`.toLowerCase();
 };
 
 const parseStooqCsv = (raw: string) => {
