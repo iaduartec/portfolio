@@ -10,6 +10,38 @@ type ParsedRow = Record<string, string | number>;
 
 const STORAGE_KEY = "myinvestview:transactions";
 
+const fieldAliases: Record<keyof Transaction, string[]> = {
+  date: ["date", "closing time", "close_time", "datetime", "trade_date"],
+  ticker: ["ticker", "symbol", "asset", "isin"],
+  type: ["type", "side", "action"],
+  quantity: ["quantity", "qty", "shares", "units", "qty shares"],
+  price: ["price", "fill price", "fill_price", "avg_price", "cost"],
+  fee: ["fee", "fees", "commission", "broker fee"],
+};
+
+const normalizeNumber = (value: unknown): number | null => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/[^\d,.-]/g, "").replace(",", ".");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const pickField = (row: ParsedRow, candidates: string[]) => {
+  const entries = Object.entries(row);
+  for (const [key, value] of entries) {
+    const normalizedKey = key.toLowerCase().trim();
+    if (candidates.includes(normalizedKey)) return value;
+  }
+  return undefined;
+};
+
+const normalizeType = (raw: string) => {
+  const upper = raw.toUpperCase();
+  if (upper === "BUY" || upper === "SELL") return upper as Transaction["type"];
+  return null;
+};
+
 export function CsvDropzone() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -20,18 +52,25 @@ export function CsvDropzone() {
   const [isParsing, setIsParsing] = useState(false);
 
   const toTransaction = (row: ParsedRow): Transaction | null => {
-    const date = String(row.date ?? "").trim();
-    const ticker = String(row.ticker ?? "").trim().toUpperCase();
-    const type = String(row.type ?? "").trim().toUpperCase();
-    const quantity = Number(row.quantity);
-    const price = Number(row.price);
-    const fee = row.fee !== undefined ? Number(row.fee) : undefined;
+    const dateRaw = pickField(row, fieldAliases.date.map((a) => a.toLowerCase()));
+    const tickerRaw = pickField(row, fieldAliases.ticker.map((a) => a.toLowerCase()));
+    const typeRaw = pickField(row, fieldAliases.type.map((a) => a.toLowerCase()));
+    const qtyRaw = pickField(row, fieldAliases.quantity.map((a) => a.toLowerCase()));
+    const priceRaw = pickField(row, fieldAliases.price.map((a) => a.toLowerCase()));
+    const feeRaw = pickField(row, fieldAliases.fee.map((a) => a.toLowerCase()));
 
-    if (!date || !ticker || (type !== "BUY" && type !== "SELL") || Number.isNaN(quantity) || Number.isNaN(price)) {
+    const date = dateRaw ? String(dateRaw).trim() : "";
+    const ticker = tickerRaw ? String(tickerRaw).trim().toUpperCase() : "";
+    const type = typeRaw ? normalizeType(String(typeRaw).trim()) : null;
+    const quantity = normalizeNumber(qtyRaw);
+    const price = normalizeNumber(priceRaw);
+    const fee = feeRaw !== undefined ? normalizeNumber(feeRaw) ?? undefined : undefined;
+
+    if (!date || !ticker || !type || quantity === null || price === null) {
       return null;
     }
 
-    return { date, ticker, type: type as Transaction["type"], quantity, price, fee };
+    return { date, ticker, type, quantity, price, fee };
   };
 
   const handleFiles = (fileList: FileList | null) => {
@@ -58,7 +97,9 @@ export function CsvDropzone() {
         setPreview(rows.slice(0, 5));
         setTransactions(parsed);
         if (parsed.length === 0) {
-          setError("No se pudo leer ninguna transacción válida. Revisa las columnas requeridas.");
+          setError(
+            "No se pudo leer ninguna transacción válida. Revisa columnas: date/closing time, ticker/symbol, side(type)=BUY|SELL, qty, price, fee (opcional)."
+          );
         }
         setIsParsing(false);
       },
