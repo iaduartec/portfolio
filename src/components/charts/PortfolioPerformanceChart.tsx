@@ -24,9 +24,6 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
   const delta = last - first;
   const deltaPercent = first !== 0 ? (delta / first) * 100 : 0;
   const isPositive = delta >= 0;
-  const values = data.map((point) => point.value);
-  const minValue = values.length ? Math.min(...values) : 0;
-  const maxValue = values.length ? Math.max(...values) : 0;
   const rangeStart = data[0]?.label ?? "";
   const rangeEnd = data[data.length - 1]?.label ?? "";
 
