@@ -20,7 +20,7 @@ export function TradingViewMiniChart({ symbol }: TradingViewMiniChartProps) {
 
   return (
     <div className="w-full">
-      <tv-mini-chart symbol={symbol} />
+      <tv-mini-chart symbol={symbol} theme="dark" />
     </div>
   );
 }
