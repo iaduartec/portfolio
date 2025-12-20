@@ -7,6 +7,9 @@ type Quote = {
   sourceSymbol?: string;
 };
 
+const CACHE_TTL_MS = 60_000;
+const quoteCache = new Map<string, { quote: Quote; expiresAt: number }>();
+
 const exchangeSuffixMap: Record<string, string> = {
   NASDAQ: ".US",
   NYSE: ".US",
@@ -31,6 +34,14 @@ const normalizeSymbolForStooq = (ticker: string) => {
   return `${rawSymbol}${suffix}`.toLowerCase();
 };
 
+const normalizeSymbolForAlpha = (ticker: string) => {
+  const cleaned = ticker.trim().toUpperCase();
+  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
+  if (rawSymbol.includes(".")) return rawSymbol;
+  const suffix = exchangeSuffixMap[exchange] ?? "";
+  return `${rawSymbol}${suffix}`;
+};
+
 const parseStooqCsv = (raw: string) => {
   const lines = raw.trim().split("\n");
   if (lines.length <= 1) return [];
@@ -49,6 +60,57 @@ const parseStooqCsv = (raw: string) => {
   return rows;
 };
 
+const getCachedQuote = (ticker: string) => {
+  const key = ticker.toUpperCase();
+  const entry = quoteCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    quoteCache.delete(key);
+    return null;
+  }
+  return entry.quote;
+};
+
+const setCachedQuote = (quote: Quote) => {
+  const key = quote.ticker.toUpperCase();
+  quoteCache.set(key, { quote, expiresAt: Date.now() + CACHE_TTL_MS });
+};
+
+const fetchStooqQuote = async (ticker: string): Promise<Quote | null> => {
+  const symbol = normalizeSymbolForStooq(ticker);
+  if (!/^[a-z0-9.]+$/i.test(symbol)) return null;
+  const url = `https://stooq.pl/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
+  const res = await fetch(url, { next: { revalidate: 60 } });
+  const csv = await res.text();
+  const parsed = parseStooqCsv(csv);
+  if (parsed.length === 0) return null;
+  const quote = parsed[0];
+  if (!Number.isFinite(quote.price)) return null;
+  return {
+    ...quote,
+    ticker,
+  };
+};
+
+const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | null> => {
+  const symbol = normalizeSymbolForAlpha(ticker);
+  if (!/^[A-Z0-9.]+$/.test(symbol)) return null;
+  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(
+    symbol
+  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 60 } });
+  const json = await res.json();
+  const data = json?.["Global Quote"] ?? {};
+  const price = Number(data["05. price"]);
+  if (!Number.isFinite(price)) return null;
+  return {
+    ticker,
+    price,
+    asOf: data["07. latest trading day"] ?? undefined,
+    sourceSymbol: symbol,
+  };
+};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tickersParam = searchParams.get("tickers") ?? "";
@@ -61,31 +123,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ quotes: [] });
   }
 
-  const stooqPairs = tickers
-    .map((ticker) => ({
-      ticker,
-      symbol: normalizeSymbolForStooq(ticker),
-    }))
-    .filter((pair) => /^[a-z0-9.]+$/i.test(pair.symbol));
+  const cachedQuotes = tickers.map((ticker) => getCachedQuote(ticker)).filter(Boolean) as Quote[];
+  const missingTickers = tickers.filter((ticker) => !getCachedQuote(ticker));
+  const alphaKey = process.env.ALPHAVANTAGE_API_KEY;
 
   try {
-    const results = await Promise.all(
-      stooqPairs.map(async (pair) => {
-        const url = `https://stooq.pl/q/l/?s=${pair.symbol}&f=sd2t2ohlcv&h&e=csv`;
-        const res = await fetch(url, { next: { revalidate: 60 } });
-        const csv = await res.text();
-        const parsed = parseStooqCsv(csv);
-        if (parsed.length === 0) return null;
-        const quote = parsed[0];
-        if (!Number.isFinite(quote.price)) return null;
-        return {
-          ...quote,
-          ticker: pair.ticker,
-        } as Quote;
-      })
-    );
+    const results: Quote[] = [];
 
-    return NextResponse.json({ quotes: results.filter(Boolean) });
+    for (const ticker of missingTickers) {
+      const stooqQuote = await fetchStooqQuote(ticker);
+      if (stooqQuote) {
+        setCachedQuote(stooqQuote);
+        results.push(stooqQuote);
+        continue;
+      }
+      if (alphaKey) {
+        const alphaQuote = await fetchAlphaQuote(ticker, alphaKey);
+        if (alphaQuote) {
+          setCachedQuote(alphaQuote);
+          results.push(alphaQuote);
+        }
+      }
+    }
+
+    return NextResponse.json({ quotes: [...cachedQuotes, ...results] });
   } catch (err) {
     return NextResponse.json({ quotes: [] }, { status: 200, statusText: String(err) });
   }
