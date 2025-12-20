@@ -61,7 +61,7 @@ export function TradingViewCompanyProfile({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol, width, height]);
+  }, [symbol, width, height, isTransparent]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }

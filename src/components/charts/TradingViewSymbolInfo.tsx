@@ -58,7 +58,7 @@ export function TradingViewSymbolInfo({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol, width]);
+  }, [symbol, width, isTransparent]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }

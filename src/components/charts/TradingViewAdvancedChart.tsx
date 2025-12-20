@@ -8,9 +8,10 @@ interface TradingViewAdvancedChartProps {
 }
 
 declare global {
+  // eslint-disable-next-line no-unused-vars
   interface Window {
     TradingView?: {
-      widget: (options: Record<string, unknown>) => void;
+      widget: (_config: Record<string, unknown>) => void;
     };
   }
 }
@@ -20,11 +21,14 @@ export function TradingViewAdvancedChart({
   height = "100%",
 }: TradingViewAdvancedChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const widgetIdRef = useRef(`tv_advanced_${Math.random().toString(36).slice(2)}`);
+  const widgetIdRef = useRef<string>("");
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    if (!widgetIdRef.current) {
+      widgetIdRef.current = `tv_advanced_${crypto.randomUUID()}`;
+    }
     container.innerHTML = "";
 
     const widget = document.createElement("div");

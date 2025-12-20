@@ -66,7 +66,7 @@ export function TradingViewTechnicalAnalysis({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol, width, height]);
+  }, [symbol, width, height, interval, isTransparent]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }

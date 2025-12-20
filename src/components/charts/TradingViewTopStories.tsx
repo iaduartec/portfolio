@@ -65,7 +65,7 @@ export function TradingViewTopStories({
     return () => {
       container.innerHTML = "";
     };
-  }, [width, height]);
+  }, [width, height, feedMode, isTransparent, symbol]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }
