@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; while true; do PIDS=\\$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null); if [ -z \\\"$PIDS\\\" ]; then break; fi; echo '🛑 Cerrando proceso en puerto '$PORT': '$PIDS; kill -9 $PIDS; sleep 0.2; done; PORT=3000 next dev\"",
+    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; fuser -k ${PORT}/tcp 2>/dev/null || true; while true; do PIDS=\\$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null); if [ -z \\\"$PIDS\\\" ]; then break; fi; echo '🛑 Cerrando proceso en puerto '$PORT': '$PIDS; kill -9 $PIDS; sleep 0.4; done; if lsof -tiTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then echo '⚠ No se pudo liberar el puerto '$PORT', abortando.'; exit 1; fi; PORT=3000 next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app src --max-warnings=0",
