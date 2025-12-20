@@ -1,0 +1,42 @@
+'use client';
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/", label: "Dashboard" },
+  { href: "/portfolio", label: "Portafolio" },
+  { href: "/upload", label: "Cargar CSV" },
+];
+
+export function Header() {
+  const pathname = usePathname();
+
+  return (
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+        <Link href="/" className="text-lg font-semibold tracking-tight">
+          MyInvestView
+        </Link>
+        <nav className="flex items-center gap-3 text-sm">
+          {navItems.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-muted transition hover:bg-surface-muted/60 hover:text-text",
+                  isActive && "bg-surface-muted text-text shadow-panel"
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
+  );
+}
