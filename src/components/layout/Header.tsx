@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/portfolio", label: "Portafolio" },
+  { href: "/ai-agents", label: "AI Agents" },
   { href: "/upload", label: "Cargar CSV" },
 ];
 
