@@ -15,7 +15,7 @@ export function Card({ title, subtitle, className, children, footer }: CardProps
       {(title || subtitle) && (
         <header className="mb-3 flex items-center justify-between">
           <div>
-            {title && <h3 className="text-sm font-semibold text-text">{title}</h3>}
+            {title && <h2 className="text-sm font-semibold text-text">{title}</h2>}
             {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
           </div>
           {footer}

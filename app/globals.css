@@ -57,8 +57,8 @@ a {
   --tv-widget-font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   --tv-widget-price-text-color: #d1d4dc;
 
-  --tv-widget-market-status-pre-color: #7f8596;
-  --tv-widget-market-status-post-color: #7f8596;
+  --tv-widget-market-status-pre-color: #9aa3b2;
+  --tv-widget-market-status-post-color: #9aa3b2;
   --tv-widget-market-status-open-color: #00c074;
   --tv-widget-market-status-closed-color: #f6465d;
 
@@ -70,7 +70,7 @@ a {
   --tv-widget-negative-area-top-color: rgba(246, 70, 93, 0.2);
   --tv-widget-negative-area-bottom-color: rgba(246, 70, 93, 0.1);
 
-  --tv-widget-scales-font-color: #7f8596;
+  --tv-widget-scales-font-color: #9aa3b2;
   --tv-widget-popup-background-color: #1b1f2a;
   --tv-widget-tooltip-text-color: #d1d4dc;
   --tv-widget-tooltip-background-color: #0f141f;
@@ -83,8 +83,8 @@ a {
   --tv-widget-background-color: #131722;
   --tv-widget-font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
   --tv-widget-price-text-color: #d1d4dc;
-  --tv-widget-market-status-pre-color: #7f8596;
-  --tv-widget-market-status-post-color: #7f8596;
+  --tv-widget-market-status-pre-color: #9aa3b2;
+  --tv-widget-market-status-post-color: #9aa3b2;
   --tv-widget-market-status-open-color: #00c074;
   --tv-widget-market-status-closed-color: #f6465d;
   --tv-widget-positive-color: #00c074;
@@ -93,7 +93,7 @@ a {
   --tv-widget-negative-color: #f6465d;
   --tv-widget-negative-area-top-color: rgba(246, 70, 93, 0.2);
   --tv-widget-negative-area-bottom-color: rgba(246, 70, 93, 0.1);
-  --tv-widget-scales-font-color: #7f8596;
+  --tv-widget-scales-font-color: #9aa3b2;
   --tv-widget-popup-background-color: #1b1f2a;
   --tv-widget-tooltip-text-color: #d1d4dc;
   --tv-widget-tooltip-background-color: #0f141f;
