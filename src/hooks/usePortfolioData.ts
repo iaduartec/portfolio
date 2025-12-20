@@ -3,7 +3,7 @@ import { loadStoredTransactions, TRANSACTIONS_UPDATED_EVENT } from "@/lib/storag
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { Transaction } from "@/types/transactions";
 
-const computeHoldings = (transactions: Transaction[]): Holding[] => {
+const computeHoldings = (transactions: Transaction[], priceMap: Record<string, number>): Holding[] => {
   const positions = new Map<string, { quantity: number; cost: number; lastPrice: number }>();
   const ordered = transactions
     .map((tx, idx) => ({ tx, idx }))
@@ -42,7 +42,8 @@ const computeHoldings = (transactions: Transaction[]): Holding[] => {
   return Array.from(positions.entries())
     .map(([ticker, data]) => {
       const averageBuyPrice = data.quantity > 0 ? data.cost / data.quantity : 0;
-      const currentPrice = data.lastPrice || averageBuyPrice;
+      const overridePrice = priceMap[ticker];
+      const currentPrice = overridePrice ?? (data.lastPrice || averageBuyPrice);
       const marketValue = data.quantity * currentPrice;
       const pnlValue = marketValue - data.cost;
       const pnlPercent = data.cost > 0 ? (pnlValue / data.cost) * 100 : 0;
@@ -121,6 +122,7 @@ const computeRealizedTrades = (transactions: Transaction[]): RealizedTrade[] => 
 
 export function usePortfolioData() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const sync = () => setTransactions(loadStoredTransactions());
@@ -135,10 +137,32 @@ export function usePortfolioData() {
     };
   }, []);
 
-  const holdings = useMemo(() => computeHoldings(transactions), [transactions]);
+  const holdings = useMemo(() => computeHoldings(transactions, priceMap), [transactions, priceMap]);
   const summary = useMemo(() => computeSummary(holdings), [holdings]);
   const realizedTrades = useMemo(() => computeRealizedTrades(transactions), [transactions]);
   const hasTransactions = transactions.length > 0;
+
+  useEffect(() => {
+    const tickers = Array.from(new Set(transactions.map((tx) => tx.ticker))).filter(Boolean);
+    if (tickers.length === 0) return;
+    const controller = new AbortController();
+    fetch(`/api/quotes?tickers=${encodeURIComponent(tickers.join(","))}`, {
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data?.quotes) return;
+        const nextMap: Record<string, number> = {};
+        for (const quote of data.quotes) {
+          if (!quote?.ticker || !Number.isFinite(quote.price)) continue;
+          nextMap[quote.ticker.toUpperCase()] = quote.price;
+        }
+        setPriceMap((prev) => ({ ...prev, ...nextMap }));
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, [transactions]);
 
   return { transactions, holdings, summary, realizedTrades, hasTransactions };
 }
