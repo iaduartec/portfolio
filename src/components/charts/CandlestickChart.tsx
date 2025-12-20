@@ -20,15 +20,18 @@ type CandlePoint = {
 const buildMockSeries = (basePrice: number): CandlePoint[] => {
   const points: CandlePoint[] = [];
   let prevClose = basePrice * 0.92;
+  const startDate = new Date("2025-06-01T00:00:00Z");
   for (let i = 0; i < 30; i += 1) {
     const open = prevClose;
     const delta = (Math.sin(i / 3) + 0.8) * 2.2;
     const close = Math.max(1, open + delta);
     const high = close + 2 + Math.random() * 3;
     const low = Math.max(1, Math.min(open, close) - (2 + Math.random() * 2));
-    const day = 15 + i;
+    const current = new Date(startDate);
+    current.setUTCDate(startDate.getUTCDate() + i);
+    const time = current.toISOString().slice(0, 10);
     points.push({
-      time: `2025-06-${day.toString().padStart(2, "0")}`,
+      time,
       open: Number(open.toFixed(2)),
       high: Number(high.toFixed(2)),
       low: Number(low.toFixed(2)),
