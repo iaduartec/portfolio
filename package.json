@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "bash -lc \"PORT=\\${PORT:-3000}; rm -f .next/dev/lock; for P in $PORT 3001; do PID=\\$(lsof -tiTCP:$P -sTCP:LISTEN 2>/dev/null || true); if [ -n \\\"$PID\\\" ]; then echo '🛑 Cerrando proceso en puerto '$P': '$PID; kill -9 $PID; fi; done; next dev\"",
+    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; while true; do PIDS=\\$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null); if [ -z \\\"$PIDS\\\" ]; then break; fi; echo '🛑 Cerrando proceso en puerto '$PORT': '$PIDS; kill -9 $PIDS; sleep 0.2; done; PORT=3000 next dev --port $PORT\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app src --max-warnings=0",
