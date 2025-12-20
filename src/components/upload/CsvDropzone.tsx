@@ -46,7 +46,7 @@ const normalizeType = (raw: string): TransactionType => {
 };
 
 interface CsvDropzoneProps {
-  onSave?: (transactions: Transaction[]) => void;
+  onSave?: (rows: Transaction[]) => void;
 }
 
 export function CsvDropzone({ onSave }: CsvDropzoneProps) {

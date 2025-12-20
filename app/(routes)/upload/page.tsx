@@ -22,17 +22,14 @@ export default function UploadPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const saved = parseJson<Transaction[]>(window.localStorage.getItem(TRANSACTIONS_STORAGE_KEY), []);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTransactions(saved);
 
     const existingSession = window.sessionStorage.getItem(SESSION_ID_KEY);
     if (existingSession) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessionId(existingSession);
     } else {
       const newSession = new Date().toISOString();
       window.sessionStorage.setItem(SESSION_ID_KEY, newSession);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSessionId(newSession);
     }
   }, []);
