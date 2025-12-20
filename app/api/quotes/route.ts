@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 type Quote = {
   ticker: string;
   price: number;
+  dayChange?: number;
+  dayChangePercent?: number;
   asOf?: string;
   sourceSymbol?: string;
 };
@@ -47,12 +49,18 @@ const parseStooqCsv = (raw: string) => {
   if (lines.length <= 1) return [];
   const rows: Quote[] = [];
   for (let i = 1; i < lines.length; i += 1) {
-    const [symbol, date, time, , , , close] = lines[i].split(",");
+    const [symbol, date, time, open, , , close] = lines[i].split(",");
     const price = Number(close);
     if (!Number.isFinite(price)) continue;
+    const openPrice = Number(open);
+    const dayChange = Number.isFinite(openPrice) ? price - openPrice : undefined;
+    const dayChangePercent =
+      Number.isFinite(openPrice) && openPrice !== 0 ? (dayChange! / openPrice) * 100 : undefined;
     rows.push({
       ticker: symbol.toUpperCase(),
       price,
+      dayChange,
+      dayChangePercent,
       asOf: [date, time].filter(Boolean).join(" "),
       sourceSymbol: symbol,
     });
@@ -103,9 +111,15 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
   const data = json?.["Global Quote"] ?? {};
   const price = Number(data["05. price"]);
   if (!Number.isFinite(price)) return null;
+  const prevClose = Number(data["08. previous close"]);
+  const dayChange = Number.isFinite(prevClose) ? price - prevClose : undefined;
+  const dayChangePercent =
+    Number.isFinite(prevClose) && prevClose !== 0 ? (dayChange! / prevClose) * 100 : undefined;
   return {
     ticker,
     price,
+    dayChange,
+    dayChangePercent,
     asOf: data["07. latest trading day"] ?? undefined,
     sourceSymbol: symbol,
   };

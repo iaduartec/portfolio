@@ -3,9 +3,15 @@ import { loadStoredTransactions, TRANSACTIONS_UPDATED_EVENT } from "@/lib/storag
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { Transaction } from "@/types/transactions";
 
+type PriceSnapshot = {
+  price: number;
+  dayChange?: number;
+  dayChangePercent?: number;
+};
+
 const computeHoldings = (
   transactions: Transaction[],
-  priceMap: Record<string, number>
+  priceMap: Record<string, PriceSnapshot>
 ): Holding[] => {
   const positions = new Map<string, { quantity: number; cost: number; lastPrice: number }>();
   const ordered = transactions
@@ -46,8 +52,8 @@ const computeHoldings = (
     .map(([ticker, data]) => {
       const tickerKey = ticker.toUpperCase();
       const averageBuyPrice = data.quantity > 0 ? data.cost / data.quantity : 0;
-      const overridePrice = priceMap[tickerKey];
-      const currentPrice = overridePrice ?? (data.lastPrice || averageBuyPrice);
+      const override = priceMap[tickerKey];
+      const currentPrice = override?.price ?? (data.lastPrice || averageBuyPrice);
       const marketValue = data.quantity * currentPrice;
       const pnlValue = marketValue - data.cost;
       const pnlPercent = data.cost > 0 ? (pnlValue / data.cost) * 100 : 0;
@@ -57,6 +63,8 @@ const computeHoldings = (
         totalQuantity: data.quantity,
         averageBuyPrice,
         currentPrice,
+        dayChange: override?.dayChange,
+        dayChangePercent: override?.dayChangePercent,
         marketValue,
         pnlValue,
         pnlPercent,
@@ -126,7 +134,7 @@ const computeRealizedTrades = (transactions: Transaction[]): RealizedTrade[] => 
 
 export function usePortfolioData() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [priceMap, setPriceMap] = useState<Record<string, number>>({});
+  const [priceMap, setPriceMap] = useState<Record<string, PriceSnapshot>>({});
 
   useEffect(() => {
     const sync = () => setTransactions(loadStoredTransactions());
@@ -156,10 +164,16 @@ export function usePortfolioData() {
       .then((res) => res.json())
       .then((data) => {
         if (!data?.quotes) return;
-        const nextMap: Record<string, number> = {};
+        const nextMap: Record<string, PriceSnapshot> = {};
         for (const quote of data.quotes) {
           if (!quote?.ticker || !Number.isFinite(quote.price)) continue;
-          nextMap[quote.ticker.toUpperCase()] = quote.price;
+          nextMap[quote.ticker.toUpperCase()] = {
+            price: quote.price,
+            dayChange: Number.isFinite(quote.dayChange) ? quote.dayChange : undefined,
+            dayChangePercent: Number.isFinite(quote.dayChangePercent)
+              ? quote.dayChangePercent
+              : undefined,
+          };
         }
         setPriceMap((prev) => ({ ...prev, ...nextMap }));
       })

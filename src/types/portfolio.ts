@@ -9,6 +9,8 @@ export interface Holding {
   totalQuantity: number;
   averageBuyPrice: number;
   currentPrice: number;
+  dayChange?: number;
+  dayChangePercent?: number;
   marketValue: number;
   pnlValue: number;
   pnlPercent: number;
