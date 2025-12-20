@@ -71,9 +71,34 @@ export async function GET(request: Request) {
   const url = `https://stooq.pl/q/l/?s=${stooqSymbols.join(",")}&f=sd2t2ohlcv&h&e=csv`;
 
   try {
-    const response = await fetch(url, { next: { revalidate: 60 } });
-    const csv = await response.text();
-    const quotes = parseStooqCsv(csv).map((quote) => {
+    // 1) Yahoo Finance (sin clave). Buena para precios “live” de US/EU.
+    const yahooRes = await fetch(
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(
+        tickers.join(",")
+      )}`,
+      { next: { revalidate: 60 } }
+    );
+    const yahooJson = await yahooRes.json();
+    const yahooQuotes: Quote[] =
+      yahooJson?.quoteResponse?.result
+        ?.map((item: any) => {
+          const price = Number(item?.regularMarketPrice ?? item?.postMarketPrice);
+          if (!Number.isFinite(price)) return null;
+          return {
+            ticker: String(item?.symbol ?? "").toUpperCase(),
+            price,
+            asOf: item?.regularMarketTime
+              ? new Date(item.regularMarketTime * 1000).toISOString()
+              : undefined,
+            sourceSymbol: item?.symbol,
+          } as Quote;
+        })
+        .filter(Boolean) ?? [];
+
+    // 2) Stooq como respaldo (algunos EU).
+    const stooqRes = await fetch(url, { next: { revalidate: 60 } });
+    const csv = await stooqRes.text();
+    const stooqQuotes = parseStooqCsv(csv).map((quote) => {
       const match = symbolPairs.find(
         (pair) => pair.symbol.toUpperCase() === quote.ticker.toUpperCase()
       );
@@ -82,8 +107,15 @@ export async function GET(request: Request) {
         ticker: match?.ticker ?? quote.ticker,
       };
     });
-    return NextResponse.json({ quotes });
-  } catch {
-    return NextResponse.json({ quotes: [] }, { status: 200 });
+
+    const merged = [...yahooQuotes];
+    stooqQuotes.forEach((quote) => {
+      const exists = merged.some((q) => q.ticker.toUpperCase() === quote.ticker.toUpperCase());
+      if (!exists) merged.push(quote);
+    });
+
+    return NextResponse.json({ quotes: merged });
+  } catch (err) {
+    return NextResponse.json({ quotes: [] }, { status: 200, statusText: String(err) });
   }
 }
