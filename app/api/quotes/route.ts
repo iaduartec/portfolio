@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     symbol: normalizeSymbol(ticker),
   }));
   const stooqSymbols = symbolPairs.map((pair) => pair.symbol);
-  const url = `https://stooq.com/q/l/?s=${stooqSymbols.join(",")}&f=sd2t2ohlcv&h&e=csv`;
+  const url = `https://stooq.pl/q/l/?s=${stooqSymbols.join(",")}&f=sd2t2ohlcv&h&e=csv`;
 
   try {
     const response = await fetch(url, { next: { revalidate: 60 } });
