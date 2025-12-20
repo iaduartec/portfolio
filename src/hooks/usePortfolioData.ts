@@ -3,7 +3,10 @@ import { loadStoredTransactions, TRANSACTIONS_UPDATED_EVENT } from "@/lib/storag
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { Transaction } from "@/types/transactions";
 
-const computeHoldings = (transactions: Transaction[], priceMap: Record<string, number>): Holding[] => {
+const computeHoldings = (
+  transactions: Transaction[],
+  priceMap: Record<string, number>
+): Holding[] => {
   const positions = new Map<string, { quantity: number; cost: number; lastPrice: number }>();
   const ordered = transactions
     .map((tx, idx) => ({ tx, idx }))
@@ -41,8 +44,9 @@ const computeHoldings = (transactions: Transaction[], priceMap: Record<string, n
 
   return Array.from(positions.entries())
     .map(([ticker, data]) => {
+      const tickerKey = ticker.toUpperCase();
       const averageBuyPrice = data.quantity > 0 ? data.cost / data.quantity : 0;
-      const overridePrice = priceMap[ticker];
+      const overridePrice = priceMap[tickerKey];
       const currentPrice = overridePrice ?? (data.lastPrice || averageBuyPrice);
       const marketValue = data.quantity * currentPrice;
       const pnlValue = marketValue - data.cost;
