@@ -46,6 +46,7 @@ const normalizeType = (raw: string): TransactionType => {
 };
 
 interface CsvDropzoneProps {
+  // eslint-disable-next-line no-unused-vars
   onSave?: (rows: Transaction[]) => void;
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CsvDropzone, SESSION_ID_KEY, TRANSACTIONS_STORAGE_KEY } from "@/components/upload/CsvDropzone";
 import { Shell } from "@/components/layout/Shell";
 import { TransactionsTable } from "@/components/upload/TransactionsTable";
@@ -16,23 +16,18 @@ const parseJson = <T,>(value: string | null, fallback: T): T => {
 };
 
 export default function UploadPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const saved = parseJson<Transaction[]>(window.localStorage.getItem(TRANSACTIONS_STORAGE_KEY), []);
-    setTransactions(saved);
-
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    if (typeof window === "undefined") return [];
+    return parseJson<Transaction[]>(window.localStorage.getItem(TRANSACTIONS_STORAGE_KEY), []);
+  });
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
     const existingSession = window.sessionStorage.getItem(SESSION_ID_KEY);
-    if (existingSession) {
-      setSessionId(existingSession);
-    } else {
-      const newSession = new Date().toISOString();
-      window.sessionStorage.setItem(SESSION_ID_KEY, newSession);
-      setSessionId(newSession);
-    }
-  }, []);
+    if (existingSession) return existingSession;
+    const newSession = new Date().toISOString();
+    window.sessionStorage.setItem(SESSION_ID_KEY, newSession);
+    return newSession;
+  });
 
   const handleSave = (rows: Transaction[]) => {
     setTransactions(rows);
