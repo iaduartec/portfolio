@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; for i in 1 2 3 4 5; do PIDS=\\$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null || true); if [ -n \\\"$PIDS\\\" ]; then echo \\\"Killing $PORT: $PIDS\\\"; kill -9 $PIDS 2>/dev/null || true; sleep 0.5; else break; fi; done; if lsof -tiTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then echo \\\"Port $PORT still busy\\\"; lsof -iTCP:$PORT -sTCP:LISTEN || true; exit 1; fi; exec next dev --port $PORT\"",
+    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; for i in 1 2 3 4 5; do PIDS=\\$(lsof -tiTCP:$PORT -sTCP:LISTEN 2>/dev/null || true); if [ -n \\\"$PIDS\\\" ]; then echo \\\"Killing $PORT: $PIDS\\\"; kill -9 $PIDS 2>/dev/null || true; sleep 0.5; else break; fi; done; if lsof -tiTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then echo \\\"Port $PORT still busy\\\"; lsof -iTCP:$PORT -sTCP:LISTEN || true; exit 1; fi; PORT=$PORT exec next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app src --max-warnings=0",
