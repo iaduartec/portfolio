@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Route } from "next";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/portfolio", label: "Portafolio" },
   { href: "/upload", label: "Cargar CSV" },

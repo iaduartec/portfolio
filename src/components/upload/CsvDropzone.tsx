@@ -4,15 +4,35 @@ import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/formatters";
+import { Transaction } from "@/types/transactions";
 
 type ParsedRow = Record<string, string | number>;
+
+const STORAGE_KEY = "myinvestview:transactions";
 
 export function CsvDropzone() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRow[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+
+  const toTransaction = (row: ParsedRow): Transaction | null => {
+    const date = String(row.date ?? "").trim();
+    const ticker = String(row.ticker ?? "").trim().toUpperCase();
+    const type = String(row.type ?? "").trim().toUpperCase();
+    const quantity = Number(row.quantity);
+    const price = Number(row.price);
+    const fee = row.fee !== undefined ? Number(row.fee) : undefined;
+
+    if (!date || !ticker || (type !== "BUY" && type !== "SELL") || Number.isNaN(quantity) || Number.isNaN(price)) {
+      return null;
+    }
+
+    return { date, ticker, type: type as Transaction["type"], quantity, price, fee };
+  };
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -23,15 +43,23 @@ export function CsvDropzone() {
       return;
     }
     setError(null);
+    setSuccess(null);
     setFileName(file.name);
     setIsParsing(true);
     Papa.parse<ParsedRow>(file, {
       header: true,
       dynamicTyping: true,
       skipEmptyLines: true,
-      preview: 5,
       complete: (results: ParseResult<ParsedRow>) => {
-        setPreview(Array.isArray(results.data) ? results.data : []);
+        const rows = Array.isArray(results.data) ? results.data : [];
+        const parsed = rows
+          .map(toTransaction)
+          .filter((row): row is Transaction => Boolean(row));
+        setPreview(rows.slice(0, 5));
+        setTransactions(parsed);
+        if (parsed.length === 0) {
+          setError("No se pudo leer ninguna transacción válida. Revisa las columnas requeridas.");
+        }
         setIsParsing(false);
       },
       error: (err) => {
@@ -48,6 +76,16 @@ export function CsvDropzone() {
   };
 
   const onBrowse = () => inputRef.current?.click();
+
+  const handleSave = () => {
+    if (!transactions.length) return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      setSuccess(`Guardadas ${transactions.length} transacciones en local.`);
+    } catch (err) {
+      setError("No se pudieron guardar en localStorage.");
+    }
+  };
 
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-panel">
@@ -85,6 +123,7 @@ export function CsvDropzone() {
           </p>
         )}
         {error && <p className="text-xs text-danger">{error}</p>}
+        {success && <p className="text-xs text-success">{success}</p>}
       </div>
 
       {preview.length > 0 && (
@@ -116,6 +155,21 @@ export function CsvDropzone() {
           </div>
         </div>
       )}
+
+      <div className="mt-4 flex items-center justify-between text-sm">
+        <p className="text-muted">
+          Transacciones detectadas:{" "}
+          <span className="font-semibold text-text">{transactions.length}</span>
+        </p>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={!transactions.length}
+          className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Guardar en local
+        </button>
+      </div>
     </div>
   );
 }
