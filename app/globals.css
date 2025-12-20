@@ -36,3 +36,12 @@ a {
 .glass {
   background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
 }
+
+.tradingview-widget-container,
+.tradingview-widget-container__widget {
+  background-color: #131722;
+}
+
+.tradingview-widget-container iframe {
+  background-color: #131722;
+}
