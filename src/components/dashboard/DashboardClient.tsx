@@ -8,6 +8,9 @@ import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/Allocati
 import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
 import { TradingViewWidget } from "@/components/charts/TradingViewWidget";
 import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
+import { TradingViewFundamentals } from "@/components/charts/TradingViewFundamentals";
+import { TradingViewTechnicalAnalysis } from "@/components/charts/TradingViewTechnicalAnalysis";
+import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories";
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { formatPercent } from "@/lib/formatters";
@@ -128,7 +131,14 @@ export function DashboardClient() {
           {selectedHolding ? (
             <div className="flex flex-col gap-4">
               <TradingViewWidget symbol={selectedHolding.ticker} height={420} />
-              <TradingViewSymbolInfo symbol={selectedHolding.ticker} width="100%" />
+              <div className="grid gap-4 lg:grid-cols-2">
+                <TradingViewSymbolInfo symbol={selectedHolding.ticker} width="100%" />
+                <TradingViewTechnicalAnalysis symbol={selectedHolding.ticker} width="100%" height={420} />
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <TradingViewFundamentals symbol={selectedHolding.ticker} width="100%" height={550} />
+                <TradingViewTopStories width="100%" height={550} />
+              </div>
             </div>
           ) : (
             <p className="text-sm text-muted">Selecciona un ticker para ver su gráfico.</p>
