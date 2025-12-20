@@ -20,7 +20,7 @@ export function TradingViewMarketSummary({ direction = "horizontal" }: TradingVi
 
   return (
     <div className="w-full">
-      <tv-market-summary direction={direction} />
+      <tv-market-summary direction={direction} theme="dark" />
     </div>
   );
 }
