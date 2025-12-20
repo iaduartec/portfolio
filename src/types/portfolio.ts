@@ -19,3 +19,13 @@ export interface PortfolioSummary {
   dailyPnl: number;
   totalPnl: number;
 }
+
+export interface RealizedTrade {
+  id: string;
+  ticker: string;
+  date: string;
+  quantity: number;
+  entryPrice: number;
+  exitPrice: number;
+  pnlValue: number;
+}

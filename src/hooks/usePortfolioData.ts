@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadStoredTransactions, TRANSACTIONS_UPDATED_EVENT } from "@/lib/storage";
-import { Holding, PortfolioSummary } from "@/types/portfolio";
+import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { Transaction } from "@/types/transactions";
 
 const computeHoldings = (transactions: Transaction[]): Holding[] => {
@@ -19,7 +19,6 @@ const computeHoldings = (transactions: Transaction[]): Holding[] => {
       const qtySold = Math.min(entry.quantity, tx.quantity);
       entry.quantity = Math.max(0, entry.quantity - tx.quantity);
       entry.cost = Math.max(0, entry.cost - avgCost * qtySold);
-      entry.cost += fee;
       entry.lastPrice = tx.price;
     } else if (tx.type === "FEE") {
       entry.cost += fee;
@@ -48,7 +47,7 @@ const computeHoldings = (transactions: Transaction[]): Holding[] => {
         pnlPercent,
       };
     })
-    .filter((holding) => holding.totalQuantity > 0 || holding.marketValue > 0 || holding.averageBuyPrice > 0);
+    .filter((holding) => holding.totalQuantity > 0);
 };
 
 const computeSummary = (holdings: Holding[]): PortfolioSummary => {
@@ -60,6 +59,54 @@ const computeSummary = (holdings: Holding[]): PortfolioSummary => {
     totalPnl,
     dailyPnl: 0,
   };
+};
+
+const computeRealizedTrades = (transactions: Transaction[]): RealizedTrade[] => {
+  const positions = new Map<string, { quantity: number; averageCost: number }>();
+  const ordered = transactions
+    .map((tx, idx) => ({ tx, idx }))
+    .sort((a, b) => {
+      const timeA = Date.parse(a.tx.date);
+      const timeB = Date.parse(b.tx.date);
+      if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return a.idx - b.idx;
+    });
+  const realized: RealizedTrade[] = [];
+
+  ordered.forEach(({ tx, idx }) => {
+    const entry = positions.get(tx.ticker) ?? { quantity: 0, averageCost: 0 };
+    const fee = tx.fee ?? 0;
+
+    if (tx.type === "BUY") {
+      const totalCost = entry.averageCost * entry.quantity + tx.quantity * tx.price + fee;
+      entry.quantity += tx.quantity;
+      entry.averageCost = entry.quantity > 0 ? totalCost / entry.quantity : 0;
+    } else if (tx.type === "SELL") {
+      const qtySold = Math.min(entry.quantity, tx.quantity);
+      if (qtySold > 0) {
+        const pnlValue = (tx.price - entry.averageCost) * qtySold - fee;
+        realized.push({
+          id: `${tx.ticker}-${tx.date}-${idx}`,
+          ticker: tx.ticker,
+          date: tx.date,
+          quantity: qtySold,
+          entryPrice: entry.averageCost,
+          exitPrice: tx.price,
+          pnlValue,
+        });
+        entry.quantity = Math.max(0, entry.quantity - qtySold);
+        if (entry.quantity === 0) {
+          entry.averageCost = 0;
+        }
+      }
+    }
+
+    positions.set(tx.ticker, entry);
+  });
+
+  return realized;
 };
 
 export function usePortfolioData() {
@@ -80,7 +127,8 @@ export function usePortfolioData() {
 
   const holdings = useMemo(() => computeHoldings(transactions), [transactions]);
   const summary = useMemo(() => computeSummary(holdings), [holdings]);
+  const realizedTrades = useMemo(() => computeRealizedTrades(transactions), [transactions]);
   const hasTransactions = transactions.length > 0;
 
-  return { transactions, holdings, summary, hasTransactions };
+  return { transactions, holdings, summary, realizedTrades, hasTransactions };
 }

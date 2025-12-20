@@ -4,14 +4,11 @@ import { useState } from "react";
 import { CsvDropzone } from "@/components/upload/CsvDropzone";
 import { Shell } from "@/components/layout/Shell";
 import { TransactionsTable } from "@/components/upload/TransactionsTable";
-import { loadStoredTransactions, SESSION_ID_KEY } from "@/lib/storage";
-import { Transaction } from "@/types/transactions";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { SESSION_ID_KEY } from "@/lib/storage";
 
 export default function UploadPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    if (typeof window === "undefined") return [];
-    return loadStoredTransactions();
-  });
+  const { transactions } = usePortfolioData();
   const [sessionId, setSessionId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     const existingSession = window.sessionStorage.getItem(SESSION_ID_KEY);
@@ -21,8 +18,7 @@ export default function UploadPage() {
     return newSession;
   });
 
-  const handleSave = (rows: Transaction[]) => {
-    setTransactions(rows);
+  const handleSave = () => {
     const sid = window.sessionStorage.getItem(SESSION_ID_KEY);
     if (sid) setSessionId(sid);
   };
