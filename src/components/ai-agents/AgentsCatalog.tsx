@@ -1,3 +1,6 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+"use client";
+
 import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { agents } from "@/data/aiAgents";
