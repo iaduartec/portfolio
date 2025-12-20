@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; fuser -k ${PORT}/tcp 2>/dev/null || true; for _ in 1 2 3 4 5; do PIDS=\\$(ss -ltnp | awk '/:3000/ {match($0,/pid=([0-9]+)/,m); if (m[1]) print m[1]}' | sort -u | tr '\\n' ' '); if [ -n \\\"$PIDS\\\" ]; then echo \\\"🛑 Cerrando proceso en puerto $PORT: $PIDS\\\"; kill -9 $PIDS; sleep 0.4; else break; fi; done; if ss -ltnp | grep -q ':3000'; then echo \\\"⚠ No se pudo liberar el puerto $PORT, abortando.\\\"; ss -ltnp | grep ':3000' || true; exit 1; fi; next dev --port 3000\"",
+    "dev": "bash -lc \"PORT=3000; rm -f .next/dev/lock; fuser -k 3000/tcp 2>/dev/null || true; for _ in 1 2 3 4 5; do PIDS=\\$(ss -ltnp | awk '/:3000/ {split($0,a,\"pid=\"); if (a[2]) {split(a[2],b,\",\"); print b[1]}}' | sort -u | tr '\\n' ' '); if [ -n \\\"$PIDS\\\" ]; then printf '🛑 Cerrando proceso en puerto %s: %s\\n' \\\"$PORT\\\" \\\"$PIDS\\\"; kill -9 $PIDS; sleep 0.4; else break; fi; done; if ss -ltnp | grep -q ':3000'; then printf '⚠ No se pudo liberar el puerto %s, abortando.\\n' \\\"$PORT\\\"; ss -ltnp | grep ':3000' || true; exit 1; fi; next dev --port 3000\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint app src --max-warnings=0",
