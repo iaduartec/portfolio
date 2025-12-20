@@ -53,7 +53,7 @@ export function TradingViewFundamentals({
       width,
       height,
       symbol,
-      locale: "en",
+      locale: "es",
     });
 
     container.appendChild(widget);

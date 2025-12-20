@@ -50,7 +50,7 @@ export function TradingViewWidget({ symbol, height = 420 }: TradingViewWidgetPro
       hide_volume: false,
       hotlist: false,
       interval: "D",
-      locale: "en",
+      locale: "es",
       save_image: true,
       style: "1",
       symbol,

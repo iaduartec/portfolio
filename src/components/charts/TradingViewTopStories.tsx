@@ -55,7 +55,7 @@ export function TradingViewTopStories({
       displayMode: "regular",
       width,
       height,
-      locale: "en",
+      locale: "es",
     });
 
     container.appendChild(widget);

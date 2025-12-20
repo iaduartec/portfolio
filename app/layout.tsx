@@ -14,10 +14,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="es">
       <body className="bg-background text-text antialiased">
         <div className="min-h-screen bg-background text-text">
-          <Header />
           <div className="border-b border-border/60 bg-surface">
             <TradingViewTickerTape />
           </div>
+          <Header />
           <main>
             {children}
           </main>

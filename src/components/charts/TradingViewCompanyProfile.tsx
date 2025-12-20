@@ -51,7 +51,7 @@ export function TradingViewCompanyProfile({
       height,
       colorTheme: "dark",
       isTransparent,
-      locale: "en",
+      locale: "es",
     });
 
     container.appendChild(widget);

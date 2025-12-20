@@ -46,7 +46,7 @@ export function TradingViewSymbolInfo({
     script.innerHTML = JSON.stringify({
       symbol,
       width,
-      locale: "en",
+      locale: "es",
       colorTheme: "dark",
       isTransparent,
     });

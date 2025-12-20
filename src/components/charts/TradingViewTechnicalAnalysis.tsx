@@ -55,7 +55,7 @@ export function TradingViewTechnicalAnalysis({
       symbol,
       showIntervalTabs: true,
       displayMode: "single",
-      locale: "en",
+      locale: "es",
       colorTheme: "dark",
     });
 

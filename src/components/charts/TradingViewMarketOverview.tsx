@@ -44,7 +44,7 @@ export function TradingViewMarketOverview({
     script.innerHTML = JSON.stringify({
       colorTheme: "dark",
       dateRange: "12M",
-      locale: "en",
+      locale: "es",
       largeChartUrl: "",
       isTransparent: false,
       showFloatingTooltip: false,

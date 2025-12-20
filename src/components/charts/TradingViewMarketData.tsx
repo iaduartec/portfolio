@@ -40,7 +40,7 @@ export function TradingViewMarketData({ width = 550, height = 550 }: TradingView
     script.async = true;
     script.innerHTML = JSON.stringify({
       colorTheme: "dark",
-      locale: "en",
+      locale: "es",
       largeChartUrl: "",
       isTransparent: false,
       showSymbolLogo: true,
