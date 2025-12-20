@@ -130,7 +130,7 @@ export function DashboardClient() {
       <section>
         <Card title="TradingView" subtitle="Panel financiero completo estilo TradingView">
           {selectedHolding ? (
-            <div className="mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">
+            <div className="tv-dark-scope mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">
               <section className="md:col-span-2">
                 <TradingViewSymbolInfo symbol={selectedHolding.ticker} />
               </section>

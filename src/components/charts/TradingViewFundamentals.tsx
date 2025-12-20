@@ -13,7 +13,7 @@ export function TradingViewFundamentals({
   symbol,
   width = "100%",
   height = 775,
-  isTransparent = true,
+  isTransparent = false,
 }: TradingViewFundamentalsProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 

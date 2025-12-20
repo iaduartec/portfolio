@@ -13,7 +13,7 @@ export function TradingViewCompanyProfile({
   symbol,
   width = "100%",
   height = "100%",
-  isTransparent = true,
+  isTransparent = false,
 }: TradingViewCompanyProfileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 

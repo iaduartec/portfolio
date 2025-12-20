@@ -11,7 +11,7 @@ interface TradingViewSymbolInfoProps {
 export function TradingViewSymbolInfo({
   symbol,
   width = "100%",
-  isTransparent = true,
+  isTransparent = false,
 }: TradingViewSymbolInfoProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 

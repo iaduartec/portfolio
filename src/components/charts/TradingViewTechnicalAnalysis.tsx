@@ -15,7 +15,7 @@ export function TradingViewTechnicalAnalysis({
   width = "100%",
   height = "100%",
   interval = "15m",
-  isTransparent = true,
+  isTransparent = false,
 }: TradingViewTechnicalAnalysisProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 

@@ -15,7 +15,7 @@ export function TradingViewTopStories({
   width = "100%",
   height = 600,
   feedMode = "symbol",
-  isTransparent = true,
+  isTransparent = false,
 }: TradingViewTopStoriesProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
