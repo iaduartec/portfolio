@@ -70,7 +70,11 @@ export function AIChat() {
                         const textParts = Array.isArray(m.parts)
                             ? m.parts.filter((part: any) => part.type === "text")
                             : [];
-                        const messageText = textParts.map((part: any) => part.text).join("\n");
+                        const partsText = textParts.map((part: any) => part.text).join("\n");
+                        const messageText =
+                            partsText ||
+                            (typeof m.content === "string" ? m.content : "") ||
+                            (typeof m.text === "string" ? m.text : "");
                         const toolParts = Array.isArray(m.parts)
                             ? m.parts.filter((part: any) => typeof part.type === "string" && part.type.startsWith("tool-"))
                             : [];
