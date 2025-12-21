@@ -3,7 +3,7 @@ services:
     name: moon-dev-agents
     env: docker
     rootDir: moon/dev
-    dockerfilePath: moon/dev/Dockerfile
+    dockerfilePath: Dockerfile
     healthCheckPath: /health
     envVars:
       - key: OPENAI_API_KEY
