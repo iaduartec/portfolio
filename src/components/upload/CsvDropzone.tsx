@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
 import { Transaction, TransactionType } from "@/types/transactions";
+import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 type ParsedRow = Record<string, string | number>;
 
@@ -49,6 +50,7 @@ interface CsvDropzoneProps {
 }
 
 export function CsvDropzone({ onSave }: CsvDropzoneProps) {
+  const { currency } = useCurrency();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRow[]>([]);
@@ -193,7 +195,9 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
                   <tr key={idx} className="hover:bg-surface-muted/40">
                     {Object.entries(row).map(([key, value]) => (
                       <td key={key} className="px-3 py-2">
-                        {typeof value === "number" && key !== "quantity" ? formatCurrency(value) : String(value ?? "")}
+                        {typeof value === "number" && key !== "quantity"
+                          ? formatCurrency(value, currency)
+                          : String(value ?? "")}
                       </td>
                     ))}
                   </tr>

@@ -5,7 +5,8 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { Holding } from "@/types/portfolio";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, type CurrencyCode } from "@/lib/formatters";
+import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 type RecommendationMap = Record<string, string>;
 
@@ -17,12 +18,12 @@ const formatNumber = (value: number | undefined, digits = 2) =>
 const formatOptional = (value: number | undefined, digits = 2) =>
   Number.isFinite(value) ? value!.toFixed(digits) : "n/d";
 
-const buildTickerPrompt = (holding: Holding) => {
-  const avg = formatCurrency(holding.averageBuyPrice);
-  const cur = formatCurrency(holding.currentPrice);
+const buildTickerPrompt = (holding: Holding, currency: CurrencyCode) => {
+  const avg = formatCurrency(holding.averageBuyPrice, currency);
+  const cur = formatCurrency(holding.currentPrice, currency);
   const qty = formatNumber(holding.totalQuantity, 4);
-  const mv = formatCurrency(holding.marketValue);
-  const pnlValue = formatCurrency(holding.pnlValue);
+  const mv = formatCurrency(holding.marketValue, currency);
+  const pnlValue = formatCurrency(holding.pnlValue, currency);
   const pnlPercent = formatNumber(holding.pnlPercent);
   const dayChange = formatOptional(holding.dayChangePercent);
 
@@ -147,6 +148,7 @@ const getRecommendationTone = (text?: string) => {
 
 export function AgentsCatalog() {
   const { holdings } = usePortfolioData();
+  const { currency } = useCurrency();
   const [selected, setSelected] = useState<string | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationMap>({});
   const [loadingTicker, setLoadingTicker] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export function AgentsCatalog() {
   );
 
   const requestRecommendation = async (holding: Holding) => {
-    const prompt = buildTickerPrompt(holding);
+    const prompt = buildTickerPrompt(holding, currency);
     setLoadingTicker(holding.ticker);
     try {
       const res = await fetch("/api/ai-agents", {
@@ -234,7 +236,7 @@ export function AgentsCatalog() {
                   <p className="text-[11px] text-muted">{pnlText}</p>
                   <p className="text-[11px] text-muted">
                     {formatNumber(holding.totalQuantity, 4)} uds · media{" "}
-                    {formatCurrency(holding.averageBuyPrice)}
+                    {formatCurrency(holding.averageBuyPrice, currency)}
                   </p>
                 </div>
               </button>
@@ -260,13 +262,13 @@ export function AgentsCatalog() {
                   <p className="text-xs uppercase tracking-[0.08em] text-muted">Posicion</p>
                   <p className="text-sm text-text/90">
                     {formatNumber(selectedHolding.totalQuantity, 4)} uds · media{" "}
-                    {formatCurrency(selectedHolding.averageBuyPrice)}
+                    {formatCurrency(selectedHolding.averageBuyPrice, currency)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.08em] text-muted">P&L</p>
                   <p className="text-sm text-text/90">
-                    {formatCurrency(selectedHolding.pnlValue)} ({formatNumber(
+                    {formatCurrency(selectedHolding.pnlValue, currency)} ({formatNumber(
                       selectedHolding.pnlPercent
                     )}%)
                   </p>
@@ -378,11 +380,11 @@ export function AgentsCatalog() {
                           {formatNumber(holding.averageBuyPrice)}
                         </p>
                         <p className="text-xs text-muted">
-                          Actual {formatCurrency(holding.currentPrice)} · P&L{" "}
+                          Actual {formatCurrency(holding.currentPrice, currency)} · P&L{" "}
                           {formatNumber(holding.pnlPercent)}%
                         </p>
                         <p className="text-xs text-muted">
-                          Valor {formatCurrency(holding.marketValue)}
+                          Valor {formatCurrency(holding.marketValue, currency)}
                         </p>
                       </div>
                       <div className="space-y-2">

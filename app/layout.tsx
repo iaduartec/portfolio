@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
 import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape";
+import { CurrencyProvider } from "@/components/currency/CurrencyProvider";
 
 export const metadata: Metadata = {
   title: "MyInvestView | Análisis de Portafolio con IA y TradingView",
@@ -28,13 +29,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
       <body className="min-h-screen bg-background text-text antialiased">
-        <div className="border-b border-border/60 bg-surface">
-          <TradingViewTickerTape />
-        </div>
-        <Header />
-        <main id="main-content">
-          {children}
-        </main>
+        <CurrencyProvider>
+          <div className="border-b border-border/60 bg-surface">
+            <TradingViewTickerTape />
+          </div>
+          <Header />
+          <main id="main-content">
+            {children}
+          </main>
+        </CurrencyProvider>
       </body>
     </html>
   );

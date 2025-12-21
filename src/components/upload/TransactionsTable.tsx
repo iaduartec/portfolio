@@ -1,11 +1,15 @@
+"use client";
+
 import { formatCurrency } from "@/lib/formatters";
 import { Transaction } from "@/types/transactions";
+import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 interface TransactionsTableProps {
   transactions: Transaction[];
 }
 
 export function TransactionsTable({ transactions }: TransactionsTableProps) {
+  const { currency } = useCurrency();
   if (!transactions.length) {
     return (
       <p className="text-sm text-muted">
@@ -37,9 +41,9 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                   {tx.type}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">{tx.quantity}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right">{formatCurrency(tx.price)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right">{formatCurrency(tx.price, currency)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
-                  {tx.fee !== undefined ? formatCurrency(tx.fee) : "—"}
+                  {tx.fee !== undefined ? formatCurrency(tx.fee, currency) : "—"}
                 </td>
               </tr>
             ))}

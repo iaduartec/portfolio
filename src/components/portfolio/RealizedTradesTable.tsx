@@ -1,12 +1,16 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { RealizedTrade } from "@/types/portfolio";
+import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 interface RealizedTradesTableProps {
   trades: RealizedTrade[];
 }
 
 export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
+  const { currency } = useCurrency();
   if (!trades.length) {
     return (
       <p className="text-sm text-muted">
@@ -38,14 +42,14 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
                   <td className="whitespace-nowrap px-4 py-3 font-semibold">{trade.ticker}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">{trade.quantity}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
-                    {formatCurrency(trade.entryPrice)}
+                    {formatCurrency(trade.entryPrice, currency)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
-                    {formatCurrency(trade.exitPrice)}
+                    {formatCurrency(trade.exitPrice, currency)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
                     <Badge tone={isPositive ? "success" : "danger"}>
-                      {formatCurrency(trade.pnlValue)}
+                      {formatCurrency(trade.pnlValue, currency)}
                     </Badge>
                   </td>
                 </tr>
