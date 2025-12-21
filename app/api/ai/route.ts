@@ -1,5 +1,6 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText, tool, jsonSchema } from 'ai';
+import { streamText, tool } from 'ai';
+import { z } from 'zod';
 
 export const maxDuration = 30;
 
@@ -10,10 +11,26 @@ export async function POST(req: Request) {
     const result = streamText({
       model: openai('gpt-4o'),
       messages,
-      // tools: { ... } removed for debugging
+      tools: {
+        showStock: tool({
+          description: 'Show stock price and information for a given symbol',
+          parameters: z.object({
+              symbol: z.string(),
+              name: z.string().optional(),
+              price: z.number(),
+              change: z.number(),
+              changePercent: z.number(),
+          }),
+          execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
+              return { symbol, price, change, changePercent, name };
+          }
+        })
+      }
     });
   
     // Use toUIMessageStreamResponse for AI SDK 5.0
+    // @ts-expect-error type definition mismatch
+    return result.toDataStreamResponse ? result.toDataStreamResponse() : (result as any).toUIMessageStreamResponse();
     // @ts-expect-error type definition mismatch
     return result.toDataStreamResponse ? result.toDataStreamResponse() : (result as any).toUIMessageStreamResponse();
 
