@@ -161,7 +161,8 @@ export function usePortfolioData() {
       return;
     }
     const controller = new AbortController();
-    setIsLoadingQuotes(true);
+    const timeoutId = setTimeout(() => setIsLoadingQuotes(true), 0);
+
     fetch(`/api/quotes?tickers=${encodeURIComponent(tickers.join(","))}`, {
       signal: controller.signal,
     })
@@ -186,7 +187,10 @@ export function usePortfolioData() {
         setIsLoadingQuotes(false);
       });
 
-    return () => controller.abort();
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [transactions]);
 
   return { transactions, holdings, summary, realizedTrades, hasTransactions, isLoading: isLoadingQuotes };
