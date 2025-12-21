@@ -41,6 +41,109 @@ const defaultProvider = (): Provider => {
   return "anthropic";
 };
 
+type ActionTone = "urgent" | "caution" | "positive";
+
+const classifyActionTone = (text: string): ActionTone => {
+  const value = text.toLowerCase();
+  if (
+    value.includes("vender") ||
+    value.includes("vende") ||
+    value.includes("salir") ||
+    value.includes("cerrar") ||
+    value.includes("stop") ||
+    value.includes("reducir") ||
+    value.includes("reduce")
+  ) {
+    return "urgent";
+  }
+  if (
+    value.includes("comprar") ||
+    value.includes("acumular") ||
+    value.includes("aumentar") ||
+    value.includes("entrada") ||
+    value.includes("aprovechar")
+  ) {
+    return "positive";
+  }
+  return "caution";
+};
+
+const toneStyles: Record<ActionTone, string> = {
+  urgent: "border-danger/40 bg-danger/15 text-danger",
+  caution: "border-yellow-500/40 bg-yellow-500/15 text-yellow-300",
+  positive: "border-emerald-500/40 bg-emerald-500/15 text-emerald-300",
+};
+
+const extractActions = (text?: string) => {
+  if (!text) return [];
+  const rawLines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const candidates = rawLines.filter((line) =>
+    /^(\*+|-|\d+\.)\s*/.test(line.toLowerCase())
+  );
+  const fallback = text
+    .split(".")
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  const source = candidates.length > 0 ? candidates : fallback;
+  const actions = source
+    .map((line) => line.replace(/^(\*+|-|\d+\.)\s*/, ""))
+    .filter((line) => line.length > 0)
+    .slice(0, 3)
+    .map((line) => ({ text: line, tone: classifyActionTone(line) }));
+
+  return actions;
+};
+
+const getRecommendationTone = (text?: string) => {
+  if (!text) {
+    return {
+      label: "Pendiente",
+      container: "border-border/70 bg-surface-muted/30",
+      badge: "bg-surface-muted text-muted border-border/60",
+    };
+  }
+  const value = text.toLowerCase();
+  const urgent =
+    value.includes("vender") ||
+    value.includes("reduce") ||
+    value.includes("reducir") ||
+    value.includes("salir") ||
+    value.includes("cerrar") ||
+    value.includes("stop") ||
+    value.includes("urgente") ||
+    value.includes("riesgo alto");
+  if (urgent) {
+    return {
+      label: "Urgente",
+      container: "border-danger/40 bg-danger/10",
+      badge: "bg-danger/15 text-danger border-danger/40",
+    };
+  }
+  const opportunity =
+    value.includes("comprar") ||
+    value.includes("aumentar") ||
+    value.includes("acumular") ||
+    value.includes("entrada") ||
+    value.includes("aprovechar");
+  if (opportunity) {
+    return {
+      label: "Oportunidad",
+      container: "border-emerald-500/35 bg-emerald-500/10",
+      badge: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
+    };
+  }
+  return {
+    label: "Neutral",
+    container: "border-border/70 bg-surface-muted/30",
+    badge: "bg-surface-muted text-muted border-border/60",
+  };
+};
+
 export function AgentsCatalog() {
   const { holdings } = usePortfolioData();
   const [selected, setSelected] = useState<string | null>(null);
@@ -108,8 +211,8 @@ export function AgentsCatalog() {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-4">
+      <div className="flex w-full flex-nowrap gap-2 overflow-x-auto pb-1">
         {holdings.length === 0 ? (
           <Card title="Sin posiciones" subtitle="Agrega transacciones para ver agentes por ticker." />
         ) : (
@@ -121,14 +224,14 @@ export function AgentsCatalog() {
                 key={holding.ticker}
                 onClick={() => setSelected(holding.ticker)}
                 className={cn(
-                  "min-w-[220px] rounded-lg border border-border bg-surface px-4 py-3 text-left transition hover:border-accent/50 hover:bg-surface-muted/60",
+                  "min-w-[160px] rounded-md border border-border bg-surface px-3 py-2 text-left text-xs transition hover:border-accent/50 hover:bg-surface-muted/60",
                   isActive && "border-accent/70 bg-surface-muted/70 shadow-panel"
                 )}
               >
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <p className="text-sm font-semibold text-text">{holding.ticker}</p>
-                  <p className="text-xs text-muted">{pnlText}</p>
-                  <p className="text-xs text-muted">
+                  <p className="text-xs font-semibold text-text">{holding.ticker}</p>
+                  <p className="text-[11px] text-muted">{pnlText}</p>
+                  <p className="text-[11px] text-muted">
                     {formatNumber(holding.totalQuantity, 4)} uds · avg{" "}
                     {formatNumber(holding.averageBuyPrice)}
                   </p>
@@ -139,7 +242,7 @@ export function AgentsCatalog() {
         )}
       </div>
 
-      <div className="lg:col-span-2 space-y-4">
+      <div className="space-y-4">
         <Card
           title={selectedHolding ? `Agente para ${selectedHolding.ticker}` : "Agente por ticker"}
           subtitle={
@@ -236,33 +339,80 @@ export function AgentsCatalog() {
           )}
         </Card>
 
-        <Card title="Lista de recomendaciones" subtitle="Una recomendacion por ticker">
+        <Card
+          title="Lista de recomendaciones"
+          subtitle="Una recomendacion por ticker"
+          className="space-y-4"
+        >
           {holdings.length === 0 ? (
             <p className="text-sm text-muted">Carga tu cartera para ver recomendaciones.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {holdings.map((holding) => {
                 const recommendation = recommendations[holding.ticker];
+                const tone = getRecommendationTone(recommendation);
                 return (
                   <div
                     key={holding.ticker}
-                    className="rounded-lg border border-border bg-surface-muted/40 p-3"
+                    className={cn(
+                      "rounded-xl border p-4 transition",
+                      tone.container,
+                      "hover:shadow-panel"
+                    )}
                   >
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-text">{holding.ticker}</p>
-                      <p className="text-xs text-muted">
-                        {formatNumber(holding.marketValue)} USD
-                      </p>
-                    </div>
-                    <p className="mt-1 text-xs text-muted">
-                      Avg {formatNumber(holding.averageBuyPrice)} · Actual {formatNumber(
-                        holding.currentPrice
-                      )} · P&L {formatNumber(holding.pnlPercent)}%
-                    </p>
-                    <div className="mt-2 text-sm text-text whitespace-pre-wrap">
-                      {loadingAll && loadingTicker === holding.ticker
-                        ? "Generando..."
-                        : recommendation || "Sin recomendacion aun."}
+                    <div className="grid gap-3 md:grid-cols-[220px_1fr]">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-text">{holding.ticker}</p>
+                          <span
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em]",
+                              tone.badge
+                            )}
+                          >
+                            {tone.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted">
+                          {formatNumber(holding.totalQuantity, 4)} uds · avg{" "}
+                          {formatNumber(holding.averageBuyPrice)}
+                        </p>
+                        <p className="text-xs text-muted">
+                          Actual {formatNumber(holding.currentPrice)} · P&L{" "}
+                          {formatNumber(holding.pnlPercent)}%
+                        </p>
+                        <p className="text-xs text-muted">
+                          Valor {formatNumber(holding.marketValue)} USD
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        {loadingAll && loadingTicker === holding.ticker ? (
+                          <p className="text-sm text-muted">Generando...</p>
+                        ) : (
+                          <>
+                            <p className="text-xs uppercase tracking-[0.08em] text-muted">
+                              Acciones sugeridas
+                            </p>
+                            {extractActions(recommendation).length === 0 ? (
+                              <p className="text-sm text-muted">Sin recomendacion aun.</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-2 text-sm">
+                                {extractActions(recommendation).map((action) => (
+                                  <span
+                                    key={action.text}
+                                    className={cn(
+                                      "rounded-full border px-3 py-1 text-xs font-semibold",
+                                      toneStyles[action.tone]
+                                    )}
+                                  >
+                                    {action.text}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
