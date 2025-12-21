@@ -7,9 +7,9 @@ import type { Route } from "next";
 import { cn } from "@/lib/utils";
 
 const navItems: { href: Route; label: string }[] = [
-  { href: "/", label: "Dashboard" },
+  { href: "/", label: "Panel" },
   { href: "/portfolio", label: "Portafolio" },
-  { href: "/ai-agents", label: "AI Agents" },
+  { href: "/ai-agents", label: "Agentes de IA" },
   { href: "/upload", label: "Cargar CSV" },
 ];
 

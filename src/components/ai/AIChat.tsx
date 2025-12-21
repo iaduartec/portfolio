@@ -54,14 +54,14 @@ export function AIChat() {
                 <div className="flex flex-col gap-4">
                     {messages.length === 0 && !error && (
                         <div className="text-center text-muted-foreground text-sm py-10">
-                            <p>Ask me about your portfolio, specific stocks, or market scenarios.</p>
-                            <p className="mt-2 text-xs opacity-70">Example: &quot;How is AAPL doing?&quot;</p>
+                            <p>Preguntame por tu cartera, valores concretos o escenarios de mercado.</p>
+                            <p className="mt-2 text-xs opacity-70">Ejemplo: &quot;Como va AAPL?&quot;</p>
                         </div>
                     )}
                     {error && (
                         <div className="flex items-center gap-2 p-3 mb-4 text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg">
                             <AlertCircle size={16} />
-                            <span>Unable to connect to AI assistant. Please check your connection or API key.</span>
+                            <span>No se pudo conectar con el asistente de IA. Revisa tu conexion o la clave API.</span>
                         </div>
                     )}
                     {messages.map((m: any) => (
@@ -108,7 +108,7 @@ export function AIChat() {
                                             return (
                                                 <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse p-2 border rounded-lg">
                                                     <Bot size={12} />
-                                                    Loading stock data...
+                                                    Cargando datos del valor...
                                                 </div>
                                             )
                                         }
@@ -126,7 +126,7 @@ export function AIChat() {
                 <Input
                     value={input}
                     onChange={handleInputChange}
-                    placeholder="Type a message..."
+                    placeholder="Escribe un mensaje..."
                     className="flex-1"
                     disabled={isLoading}
                 />
