@@ -1,17 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { StockCard } from "./stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AIChat() {
-    const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
+    const [input, setInput] = useState("");
+    const { messages, sendMessage, status, error } = useChat({
         api: "/api/ai",
-    } as any) as any;
+        onError: (error: Error) => {
+            console.error("AI Chat Error:", error);
+        }
+    } as any);
+
+    const isLoading = status === "submitted" || status === "streaming";
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = input;
+        setInput(""); // Clear input immediately
+
+        try {
+            await sendMessage({ text: userMessage });
+        } catch (err) {
+            console.error("Failed to send message:", err);
+            setInput(userMessage); // Restore input on error
+        }
+    };
 
     return (
         <div className="flex flex-col h-[600px] w-full max-w-md border border-border rounded-xl bg-surface shadow-xl overflow-hidden">
@@ -27,10 +53,16 @@ export function AIChat() {
 
             <ScrollArea className="flex-1 p-4">
                 <div className="flex flex-col gap-4">
-                    {messages.length === 0 && (
+                    {messages.length === 0 && !error && (
                         <div className="text-center text-muted-foreground text-sm py-10">
                             <p>Ask me about your portfolio, specific stocks, or market scenarios.</p>
                             <p className="mt-2 text-xs opacity-70">Example: "How is AAPL doing?"</p>
+                        </div>
+                    )}
+                    {error && (
+                        <div className="flex items-center gap-2 p-3 mb-4 text-sm text-red-500 bg-red-500/10 border border-red-500/20 rounded-lg">
+                            <AlertCircle size={16} />
+                            <span>Unable to connect to AI assistant. Please check your connection or API key.</span>
                         </div>
                     )}
                     {messages.map((m: any) => (
@@ -62,7 +94,6 @@ export function AIChat() {
                                     </div>
                                 )}
 
-                                {/* Render Tool Invocations (Generative UI) */}
                                 {m.toolInvocations?.map((toolInvocation: any) => {
                                     const toolCallId = toolInvocation.toolCallId;
 
@@ -100,7 +131,7 @@ export function AIChat() {
                     className="flex-1"
                     disabled={isLoading}
                 />
-                <Button type="submit" size="icon" disabled={isLoading || !input?.trim()}>
+                <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
                     <Send size={18} />
                 </Button>
             </form>
