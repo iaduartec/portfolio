@@ -13,7 +13,13 @@ export function AgentsCatalog() {
   const [reply, setReply] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"openai" | "anthropic" | "ollama">("openai");
+  const [provider, setProvider] = useState<"openai" | "anthropic" | "ollama">(
+    process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "ollama"
+      ? "ollama"
+      : process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "openai"
+        ? "openai"
+        : "anthropic"
+  );
   const { holdings, summary } = usePortfolioData();
 
   const selectedAgent = agents.find((a) => a.id === selected);
