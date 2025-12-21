@@ -46,8 +46,7 @@ export function AIChat() {
                     <Bot size={20} />
                 </div>
                 <div>
-                    <h3 className="font-semibold text-sm">Portfolio Assistant</h3>
-                    <p className="text-xs text-muted-foreground">Powered by OpenAI</p>
+                    <h3 className="font-semibold text-sm">API de OpenAI</h3>
                 </div>
             </div>
 
