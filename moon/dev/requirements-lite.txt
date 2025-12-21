@@ -2,7 +2,7 @@ absl-py==2.1.0
 aiodns==3.2.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.10.11
+aiohttp==3.12.14
 aiohttp-retry==2.9.1
 aiosignal==1.4.0
 anchorpy==0.20.1
@@ -61,7 +61,7 @@ construct==2.10.68
 construct-typing==0.5.6
 contourpy==1.2.0
 crypto_cpp_py==1.4.5
-cryptography==42.0.5
+cryptography==44.0.1
 cssselect==1.2.0
 ctranslate2==4.6.0
 cycler==0.12.1
@@ -77,4 +77,4 @@ discord.py==2.3.2
 distlib==0.3.9
 distro==1.9.0
 docopt==0.6.2
-ecdsa==0.18.0
+ecdsa==0.19.1
