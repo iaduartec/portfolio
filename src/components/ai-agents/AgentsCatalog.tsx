@@ -1,155 +1,179 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { agents } from "@/data/aiAgents";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { Holding } from "@/types/portfolio";
+
+type RecommendationMap = Record<string, string>;
+
+type Provider = "openai" | "anthropic" | "ollama";
+
+const formatNumber = (value: number | undefined, digits = 2) =>
+  Number.isFinite(value) ? value!.toFixed(digits) : "0";
+
+const formatOptional = (value: number | undefined, digits = 2) =>
+  Number.isFinite(value) ? value!.toFixed(digits) : "n/d";
+
+const buildTickerPrompt = (holding: Holding) => {
+  const avg = formatNumber(holding.averageBuyPrice);
+  const cur = formatNumber(holding.currentPrice);
+  const qty = formatNumber(holding.totalQuantity, 4);
+  const mv = formatNumber(holding.marketValue);
+  const pnlValue = formatNumber(holding.pnlValue);
+  const pnlPercent = formatNumber(holding.pnlPercent);
+  const dayChange = formatOptional(holding.dayChangePercent);
+
+  return `Analiza esta posicion y dame 3 recomendaciones accionables en bullets. Incluye riesgo y accion sugerida (mantener/comprar/vender).
+Ticker: ${holding.ticker}
+Cantidad: ${qty}
+Precio medio: ${avg}
+Precio actual: ${cur}
+Valor de mercado: ${mv}
+P&L: ${pnlValue} (${pnlPercent}%)
+Cambio diario: ${dayChange}%`;
+};
+
+const defaultProvider = (): Provider => {
+  if (process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "ollama") return "ollama";
+  if (process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "openai") return "openai";
+  return "anthropic";
+};
 
 export function AgentsCatalog() {
-  const [selected, setSelected] = useState(agents[0]?.id ?? null);
-  const [prompt, setPrompt] = useState("");
-  const [reply, setReply] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { holdings } = usePortfolioData();
+  const [selected, setSelected] = useState<string | null>(null);
+  const [recommendations, setRecommendations] = useState<RecommendationMap>({});
+  const [loadingTicker, setLoadingTicker] = useState<string | null>(null);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"openai" | "anthropic" | "ollama">(
-    process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "ollama"
-      ? "ollama"
-      : process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "openai"
-        ? "openai"
-        : "anthropic"
-  );
-  const { holdings, summary } = usePortfolioData();
+  const [provider, setProvider] = useState<Provider>(() => defaultProvider());
 
-  const selectedAgent = agents.find((a) => a.id === selected);
-
-  const runAgent = async (customPrompt?: string) => {
-    const rawPrompt = customPrompt ?? prompt;
-    const text = typeof rawPrompt === "string" ? rawPrompt.trim() : "";
-    if (!text) {
-      setError("Escribe un prompt o usa el prompt sugerido.");
+  useEffect(() => {
+    if (holdings.length === 0) {
+      setSelected(null);
       return;
     }
-    setLoading(true);
-    setError(null);
-    setReply(null);
+    if (!selected || !holdings.some((holding) => holding.ticker === selected)) {
+      setSelected(holdings[0].ticker);
+    }
+  }, [holdings, selected]);
+
+  const selectedHolding = useMemo(
+    () => holdings.find((holding) => holding.ticker === selected) ?? null,
+    [holdings, selected]
+  );
+
+  const requestRecommendation = async (holding: Holding) => {
+    const prompt = buildTickerPrompt(holding);
+    setLoadingTicker(holding.ticker);
     try {
       const res = await fetch("/api/ai-agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: text, agent: selected, provider }),
+        body: JSON.stringify({ prompt, agent: holding.ticker, provider }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al llamar al agente");
-      setReply(data.reply);
+      const reply = typeof data?.reply === "string" ? data.reply : "";
+      setRecommendations((prev) => ({ ...prev, [holding.ticker]: reply }));
     } catch (e: any) {
       setError(e.message ?? "Error desconocido");
     } finally {
-      setLoading(false);
+      setLoadingTicker(null);
     }
   };
 
-  const useSamplePrompt = () => {
-    if (selectedAgent?.samplePrompt) {
-      setPrompt(selectedAgent.samplePrompt);
-      void runAgent(selectedAgent.samplePrompt);
+  const runSelected = () => {
+    if (!selectedHolding) {
+      setError("No hay ticker seleccionado para analizar.");
+      return;
     }
+    setError(null);
+    void requestRecommendation(selectedHolding);
   };
 
-  const buildPortfolioPrompt = () => {
-    if (!holdings || holdings.length === 0) {
+  const runAll = async () => {
+    if (!holdings.length) {
       setError("No hay participaciones abiertas para analizar.");
       return;
     }
-    const lines = holdings
-      .slice(0, 15)
-      .map((h) => {
-        const avg = h.averageBuyPrice ?? 0;
-        const cur = h.currentPrice ?? 0;
-        const pnl = h.pnlPercent ?? h.dayChangePercent ?? 0;
-        return `${h.ticker}: avg ${avg.toFixed?.(2) ?? avg} | actual ${cur.toFixed?.(2) ?? cur} | P&L ${pnl.toFixed?.(2) ?? pnl}%`;
-      })
-      .join("\n");
-    const total = summary?.totalValue ?? 0;
-    const openPnl = summary?.totalPnl ?? 0;
-    const promptText = `Analiza estas posiciones abiertas y dame en bullets (riesgos, sesgos, acciones sugeridas):
-Total cartera: ${total.toFixed?.(2) ?? total} USD | P&L abierto: ${openPnl.toFixed?.(2) ?? openPnl} USD
-Posiciones:
-${lines}`;
-    setPrompt(promptText);
-    void runAgent(promptText);
+    setError(null);
+    setLoadingAll(true);
+    for (const holding of holdings) {
+      await requestRecommendation(holding);
+    }
+    setLoadingAll(false);
   };
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
       <div className="space-y-2">
-        {agents.map((agent) => {
-          const isActive = agent.id === selected;
-          return (
-            <button
-              key={agent.id}
-              onClick={() => setSelected(agent.id)}
-              className={cn(
-                "w-full rounded-lg border border-border bg-surface px-4 py-3 text-left transition hover:border-accent/50 hover:bg-surface-muted/60",
-                isActive && "border-accent/70 bg-surface-muted/70 shadow-panel"
-              )}
-            >
-              <p className="text-sm font-semibold text-text">{agent.name}</p>
-              <p className="text-xs text-muted">{agent.category}</p>
-            </button>
-          );
-        })}
+        {holdings.length === 0 ? (
+          <Card title="Sin posiciones" subtitle="Agrega transacciones para ver agentes por ticker." />
+        ) : (
+          holdings.map((holding) => {
+            const isActive = holding.ticker === selected;
+            const pnlText = `${formatNumber(holding.pnlPercent)}%`;
+            return (
+              <button
+                key={holding.ticker}
+                onClick={() => setSelected(holding.ticker)}
+                className={cn(
+                  "w-full rounded-lg border border-border bg-surface px-4 py-3 text-left transition hover:border-accent/50 hover:bg-surface-muted/60",
+                  isActive && "border-accent/70 bg-surface-muted/70 shadow-panel"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-text">{holding.ticker}</p>
+                  <p className="text-xs text-muted">{pnlText}</p>
+                </div>
+                <p className="text-xs text-muted">
+                  {formatNumber(holding.totalQuantity, 4)} uds · avg {formatNumber(holding.averageBuyPrice)}
+                </p>
+              </button>
+            );
+          })
+        )}
       </div>
 
       <div className="lg:col-span-2 space-y-4">
-        {agents
-          .filter((a) => a.id === selected)
-          .map((agent) => (
-            <Card
-              key={agent.id}
-              title={agent.name}
-              subtitle={agent.summary}
-              className="space-y-3"
-            >
+        <Card
+          title={selectedHolding ? `Agente para ${selectedHolding.ticker}` : "Agente por ticker"}
+          subtitle={
+            selectedHolding
+              ? "Recomendaciones para tu posicion abierta"
+              : "Selecciona un ticker para generar recomendaciones"
+          }
+          className="space-y-3"
+        >
+          {selectedHolding ? (
+            <>
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.08em] text-muted">Propósito</p>
-                  <p className="text-sm text-text/90">{agent.purpose}</p>
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted">Posicion</p>
+                  <p className="text-sm text-text/90">
+                    {formatNumber(selectedHolding.totalQuantity, 4)} uds · avg {formatNumber(
+                      selectedHolding.averageBuyPrice
+                    )}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.08em] text-muted">Requisitos</p>
-                  <ul className="list-disc space-y-1 pl-4 text-sm text-muted">
-                    {agent.requirements.map((req) => (
-                      <li key={req}>{req}</li>
-                    ))}
-                  </ul>
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted">P&L</p>
+                  <p className="text-sm text-text/90">
+                    {formatNumber(selectedHolding.pnlValue)} USD ({formatNumber(
+                      selectedHolding.pnlPercent
+                    )}%)
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <p className="text-xs uppercase tracking-[0.08em] text-muted">Comando sugerido</p>
-                <code className="mt-1 block rounded-lg border border-border bg-surface-muted/60 px-3 py-2 text-sm text-text">
-                  {agent.command}
-                </code>
-                <p className="mt-1 text-xs text-muted">Ejecuta desde la carpeta del repo de agentes.</p>
-              </div>
-
-              {agent.notes.length > 0 && (
-                <div>
-                  <p className="text-xs uppercase tracking-[0.08em] text-muted">Notas</p>
-                  <ul className="list-disc space-y-1 pl-4 text-sm text-muted">
-                    {agent.notes.map((note) => (
-                      <li key={note}>{note}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-                <div className="space-y-2 rounded-lg border border-border/60 bg-surface-muted/40 p-3">
-                  <p className="text-xs uppercase tracking-[0.08em] text-muted">Prueba rápida</p>
-                  <div className="flex gap-2 text-xs text-muted">
-                    <label className="flex items-center gap-1">
-                      <input
+              <div className="space-y-2 rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+                <p className="text-xs uppercase tracking-[0.08em] text-muted">Proveedor</p>
+                <div className="flex flex-wrap gap-3 text-xs text-muted">
+                  <label className="flex items-center gap-1">
+                    <input
                       type="radio"
                       name="provider"
                       value="openai"
@@ -179,46 +203,72 @@ ${lines}`;
                     Ollama
                   </label>
                 </div>
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Escribe un prompt para el agente..."
-                  className="h-24 w-full rounded-lg border border-border bg-surface p-2 text-sm text-text outline-none focus:border-accent"
-                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => void runAgent()}
-                  disabled={loading || !prompt.trim()}
+                  onClick={runSelected}
+                  disabled={loadingAll || loadingTicker === selectedHolding.ticker}
                   className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
                 >
-                  {loading ? "Llamando..." : "Ejecutar"}
+                  {loadingTicker === selectedHolding.ticker ? "Generando..." : "Generar recomendacion"}
                 </button>
-                {selectedAgent?.samplePrompt && (
-                  <button
-                    onClick={useSamplePrompt}
-                    disabled={loading}
-                    className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
-                  >
-                    Usar prompt sugerido de este agente
-                  </button>
-                )}
-                {selectedAgent?.id === "cartera" && (
-                  <button
-                    onClick={buildPortfolioPrompt}
-                    disabled={loading}
-                    className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
-                  >
-                    Analizar cartera abierta (OpenAI)
-                  </button>
-                )}
-                {error && <p className="text-sm text-danger">{error}</p>}
-                {reply && (
-                  <div className="rounded-md border border-border bg-surface p-2 text-sm text-text whitespace-pre-wrap">
-                    {reply}
-                  </div>
-                )}
+                <button
+                  onClick={() => void runAll()}
+                  disabled={loadingAll || holdings.length === 0}
+                  className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
+                >
+                  {loadingAll ? "Analizando cartera..." : "Generar para toda la cartera"}
+                </button>
               </div>
-            </Card>
-          ))}
+
+              {error && <p className="text-sm text-danger">{error}</p>}
+
+              <div className="rounded-md border border-border bg-surface p-2 text-sm text-text whitespace-pre-wrap">
+                {recommendations[selectedHolding.ticker]
+                  ? recommendations[selectedHolding.ticker]
+                  : "Sin recomendacion aun."}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted">No hay participaciones abiertas para analizar.</p>
+          )}
+        </Card>
+
+        <Card title="Lista de recomendaciones" subtitle="Una recomendacion por ticker">
+          {holdings.length === 0 ? (
+            <p className="text-sm text-muted">Carga tu cartera para ver recomendaciones.</p>
+          ) : (
+            <div className="space-y-3">
+              {holdings.map((holding) => {
+                const recommendation = recommendations[holding.ticker];
+                return (
+                  <div
+                    key={holding.ticker}
+                    className="rounded-lg border border-border bg-surface-muted/40 p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-text">{holding.ticker}</p>
+                      <p className="text-xs text-muted">
+                        {formatNumber(holding.marketValue)} USD
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs text-muted">
+                      Avg {formatNumber(holding.averageBuyPrice)} · Actual {formatNumber(
+                        holding.currentPrice
+                      )} · P&L {formatNumber(holding.pnlPercent)}%
+                    </p>
+                    <div className="mt-2 text-sm text-text whitespace-pre-wrap">
+                      {loadingAll && loadingTicker === holding.ticker
+                        ? "Generando..."
+                        : recommendation || "Sin recomendacion aun."}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       </div>
     </div>
   );
