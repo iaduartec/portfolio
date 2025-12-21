@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { HttpChatTransport } from "ai";
+import { DefaultChatTransport } from "ai";
 import { StockCard } from "./stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 export function AIChat() {
     const [input, setInput] = useState("");
-    const transport = useMemo(() => new HttpChatTransport({ api: "/api/ai" }), []);
+    const transport = useMemo(() => new DefaultChatTransport({ api: "/api/ai" }), []);
     const { messages, sendMessage, status, error } = useChat({
         transport,
         onError: (error: Error) => {
