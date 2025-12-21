@@ -1,6 +1,6 @@
 import { openai } from '@ai-sdk/openai';
 import { streamText, tool } from 'ai';
-import { z } from 'zod';
+// import { z } from 'zod'; // Not needed for raw schema
 
 export const maxDuration = 30;
 
@@ -14,13 +14,17 @@ export async function POST(req: Request) {
       tools: {
         showStock: tool({
           description: 'Show stock price and information for a given symbol',
-          parameters: z.object({
-              symbol: z.string(),
-              name: z.string().optional(),
-              price: z.number(),
-              change: z.number(),
-              changePercent: z.number(),
-          }),
+          parameters: {
+            type: 'object',
+            properties: {
+              symbol: { type: 'string', description: 'The stock symbol to show (e.g. AAPL)' },
+              name: { type: 'string', description: 'The name of the company' },
+              price: { type: 'number', description: 'The current price' },
+              change: { type: 'number', description: 'The price change' },
+              changePercent: { type: 'number', description: 'The percentage change' },
+            },
+            required: ['symbol', 'price', 'change', 'changePercent'],
+          },
           execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
               return { symbol, price, change, changePercent, name };
           }
