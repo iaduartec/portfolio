@@ -58,8 +58,8 @@ export function AgentsCatalog() {
     const lines = holdings
       .slice(0, 15)
       .map((h) => {
-        const avg = h.averagePrice ?? h.avgPrice ?? h.priceAvg ?? h.price || 0;
-        const cur = h.currentPrice ?? h.priceCurrent ?? h.price || 0;
+        const avg = h.averagePrice ?? h.avgPrice ?? h.priceAvg ?? h.price ?? 0;
+        const cur = h.currentPrice ?? h.priceCurrent ?? h.price ?? 0;
         const pnl = h.pnlPercent ?? h.pnl ?? 0;
         return `${h.ticker}: avg ${avg.toFixed?.(2) ?? avg} | actual ${cur.toFixed?.(2) ?? cur} | P&L ${pnl.toFixed?.(2) ?? pnl}%`;
       })
