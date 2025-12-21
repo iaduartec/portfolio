@@ -71,7 +71,7 @@ const toMessage = (body: any) => {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, agent = "generic", provider = "openai" } = await req.json();
+    const { prompt, provider = "openai" } = await req.json();
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json({ error: "Prompt vacío" }, { status: 400 });
     }

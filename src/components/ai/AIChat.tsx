@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { StockCard } from "./stock-card";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function AIChat() {
                     {messages.length === 0 && !error && (
                         <div className="text-center text-muted-foreground text-sm py-10">
                             <p>Ask me about your portfolio, specific stocks, or market scenarios.</p>
-                            <p className="mt-2 text-xs opacity-70">Example: "How is AAPL doing?"</p>
+                            <p className="mt-2 text-xs opacity-70">Example: &quot;How is AAPL doing?&quot;</p>
                         </div>
                     )}
                     {error && (

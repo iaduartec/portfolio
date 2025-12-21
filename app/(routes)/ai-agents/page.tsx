@@ -1,6 +1,5 @@
 import { Shell } from "@/components/layout/Shell";
 import { AgentsCatalog } from "@/components/ai-agents/AgentsCatalog";
-import { Card } from "@/components/ui/card";
 
 export default function AIAgentsPage() {
   return (

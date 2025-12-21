@@ -81,8 +81,8 @@ export function DashboardClient() {
           </div>
           <Card title="AI Analysis" subtitle="Real-time insights on your portfolio">
             <p className="text-muted-foreground text-sm p-4">
-              The AI Assistant (left) can analyze your specific holdings. Try asking "How is AAPL performing?" or "What is my risk exposure?".
-              The widgets above provide quick "pulse" checks and scenario planning.
+              The AI Assistant (left) can analyze your specific holdings. Try asking &quot;How is AAPL performing?&quot; or &quot;What is my risk exposure?&quot;.
+              The widgets above provide quick &quot;pulse&quot; checks and scenario planning.
             </p>
           </Card>
         </div>

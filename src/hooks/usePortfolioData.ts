@@ -158,7 +158,6 @@ export function usePortfolioData() {
   useEffect(() => {
     const tickers = Array.from(new Set(transactions.map((tx) => tx.ticker))).filter(Boolean);
     if (tickers.length === 0) {
-      setIsLoadingQuotes(false);
       return;
     }
     const controller = new AbortController();

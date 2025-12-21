@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Activity, Thermometer } from "lucide-react";
+import { Activity } from "lucide-react";
 
 export function MarketPulse() {
     // Static data for now, would be dynamic with AI
