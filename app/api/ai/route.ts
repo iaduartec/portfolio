@@ -27,9 +27,7 @@ export async function POST(req: Request) {
       // }
     });
   
-    // Use toUIMessageStreamResponse for AI SDK 5.0
-    // @ts-expect-error type definition mismatch
-    return result.toDataStreamResponse ? result.toDataStreamResponse() : (result as any).toUIMessageStreamResponse();
+    return result.toUIMessageStreamResponse();
 
   } catch (error) {
     console.error('AI API Error:', error);
