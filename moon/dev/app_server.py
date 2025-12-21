@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import httpx
+from dotenv import load_dotenv
 
 app = FastAPI(title="Moon Dev Agents Bridge", version="0.1.0")
 
@@ -13,6 +15,10 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     provider: str
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT_DIR / ".env.local")
+load_dotenv(ROOT_DIR / ".env")
 
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
