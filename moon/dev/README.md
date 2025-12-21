@@ -20,6 +20,14 @@ feel free to join [our discord](https://discord.gg/8UPuVZ53bh) if you beleive ai
 
 ---
 
+## Deploying the API bridge
+This repo includes a minimal FastAPI bridge (`app_server.py`) used by the MyInvestView frontend.
+
+- Deploy with `moon/dev/Dockerfile` or `moon/dev/Procfile`.
+- Use `moon/dev/requirements-deploy.txt` for a small dependency set.
+- Set env vars on the host: `OPENAI_API_KEY`, optional `ANTHROPIC_API_KEY`, `OLLAMA_HOST`.
+- On Vercel, set `AGENTS_SERVER_URL=https://your-agent-host`.
+
 ## 🤖 All Available Agents
 
 **⚠️ For live trading agents: Only use these AFTER thoroughly backtesting your strategies!**

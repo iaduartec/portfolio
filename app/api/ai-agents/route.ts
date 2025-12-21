@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SERVER_URL = process.env.AGENTS_SERVER_URL || "http://127.0.0.1:5050";
+const SERVER_URL =
+  process.env.AGENTS_SERVER_URL || (process.env.NODE_ENV === "production" ? "" : "http://127.0.0.1:5050");
 
 export async function POST(req: NextRequest) {
   try {
+    if (!SERVER_URL) {
+      return NextResponse.json(
+        { error: "AGENTS_SERVER_URL no esta configurado en produccion." },
+        { status: 500 }
+      );
+    }
     const { prompt, agent = "generic", provider = "openai" } = await req.json();
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json({ error: "Prompt vacío" }, { status: 400 });

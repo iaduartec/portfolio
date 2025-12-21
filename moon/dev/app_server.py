@@ -16,6 +16,10 @@ class ChatResponse(BaseModel):
     reply: str
     provider: str
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT_DIR / ".env.local")
 load_dotenv(ROOT_DIR / ".env")
@@ -99,4 +103,5 @@ async def chat(req: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app_server:app", host="0.0.0.0", port=int(os.getenv("AGENTS_PORT", "5050")), reload=False)
+    port = int(os.getenv("PORT", os.getenv("AGENTS_PORT", "5050")))
+    uvicorn.run("app_server:app", host="0.0.0.0", port=port, reload=False)
