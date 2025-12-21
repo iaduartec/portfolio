@@ -65,9 +65,9 @@ export function AgentsCatalog() {
     const lines = holdings
       .slice(0, 15)
       .map((h) => {
-        const avg = h.averagePrice ?? h.avgPrice ?? h.priceAvg ?? h.price ?? 0;
-        const cur = h.currentPrice ?? h.priceCurrent ?? h.price ?? 0;
-        const pnl = h.pnlPercent ?? h.pnl ?? 0;
+        const avg = h.averageBuyPrice ?? 0;
+        const cur = h.currentPrice ?? 0;
+        const pnl = h.pnlPercent ?? h.dayChangePercent ?? 0;
         return `${h.ticker}: avg ${avg.toFixed?.(2) ?? avg} | actual ${cur.toFixed?.(2) ?? cur} | P&L ${pnl.toFixed?.(2) ?? pnl}%`;
       })
       .join("\n");
@@ -187,7 +187,7 @@ ${lines}`;
                   className="h-24 w-full rounded-lg border border-border bg-surface p-2 text-sm text-text outline-none focus:border-accent"
                 />
                 <button
-                  onClick={runAgent}
+                  onClick={() => void runAgent()}
                   disabled={loading || !prompt.trim()}
                   className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
                 >
