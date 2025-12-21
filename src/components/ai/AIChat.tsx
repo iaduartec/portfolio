@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useChat } from "@ai-sdk/react";
+import { HttpChatTransport } from "ai";
 import { StockCard } from "./stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,12 +12,13 @@ import { cn } from "@/lib/utils";
 
 export function AIChat() {
     const [input, setInput] = useState("");
+    const transport = useMemo(() => new HttpChatTransport({ api: "/api/ai" }), []);
     const { messages, sendMessage, status, error } = useChat({
-        api: "/api/ai",
+        transport,
         onError: (error: Error) => {
             console.error("AI Chat Error:", error);
         }
-    } as any);
+    });
 
     const isLoading = status === "submitted" || status === "streaming";
 

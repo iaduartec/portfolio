@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages } from 'ai';
 // import { z } from 'zod';
 
 export const maxDuration = 30;
@@ -9,7 +9,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai('gpt-4o'),
-    messages,
+    messages: convertToModelMessages(messages ?? []),
     // tools: {
     //   showStock: tool({
     //     description: 'Show stock price and information for a given symbol',
