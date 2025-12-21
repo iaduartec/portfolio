@@ -1,6 +1,8 @@
 # Variables de entorno con claves secretas
 .env
 .env.local
+moon-dev-ai-agents.zip
+moon-dev-ai-agents
 .env.development.local
 .env.production.local
 
