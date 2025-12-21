@@ -20,8 +20,6 @@ export async function POST(req: Request) {
             change: z.number().describe('The price change'),
             changePercent: z.number().describe('The percentage change'),
         }),
-        // @ts-expect-error AI SDK type mismatch for execute
-        // @ts-expect-error AI SDK type mismatch for execute
         execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
             // In a real app, we might fetch real data here if the LLM didn't provide it provided accurate simulated data
             // For now, we trust the LLM to hallucinate realistic data or strictly follow prompts
