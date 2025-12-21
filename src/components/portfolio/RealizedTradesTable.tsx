@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/formatters";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import { RealizedTrade } from "@/types/portfolio";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
@@ -10,7 +10,7 @@ interface RealizedTradesTableProps {
 }
 
 export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
-  const { currency } = useCurrency();
+  const { currency, baseCurrency, fxRate } = useCurrency();
   if (!trades.length) {
     return (
       <p className="text-sm text-muted">
@@ -42,14 +42,23 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
                   <td className="whitespace-nowrap px-4 py-3 font-semibold">{trade.ticker}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">{trade.quantity}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
-                    {formatCurrency(trade.entryPrice, currency)}
+                    {formatCurrency(
+                      convertCurrency(trade.entryPrice, currency, fxRate, baseCurrency),
+                      currency
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
-                    {formatCurrency(trade.exitPrice, currency)}
+                    {formatCurrency(
+                      convertCurrency(trade.exitPrice, currency, fxRate, baseCurrency),
+                      currency
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right">
                     <Badge tone={isPositive ? "success" : "danger"}>
-                      {formatCurrency(trade.pnlValue, currency)}
+                      {formatCurrency(
+                        convertCurrency(trade.pnlValue, currency, fxRate, baseCurrency),
+                        currency
+                      )}
                     </Badge>
                   </td>
                 </tr>

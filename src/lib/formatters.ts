@@ -23,4 +23,21 @@ const percentFormatter = new Intl.NumberFormat("es-ES", {
 export const formatCurrency = (value: number, currency: CurrencyCode = "EUR") =>
   getCurrencyFormatter(currency).format(value);
 
+export const convertCurrency = (
+  value: number,
+  targetCurrency: CurrencyCode,
+  fxRate: number,
+  baseCurrency: CurrencyCode = "EUR"
+) => {
+  if (!Number.isFinite(value)) return value;
+  if (targetCurrency === baseCurrency) return value;
+  if (baseCurrency === "EUR" && targetCurrency === "USD") {
+    return value * fxRate;
+  }
+  if (baseCurrency === "USD" && targetCurrency === "EUR") {
+    return value / fxRate;
+  }
+  return value;
+};
+
 export const formatPercent = (value: number) => percentFormatter.format(value);

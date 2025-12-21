@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Holding } from "@/types/portfolio";
-import { formatCurrency, formatPercent } from "@/lib/formatters";
+import { convertCurrency, formatCurrency, formatPercent } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
@@ -73,7 +73,7 @@ interface HoldingsTableProps {
 }
 
 export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
-  const { currency } = useCurrency();
+  const { currency, baseCurrency, fxRate } = useCurrency();
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
     direction: "desc",
@@ -157,10 +157,16 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                       {holding.ticker}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
-                      {formatCurrency(holding.averageBuyPrice, currency)}
+                      {formatCurrency(
+                        convertCurrency(holding.averageBuyPrice, currency, fxRate, baseCurrency),
+                        currency
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-text">
-                      {formatCurrency(holding.currentPrice, currency)}
+                      {formatCurrency(
+                        convertCurrency(holding.currentPrice, currency, fxRate, baseCurrency),
+                        currency
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <Badge tone={isPositive ? "success" : "danger"}>
@@ -177,7 +183,10 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
-                      {formatCurrency(holding.marketValue, currency)}
+                      {formatCurrency(
+                        convertCurrency(holding.marketValue, currency, fxRate, baseCurrency),
+                        currency
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-muted">
                       {getFinancialInfo(holding.ticker)}

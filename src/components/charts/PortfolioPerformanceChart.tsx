@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatCurrency, formatPercent } from "@/lib/formatters";
+import { convertCurrency, formatCurrency, formatPercent } from "@/lib/formatters";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 type PerformancePoint = {
@@ -22,7 +22,7 @@ interface PortfolioPerformanceChartProps {
 }
 
 export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartProps) {
-  const { currency } = useCurrency();
+  const { currency, baseCurrency, fxRate } = useCurrency();
   const first = data[0]?.value ?? 0;
   const last = data[data.length - 1]?.value ?? 0;
   const delta = last - first;
@@ -36,12 +36,14 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.08em] text-muted">Último valor</p>
-          <p className="text-2xl font-semibold text-text">{formatCurrency(last, currency)}</p>
+          <p className="text-2xl font-semibold text-text">
+            {formatCurrency(convertCurrency(last, currency, fxRate, baseCurrency), currency)}
+          </p>
         </div>
         <div className="flex items-center gap-2 rounded-full border border-border/70 px-3 py-1 text-sm">
           <span className={isPositive ? "text-success" : "text-danger"}>
             {isPositive ? "+" : ""}
-            {formatCurrency(delta, currency)}
+            {formatCurrency(convertCurrency(delta, currency, fxRate, baseCurrency), currency)}
           </span>
           <span className="text-muted">
             {isPositive ? "+" : ""}
@@ -75,7 +77,9 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
             tickLine={false}
             axisLine={false}
             fontSize={11}
-            tickFormatter={(value) => formatCurrency(Number(value), currency)}
+            tickFormatter={(value) =>
+              formatCurrency(convertCurrency(Number(value), currency, fxRate, baseCurrency), currency)
+            }
             domain={[0, 1200]}
             tickCount={5}
           />
@@ -87,7 +91,9 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
               borderRadius: 10,
               color: "#d1d4dc",
             }}
-            formatter={(value: number) => formatCurrency(value, currency)}
+            formatter={(value: number) =>
+              formatCurrency(convertCurrency(value, currency, fxRate, baseCurrency), currency)
+            }
           />
           <Area
             type="monotone"

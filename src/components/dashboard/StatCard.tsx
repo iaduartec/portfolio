@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatPercent, type CurrencyCode } from "@/lib/formatters";
+import { convertCurrency, formatCurrency, formatPercent, type CurrencyCode } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
@@ -29,7 +29,7 @@ export function StatCard({
   changeVariant,
   isLoading,
 }: StatCardProps) {
-  const { currency } = useCurrency();
+  const { currency, baseCurrency, fxRate } = useCurrency();
   const effectiveChangeVariant = changeVariant ?? variant;
   const isPositive = (change ?? 0) >= 0;
 
@@ -45,12 +45,20 @@ export function StatCard({
         ) : (
           <>
             <p className="text-2xl font-semibold text-text">
-              {formatByVariant(value, variant, currency)}
+              {formatByVariant(
+                convertCurrency(value, currency, fxRate, baseCurrency),
+                variant,
+                currency
+              )}
             </p>
             {change !== undefined && (
               <Badge tone={isPositive ? "success" : "danger"}>
                 <span className={cn(isPositive ? "text-success" : "text-danger")}>
-                  {formatByVariant(change, effectiveChangeVariant, currency)}
+                  {formatByVariant(
+                    convertCurrency(change, currency, fxRate, baseCurrency),
+                    effectiveChangeVariant,
+                    currency
+                  )}
                 </span>
               </Badge>
             )}

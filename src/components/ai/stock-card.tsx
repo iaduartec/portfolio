@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { formatCurrency } from "@/lib/formatters";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 interface StockCardProps {
@@ -15,9 +15,13 @@ interface StockCardProps {
 
 export function StockCard({ symbol, price, change, changePercent, name }: StockCardProps) {
     const isPositive = change >= 0;
-    const { currency } = useCurrency();
-    const priceText = formatCurrency(price, currency);
-    const changeText = isPositive ? `+${formatCurrency(change, currency)}` : formatCurrency(change, currency);
+    const { currency, baseCurrency, fxRate } = useCurrency();
+    const priceValue = convertCurrency(price, currency, fxRate, baseCurrency);
+    const changeValue = convertCurrency(change, currency, fxRate, baseCurrency);
+    const priceText = formatCurrency(priceValue, currency);
+    const changeText = isPositive
+        ? `+${formatCurrency(changeValue, currency)}`
+        : formatCurrency(changeValue, currency);
 
     return (
         <Card className="w-64 border-l-4 border-l-primary/50 bg-surface/50 backdrop-blur-sm">

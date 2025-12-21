@@ -3,7 +3,7 @@
 import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/formatters";
+import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
 import { Transaction, TransactionType } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
@@ -50,7 +50,7 @@ interface CsvDropzoneProps {
 }
 
 export function CsvDropzone({ onSave }: CsvDropzoneProps) {
-  const { currency } = useCurrency();
+  const { currency, baseCurrency, fxRate } = useCurrency();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRow[]>([]);
@@ -196,7 +196,10 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
                     {Object.entries(row).map(([key, value]) => (
                       <td key={key} className="px-3 py-2">
                         {typeof value === "number" && key !== "quantity"
-                          ? formatCurrency(value, currency)
+                          ? formatCurrency(
+                              convertCurrency(value, currency, fxRate, baseCurrency),
+                              currency
+                            )
                           : String(value ?? "")}
                       </td>
                     ))}
