@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { agents } from "@/data/aiAgents";
 import { cn } from "@/lib/utils";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 export function AgentsCatalog() {
   const [selected, setSelected] = useState(agents[0]?.id ?? null);
@@ -13,6 +14,7 @@ export function AgentsCatalog() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<"openai" | "anthropic" | "ollama">("openai");
+  const { holdings, summary } = usePortfolioData();
 
   const selectedAgent = agents.find((a) => a.id === selected);
 
@@ -46,6 +48,30 @@ export function AgentsCatalog() {
       setPrompt(selectedAgent.samplePrompt);
       void runAgent(selectedAgent.samplePrompt);
     }
+  };
+
+  const buildPortfolioPrompt = () => {
+    if (!holdings || holdings.length === 0) {
+      setError("No hay participaciones abiertas para analizar.");
+      return;
+    }
+    const lines = holdings
+      .slice(0, 15)
+      .map((h) => {
+        const avg = h.averagePrice ?? h.avgPrice ?? h.priceAvg ?? h.price || 0;
+        const cur = h.currentPrice ?? h.priceCurrent ?? h.price || 0;
+        const pnl = h.pnlPercent ?? h.pnl ?? 0;
+        return `${h.ticker}: avg ${avg.toFixed?.(2) ?? avg} | actual ${cur.toFixed?.(2) ?? cur} | P&L ${pnl.toFixed?.(2) ?? pnl}%`;
+      })
+      .join("\n");
+    const total = summary?.totalValue ?? 0;
+    const openPnl = summary?.totalPnl ?? 0;
+    const promptText = `Analiza estas posiciones abiertas y dame en bullets (riesgos, sesgos, acciones sugeridas):
+Total cartera: ${total.toFixed?.(2) ?? total} USD | P&L abierto: ${openPnl.toFixed?.(2) ?? openPnl} USD
+Posiciones:
+${lines}`;
+    setPrompt(promptText);
+    void runAgent(promptText);
   };
 
   return (
@@ -167,6 +193,15 @@ export function AgentsCatalog() {
                     className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
                   >
                     Usar prompt sugerido de este agente
+                  </button>
+                )}
+                {selectedAgent?.id === "cartera" && (
+                  <button
+                    onClick={buildPortfolioPrompt}
+                    disabled={loading}
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
+                  >
+                    Analizar cartera abierta (OpenAI)
                   </button>
                 )}
                 {error && <p className="text-sm text-danger">{error}</p>}

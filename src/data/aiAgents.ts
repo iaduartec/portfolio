@@ -4,83 +4,42 @@ type Agent = {
   summary: string;
   category: string;
   purpose: string;
-  command: string;
-  requirements: string[];
-  notes: string[];
   samplePrompt: string;
 };
 
 export const agents: Agent[] = [
   {
-    id: "trading",
-    name: "Trading Agent",
-    summary: "LLM que toma decisiones de trading en modo simple o swarm.",
-    category: "Ejecución",
-    purpose:
-      "Evaluar señales y decidir buy/sell/hold con modelos configurables (Claude/OpenAI/Ollama) y opción swarm.",
-    command: "python src/agents/trading_agent.py",
-    requirements: [
-      "Configura API keys en .env (Claude/OpenAI/Ollama según tu setup)",
-      "Revisa config.py para AI_MODEL_TYPE/NAME",
-      "Datos/estrategias según tu pipeline",
-    ],
-    notes: ["Swarm puede tardar ~45-60s por token.", "Úsalo tras backtesting adecuado."],
-    samplePrompt: "Analiza AAPL en marco de 4h y dime si comprar, vender o esperar con una breve justificación.",
+    id: "research",
+    name: "Research rápido",
+    summary: "Genera ideas y responde dudas de mercado en texto breve.",
+    category: "LLM",
+    purpose: "Q&A general, research corto, bullets accionables.",
+    samplePrompt: "Dame 3 ideas rápidas para evaluar el sector semiconductores esta semana.",
   },
   {
-    id: "risk",
-    name: "Risk Agent",
-    summary: "Gestor de riesgo para posiciones y exposición.",
-    category: "Riesgo",
-    purpose: "Analizar exposición, stop-loss y tamaño de posición en tus estrategias.",
-    command: "python src/agents/risk_agent.py",
-    requirements: ["API keys en .env", "Entradas de posiciones/estrategia definidas"],
-    notes: ["Pensado para validar riesgo antes de ejecutar órdenes."],
-    samplePrompt: "Evalúa el riesgo de una posición long en NVDA al 5% del capital, SL 2%, TP 5%. ¿Es prudente?",
+    id: "ideas",
+    name: "Ideas de estrategia",
+    summary: "Pide reglas de entrada/salida y checklist de validación.",
+    category: "LLM",
+    purpose: "Plantillas rápidas de estrategia con bullets claros.",
+    samplePrompt:
+      "Propón una estrategia swing en AAPL con reglas de entrada, salida, gestión de riesgo y checklist en 5 bullets.",
   },
   {
-    id: "strategy",
-    name: "Strategy Agent",
-    summary: "Genera/valida estrategias y automatiza backtests.",
-    category: "Research",
-    purpose:
-      "Tomar ideas de texto/recursos y convertirlas en estrategias con backtesting automatizado.",
-    command: "python src/agents/strategy_agent.py",
-    requirements: ["API keys en .env", "Fuentes de datos/backtest configuradas"],
-    notes: ["Adecuado para ideación; valida resultados manualmente."],
-    samplePrompt: "Propón una estrategia swing en BTC/USD con reglas de entrada/salida y métricas a optimizar.",
+    id: "resumen",
+    name: "Resumen diario",
+    summary: "Titulares clave y posible impacto en índices.",
+    category: "LLM",
+    purpose: "Sintetizar noticias y su efecto en el mercado.",
+    samplePrompt: "Dame 4 titulares clave de hoy y cómo podrían impactar SPX y NDX en la sesión.",
   },
   {
-    id: "copybot",
-    name: "CopyBot Agent",
-    summary: "Replica señales/estrategias desde fuentes externas.",
-    category: "Copy trading",
-    purpose: "Escuchar fuentes de señales y replicar lógicas en tu entorno de ejecución.",
-    command: "python src/agents/copybot_agent.py",
-    requirements: ["API keys en .env", "Fuentes de señal configuradas"],
-    notes: ["Asegura manejo de riesgo antes de replicar cualquier señal."],
-    samplePrompt: "Tengo señales cada 15m desde una fuente externa; ¿qué validaciones aplicar antes de copiar cada trade?",
-  },
-  {
-    id: "sentiment",
-    name: "Sentiment Agent",
-    summary: "Analiza sentimiento y genera señales contextuales.",
-    category: "Sentimiento",
-    purpose: "Procesar news/feeds para extraer sesgos de mercado.",
-    command: "python src/agents/sentiment_agent.py",
-    requirements: ["API keys en .env", "Fuente de noticias/feeds configuradas"],
-    notes: ["Úsalo como input, no como señal final de trading."],
-    samplePrompt: "Resume el sentimiento de mercado hoy con 3 titulares clave y su posible impacto en SPX.",
-  },
-  {
-    id: "rbi",
-    name: "RBI Agent",
-    summary: "Research + backtest automático a partir de videos/texto.",
-    category: "Research/Backtest",
-    purpose: "Recolectar ideas (YouTube/PDF/texto) y generar backtests automáticamente.",
-    command: "python src/agents/rbi_agent.py",
-    requirements: ["API keys en .env", "Dependencias de scraping/data sources activas"],
-    notes: ["Revisa docs de RBI para paralelismo y fuentes de datos."],
-    samplePrompt: "Toma ideas de este video/página y genera un plan de backtest: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    id: "cartera",
+    name: "Análisis de cartera",
+    summary: "Analiza tus posiciones abiertas con IA (OpenAI).",
+    category: "LLM",
+    purpose: "Pedir insight rápido sobre tickers abiertos, riesgo y sesgos.",
+    samplePrompt:
+      "Analiza estas posiciones abiertas (símbolo, precio medio, precio actual, P&L %) y dame 3 riesgos y 3 acciones concretas.",
   },
 ];
