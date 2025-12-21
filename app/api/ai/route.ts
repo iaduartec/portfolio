@@ -1,12 +1,10 @@
 import { openai } from '@ai-sdk/openai';
 import { streamText, tool } from 'ai';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
-//   const { messages } = await req.json();
-
   try {
     const { messages } = await req.json();
 
@@ -25,37 +23,17 @@ export async function POST(req: Request) {
           }),
           // @ts-expect-error AI SDK type mismatch for execute
           execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
+              // In a real app, we might fetch real data here if the LLM didn't provide it provided accurate simulated data
+              // For now, we trust the LLM to hallucinate realistic data or strictly follow prompts
               return { symbol, price, change, changePercent, name };
           }
         })
       }
     });
-
-    // Introspect result
-    const keys: string[] = [];
-    let obj = result as any;
-    while (obj) {
-        keys.push(...Object.getOwnPropertyNames(obj));
-        obj = Object.getPrototypeOf(obj);
-    }
-
-    if ('toDataStreamResponse' in result) {
-         // @ts-expect-error TS check
-        return result.toDataStreamResponse();
-    }
-    
-    // Fallback or explicit check
-    if ('toUIMessageStreamResponse' in result) {
-         // @ts-expect-error TS check
-         return (result as any).toUIMessageStreamResponse();
-    }
-    
-     if ('toTextStreamResponse' in result) {
-         // @ts-expect-error TS check
-         return (result as any).toTextStreamResponse();
-    }
-
-    throw new Error(`toDataStreamResponse missing. Available keys: ${keys.join(', ')}`);
+  
+    // Use toUIMessageStreamResponse for AI SDK 5.0
+    // @ts-expect-error type definition mismatch
+    return result.toDataStreamResponse ? result.toDataStreamResponse() : (result as any).toUIMessageStreamResponse();
 
   } catch (error) {
     console.error('AI API Error:', error);
