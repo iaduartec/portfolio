@@ -7,6 +7,7 @@ type Agent = {
   command: string;
   requirements: string[];
   notes: string[];
+  samplePrompt: string;
 };
 
 export const agents: Agent[] = [
@@ -24,6 +25,7 @@ export const agents: Agent[] = [
       "Datos/estrategias según tu pipeline",
     ],
     notes: ["Swarm puede tardar ~45-60s por token.", "Úsalo tras backtesting adecuado."],
+    samplePrompt: "Analiza AAPL en marco de 4h y dime si comprar, vender o esperar con una breve justificación.",
   },
   {
     id: "risk",
@@ -34,6 +36,7 @@ export const agents: Agent[] = [
     command: "python src/agents/risk_agent.py",
     requirements: ["API keys en .env", "Entradas de posiciones/estrategia definidas"],
     notes: ["Pensado para validar riesgo antes de ejecutar órdenes."],
+    samplePrompt: "Evalúa el riesgo de una posición long en NVDA al 5% del capital, SL 2%, TP 5%. ¿Es prudente?",
   },
   {
     id: "strategy",
@@ -45,6 +48,7 @@ export const agents: Agent[] = [
     command: "python src/agents/strategy_agent.py",
     requirements: ["API keys en .env", "Fuentes de datos/backtest configuradas"],
     notes: ["Adecuado para ideación; valida resultados manualmente."],
+    samplePrompt: "Propón una estrategia swing en BTC/USD con reglas de entrada/salida y métricas a optimizar.",
   },
   {
     id: "copybot",
@@ -55,6 +59,7 @@ export const agents: Agent[] = [
     command: "python src/agents/copybot_agent.py",
     requirements: ["API keys en .env", "Fuentes de señal configuradas"],
     notes: ["Asegura manejo de riesgo antes de replicar cualquier señal."],
+    samplePrompt: "Tengo señales cada 15m desde una fuente externa; ¿qué validaciones aplicar antes de copiar cada trade?",
   },
   {
     id: "sentiment",
@@ -65,6 +70,7 @@ export const agents: Agent[] = [
     command: "python src/agents/sentiment_agent.py",
     requirements: ["API keys en .env", "Fuente de noticias/feeds configuradas"],
     notes: ["Úsalo como input, no como señal final de trading."],
+    samplePrompt: "Resume el sentimiento de mercado hoy con 3 titulares clave y su posible impacto en SPX.",
   },
   {
     id: "rbi",
@@ -75,5 +81,6 @@ export const agents: Agent[] = [
     command: "python src/agents/rbi_agent.py",
     requirements: ["API keys en .env", "Dependencias de scraping/data sources activas"],
     notes: ["Revisa docs de RBI para paralelismo y fuentes de datos."],
+    samplePrompt: "Toma ideas de este video/página y genera un plan de backtest: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   },
 ];

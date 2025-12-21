@@ -12,9 +12,16 @@ export function AgentsCatalog() {
   const [reply, setReply] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
+  const [provider, setProvider] = useState<"openai" | "anthropic" | "ollama">("openai");
 
-  const runAgent = async () => {
+  const selectedAgent = agents.find((a) => a.id === selected);
+
+  const runAgent = async (customPrompt?: string) => {
+    const text = (customPrompt ?? prompt).trim();
+    if (!text) {
+      setError("Escribe un prompt o usa el prompt sugerido.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setReply(null);
@@ -31,6 +38,13 @@ export function AgentsCatalog() {
       setError(e.message ?? "Error desconocido");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const useSamplePrompt = () => {
+    if (selectedAgent?.samplePrompt) {
+      setPrompt(selectedAgent.samplePrompt);
+      void runAgent(selectedAgent.samplePrompt);
     }
   };
 
@@ -99,11 +113,11 @@ export function AgentsCatalog() {
                 </div>
               )}
 
-              <div className="space-y-2 rounded-lg border border-border/60 bg-surface-muted/40 p-3">
-                <p className="text-xs uppercase tracking-[0.08em] text-muted">Prueba rápida</p>
-                <div className="flex gap-2 text-xs text-muted">
-                  <label className="flex items-center gap-1">
-                    <input
+                <div className="space-y-2 rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+                  <p className="text-xs uppercase tracking-[0.08em] text-muted">Prueba rápida</p>
+                  <div className="flex gap-2 text-xs text-muted">
+                    <label className="flex items-center gap-1">
+                      <input
                       type="radio"
                       name="provider"
                       value="openai"
@@ -122,6 +136,16 @@ export function AgentsCatalog() {
                     />
                     Anthropic
                   </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value="ollama"
+                      checked={provider === "ollama"}
+                      onChange={() => setProvider("ollama")}
+                    />
+                    Ollama
+                  </label>
                 </div>
                 <textarea
                   value={prompt}
@@ -136,6 +160,15 @@ export function AgentsCatalog() {
                 >
                   {loading ? "Llamando..." : "Ejecutar"}
                 </button>
+                {selectedAgent?.samplePrompt && (
+                  <button
+                    onClick={useSamplePrompt}
+                    disabled={loading}
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
+                  >
+                    Usar prompt sugerido de este agente
+                  </button>
+                )}
                 {error && <p className="text-sm text-danger">{error}</p>}
                 {reply && (
                   <div className="rounded-md border border-border bg-surface p-2 text-sm text-text whitespace-pre-wrap">

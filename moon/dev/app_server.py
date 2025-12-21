@@ -16,6 +16,7 @@ class ChatResponse(BaseModel):
 
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
 
 async def call_openai(prompt: str) -> str:
     if not OPENAI_KEY:
@@ -57,6 +58,23 @@ async def call_anthropic(prompt: str) -> str:
         data = r.json()
         return "".join(block.get("text", "") for block in data.get("content", [])).strip()
 
+async def call_ollama(prompt: str) -> str:
+    url = f"{OLLAMA_HOST}/api/chat"
+    payload = {
+        "model": os.getenv("OLLAMA_MODEL", "llama3.1"),
+        "messages": [
+            {"role": "system", "content": "Eres un agente de trading y research conciso."},
+            {"role": "user", "content": prompt},
+        ],
+        "stream": False,
+    }
+    async with httpx.AsyncClient(timeout=40) as client:
+        r = await client.post(url, json=payload)
+        r.raise_for_status()
+        data = r.json()
+        msg = data.get("message", {})
+        return msg.get("content", "").strip()
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     prompt = req.prompt.strip()
@@ -67,6 +85,8 @@ async def chat(req: ChatRequest):
         reply = await call_openai(prompt)
     elif provider == "anthropic":
         reply = await call_anthropic(prompt)
+    elif provider == "ollama":
+        reply = await call_ollama(prompt)
     else:
         raise HTTPException(status_code=400, detail="unsupported provider")
     return ChatResponse(reply=reply, provider=provider)
