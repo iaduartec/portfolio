@@ -16,13 +16,37 @@ export async function POST(req: NextRequest) {
       next: { revalidate: 0 },
     });
 
+    const contentType = res.headers.get("content-type") || "";
+    const isJson = contentType.includes("application/json");
+    const rawBody = isJson ? await res.json().catch(() => null) : await res.text().catch(() => "");
+
+    const toMessage = (body: any) => {
+      if (!body) return "";
+      if (typeof body === "string") return body;
+      return body.error || body.detail || body.message || "";
+    };
+
+    const normalizeError = (msg: string) => {
+      if (msg.toLowerCase().includes("openai_api_key")) {
+        return "OPENAI_API_KEY falta en el servidor de agentes. Configura la clave o usa otro proveedor (Anthropic/Ollama).";
+      }
+      return msg;
+    };
+
     if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json({ error: text || "Error en el backend de agentes" }, { status: res.status });
+      const message = normalizeError(toMessage(rawBody)) || "Error en el backend de agentes";
+      return NextResponse.json({ error: message }, { status: res.status });
     }
 
-    const data = await res.json();
-    return NextResponse.json(data);
+    if (!rawBody) {
+      return NextResponse.json({ reply: "" });
+    }
+
+    if (typeof rawBody === "string") {
+      return NextResponse.json({ reply: rawBody });
+    }
+
+    return NextResponse.json(rawBody);
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "Error inesperado" }, { status: 500 });
   }
