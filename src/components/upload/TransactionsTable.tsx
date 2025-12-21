@@ -25,7 +25,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
               <th className="px-4 py-3 font-semibold">Tipo</th>
               <th className="px-4 py-3 font-semibold text-right">Cantidad</th>
               <th className="px-4 py-3 font-semibold text-right">Precio</th>
-              <th className="px-4 py-3 font-semibold text-right">Fee</th>
+              <th className="px-4 py-3 font-semibold text-right">Comision</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70 text-text">

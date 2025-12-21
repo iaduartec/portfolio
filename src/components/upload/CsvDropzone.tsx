@@ -176,7 +176,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
 
       {preview.length > 0 && (
         <div className="mt-6 space-y-2 text-sm">
-          <p className="text-xs uppercase tracking-[0.08em] text-muted">Preview (primeras filas)</p>
+          <p className="text-xs uppercase tracking-[0.08em] text-muted">Vista previa (primeras filas)</p>
           <div className="overflow-hidden rounded-lg border border-border/70">
             <table className="min-w-full divide-y divide-border/70 text-left text-xs">
               <thead className="bg-surface-muted/50 text-muted">
