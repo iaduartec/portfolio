@@ -5,8 +5,23 @@ import { Header } from "@/components/layout/Header";
 import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape";
 
 export const metadata: Metadata = {
-  title: "MyInvestView",
-  description: "Dashboard de portafolio inspirado en TradingView",
+  title: "MyInvestView | Análisis de Portafolio con IA y TradingView",
+  description: "Optimiza tus inversiones con Inteligencia Artificial. Dashboard de portafolio avanzado con agentes de IA, análisis técnico de TradingView y seguimiento de rentabilidad en tiempo real.",
+  keywords: ["Trading AI", "Análisis de Portafolio", "Inversión Inteligente", "TradingView Dashboard", "Agentes de IA", "Finanzas"],
+  authors: [{ name: "Duartec" }],
+  openGraph: {
+    title: "MyInvestView - Inteligencia Artificial aplicada al Trading",
+    description: "Analiza tu cartera en segundos con agentes inteligentes.",
+    url: "https://portfolio-duartec.vercel.app",
+    siteName: "MyInvestView",
+    locale: "es_ES",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MyInvestView | Análisis de Portafolio con IA",
+    description: "Maximiza tu rentabilidad con insights de IA y TradingView.",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
