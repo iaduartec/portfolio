@@ -18,9 +18,14 @@ for i in {1..5}; do
   fi
 done
 
+# Fallback: fuser (si está disponible)
+if command -v fuser >/dev/null 2>&1; then
+  fuser -k "${PORT}/tcp" 2>/dev/null || true
+fi
+
 # Fallback: usa ss para capturar PIDs si quedaran
 for i in {1..3}; do
-  PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":$PORT" '$0 ~ port {for (i=1;i<=NF;i++) if ($i ~ /pid=/) {sub(/pid=/, "", $i); split($i,a,","); print a[1]}}' | sort -u | tr '\n' ' ')
+  PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":$PORT" '$0 ~ port {match($0,/pid=([0-9]+)/,m); if (m[1]) print m[1]}' | sort -u | tr '\n' ' ')
   if [[ -n "$PIDS" ]]; then
     echo "🛑 Cerrando $PORT via ss: $PIDS"
     kill -9 $PIDS 2>/dev/null || true
