@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.51",
+    "@ai-sdk/openai": "^2.0.88",
     "@ai-sdk/react": "^2.0.118",
     "@radix-ui/react-slot": "^1.2.4",
     "ai": "^5.0.116",

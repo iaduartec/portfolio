@@ -47,7 +47,7 @@ export function AIChat() {
                 </div>
                 <div>
                     <h3 className="font-semibold text-sm">Portfolio Assistant</h3>
-                    <p className="text-xs text-muted-foreground">Powered by Gemini</p>
+                    <p className="text-xs text-muted-foreground">Powered by OpenAI</p>
                 </div>
             </div>
 
