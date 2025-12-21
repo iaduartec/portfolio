@@ -109,7 +109,7 @@ export function AgentsCatalog() {
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
-      <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
         {holdings.length === 0 ? (
           <Card title="Sin posiciones" subtitle="Agrega transacciones para ver agentes por ticker." />
         ) : (
@@ -121,17 +121,18 @@ export function AgentsCatalog() {
                 key={holding.ticker}
                 onClick={() => setSelected(holding.ticker)}
                 className={cn(
-                  "w-full rounded-lg border border-border bg-surface px-4 py-3 text-left transition hover:border-accent/50 hover:bg-surface-muted/60",
+                  "min-w-[220px] rounded-lg border border-border bg-surface px-4 py-3 text-left transition hover:border-accent/50 hover:bg-surface-muted/60",
                   isActive && "border-accent/70 bg-surface-muted/70 shadow-panel"
                 )}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <p className="text-sm font-semibold text-text">{holding.ticker}</p>
                   <p className="text-xs text-muted">{pnlText}</p>
+                  <p className="text-xs text-muted">
+                    {formatNumber(holding.totalQuantity, 4)} uds · avg{" "}
+                    {formatNumber(holding.averageBuyPrice)}
+                  </p>
                 </div>
-                <p className="text-xs text-muted">
-                  {formatNumber(holding.totalQuantity, 4)} uds · avg {formatNumber(holding.averageBuyPrice)}
-                </p>
               </button>
             );
           })
