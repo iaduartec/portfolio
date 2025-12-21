@@ -1,6 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText, tool } from 'ai';
-import { z } from 'zod/v3';
+import { streamText, tool, jsonSchema } from 'ai';
 
 export const maxDuration = 30;
 
@@ -14,17 +13,18 @@ export async function POST(req: Request) {
       tools: {
         showStock: tool({
           description: 'Show stock price and information for a given symbol',
-          parameters: z.object({
-              symbol: z.string().describe('The stock symbol to show (e.g. AAPL)'),
-              name: z.string().optional().describe('The name of the company'),
-              price: z.number().describe('The current price'),
-              change: z.number().describe('The price change'),
-              changePercent: z.number().describe('The percentage change'),
+          parameters: jsonSchema({
+            type: 'object',
+            properties: {
+              symbol: { type: 'string', description: 'The stock symbol to show (e.g. AAPL)' },
+              name: { type: 'string', description: 'The name of the company' },
+              price: { type: 'number', description: 'The current price' },
+              change: { type: 'number', description: 'The price change' },
+              changePercent: { type: 'number', description: 'The percentage change' },
+            },
+            required: ['symbol', 'price', 'change', 'changePercent'],
           }),
-          // @ts-expect-error AI SDK type mismatch for execute
           execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
-              // In a real app, we might fetch real data here if the LLM didn't provide it provided accurate simulated data
-              // For now, we trust the LLM to hallucinate realistic data or strictly follow prompts
               return { symbol, price, change, changePercent, name };
           }
         })
