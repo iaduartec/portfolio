@@ -48,6 +48,14 @@ import json
 from termcolor import colored, cprint
 from dotenv import load_dotenv
 import openai
+import sys
+from pathlib import Path
+
+# Ensure project root on PYTHONPATH for src imports
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.append(str(project_root))
+
 from src import config
 from src import nice_funcs as n
 from src.data.ohlcv_collector import collect_all_tokens
@@ -628,4 +636,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
