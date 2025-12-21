@@ -5,7 +5,7 @@ interface CardProps {
   title?: string;
   subtitle?: string;
   className?: string;
-  children: ReactNode;
+  children?: ReactNode;
   footer?: ReactNode;
 }
 
@@ -21,7 +21,7 @@ export function Card({ title, subtitle, className, children, footer }: CardProps
           {footer}
         </header>
       )}
-      <div>{children}</div>
+      {children && <div>{children}</div>}
     </div>
   );
 }
