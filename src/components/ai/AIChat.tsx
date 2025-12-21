@@ -66,7 +66,16 @@ export function AIChat() {
                             <span>No se pudo conectar con el asistente de IA. Revisa tu conexion o la clave API.</span>
                         </div>
                     )}
-                    {messages.map((m: any) => (
+                    {messages.map((m: any) => {
+                        const textParts = Array.isArray(m.parts)
+                            ? m.parts.filter((part: any) => part.type === "text")
+                            : [];
+                        const messageText = textParts.map((part: any) => part.text).join("\n");
+                        const toolParts = Array.isArray(m.parts)
+                            ? m.parts.filter((part: any) => typeof part.type === "string" && part.type.startsWith("tool-"))
+                            : [];
+
+                        return (
                         <div
                             key={m.id}
                             className={cn(
@@ -84,43 +93,40 @@ export function AIChat() {
                             </div>
 
                             <div className="flex flex-col gap-2 max-w-[80%]">
-                                {m.content && (
+                                {messageText && (
                                     <div
                                         className={cn(
                                             "p-3 rounded-2xl",
                                             m.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border border-border rounded-tl-none"
                                         )}
                                     >
-                                        {m.content}
+                                        {messageText}
                                     </div>
                                 )}
 
-                                {m.toolInvocations?.map((toolInvocation: any) => {
-                                    const toolCallId = toolInvocation.toolCallId;
+                                {toolParts.map((toolPart: any) => {
+                                    if (toolPart.type !== "tool-showStock") return null;
+                                    const toolCallId = toolPart.toolCallId ?? toolPart.id ?? "tool-call";
 
-                                    if (toolInvocation.toolName === 'showStock') {
-                                        // Check if we have a result
-                                        if ('result' in toolInvocation) {
-                                            return (
-                                                <div key={toolCallId} className="mt-2">
-                                                    <StockCard {...toolInvocation.result} />
-                                                </div>
-                                            );
-                                        } else {
-                                            return (
-                                                <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse p-2 border rounded-lg">
-                                                    <Bot size={12} />
-                                                    Cargando datos del valor...
-                                                </div>
-                                            )
-                                        }
+                                    if (toolPart.state === "output-available" && toolPart.output) {
+                                        return (
+                                            <div key={toolCallId} className="mt-2">
+                                                <StockCard {...toolPart.output} />
+                                            </div>
+                                        );
                                     }
 
-                                    return null;
+                                    return (
+                                        <div key={toolCallId} className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse p-2 border rounded-lg">
+                                            <Bot size={12} />
+                                            Cargando datos del valor...
+                                        </div>
+                                    );
                                 })}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </ScrollArea>
 
