@@ -1,0 +1,5 @@
+anthropic==0.40.0
+openai>=1.54.0
+httpx>=0.28.1
+aiohttp>=3.10.11
+pydantic>=2.12.0

@@ -8,6 +8,31 @@ import { cn } from "@/lib/utils";
 
 export function AgentsCatalog() {
   const [selected, setSelected] = useState(agents[0]?.id ?? null);
+  const [prompt, setPrompt] = useState("");
+  const [reply, setReply] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [provider, setProvider] = useState<"openai" | "anthropic">("openai");
+
+  const runAgent = async () => {
+    setLoading(true);
+    setError(null);
+    setReply(null);
+    try {
+      const res = await fetch("/api/ai-agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, agent: selected, provider }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error al llamar al agente");
+      setReply(data.reply);
+    } catch (e: any) {
+      setError(e.message ?? "Error desconocido");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -73,6 +98,51 @@ export function AgentsCatalog() {
                   </ul>
                 </div>
               )}
+
+              <div className="space-y-2 rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+                <p className="text-xs uppercase tracking-[0.08em] text-muted">Prueba rápida</p>
+                <div className="flex gap-2 text-xs text-muted">
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value="openai"
+                      checked={provider === "openai"}
+                      onChange={() => setProvider("openai")}
+                    />
+                    OpenAI
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value="anthropic"
+                      checked={provider === "anthropic"}
+                      onChange={() => setProvider("anthropic")}
+                    />
+                    Anthropic
+                  </label>
+                </div>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Escribe un prompt para el agente..."
+                  className="h-24 w-full rounded-lg border border-border bg-surface p-2 text-sm text-text outline-none focus:border-accent"
+                />
+                <button
+                  onClick={runAgent}
+                  disabled={loading || !prompt.trim()}
+                  className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                >
+                  {loading ? "Llamando..." : "Ejecutar"}
+                </button>
+                {error && <p className="text-sm text-danger">{error}</p>}
+                {reply && (
+                  <div className="rounded-md border border-border bg-surface p-2 text-sm text-text whitespace-pre-wrap">
+                    {reply}
+                  </div>
+                )}
+              </div>
             </Card>
           ))}
       </div>
