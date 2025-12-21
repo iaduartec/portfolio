@@ -25,19 +25,38 @@ export async function POST(req: Request) {
           }),
           // @ts-expect-error AI SDK type mismatch for execute
           execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
-              // In a real app, we might fetch real data here if the LLM didn't provide it provided accurate simulated data
-              // For now, we trust the LLM to hallucinate realistic data or strictly follow prompts
               return { symbol, price, change, changePercent, name };
           }
         })
       }
     });
 
-    console.log('Result keys:', Object.keys(result));
-    console.log('Result prototype:', Object.getPrototypeOf(result));
-  
-    // @ts-expect-error AI SDK 5.0 type definition mismatch
-    return result.toDataStreamResponse();
+    // Introspect result
+    const keys: string[] = [];
+    let obj = result as any;
+    while (obj) {
+        keys.push(...Object.getOwnPropertyNames(obj));
+        obj = Object.getPrototypeOf(obj);
+    }
+
+    if ('toDataStreamResponse' in result) {
+         // @ts-expect-error TS check
+        return result.toDataStreamResponse();
+    }
+    
+    // Fallback or explicit check
+    if ('toUIMessageStreamResponse' in result) {
+         // @ts-expect-error TS check
+         return (result as any).toUIMessageStreamResponse();
+    }
+    
+     if ('toTextStreamResponse' in result) {
+         // @ts-expect-error TS check
+         return (result as any).toTextStreamResponse();
+    }
+
+    throw new Error(`toDataStreamResponse missing. Available keys: ${keys.join(', ')}`);
+
   } catch (error) {
     console.error('AI API Error:', error);
     return new Response(JSON.stringify({ error: 'Error processing request', details: error instanceof Error ? error.message : String(error) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
