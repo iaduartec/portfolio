@@ -12,6 +12,10 @@ import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvance
 import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
+import { AIChat } from "@/components/ai/AIChat";
+import { MarketPulse } from "@/components/ai/MarketPulse";
+import { ScenarioBuilder } from "@/components/ai/ScenarioBuilder";
+
 export function DashboardClient() {
   const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
@@ -64,6 +68,24 @@ export function DashboardClient() {
           isLoading={isLoading}
         />
         <StatCard label="P&amp;L realizado" value={realizedTotal} isLoading={isLoading} />
+      </section>
+
+      <section className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
+        <div className="md:col-span-1">
+          <AIChat />
+        </div>
+        <div className="md:col-span-2 flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MarketPulse />
+            <ScenarioBuilder />
+          </div>
+          <Card title="AI Analysis" subtitle="Real-time insights on your portfolio">
+            <p className="text-muted-foreground text-sm p-4">
+              The AI Assistant (left) can analyze your specific holdings. Try asking "How is AAPL performing?" or "What is my risk exposure?".
+              The widgets above provide quick "pulse" checks and scenario planning.
+            </p>
+          </Card>
+        </div>
       </section>
 
       <section id="holdings-section" className="grid gap-4 lg:grid-cols-3">
