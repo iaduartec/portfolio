@@ -25,12 +25,33 @@ export function DashboardClient() {
 
   return (
     <>
-      <section className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.08em] text-muted">Panel</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-text">Portafolio</h1>
-        <p className="max-w-3xl text-sm text-muted">
-          Tus posiciones abiertas se calculan desde el CSV. Las ventas se guardan como P&amp;L realizado.
-        </p>
+      <section className="flex flex-col items-start gap-5 py-6 md:py-10">
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Inteligencia Artificial aplicada al Trading</p>
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text max-w-2xl leading-[1.1]">
+            Maximiza tu Rentabilidad con <span className="text-accent">Insights de IA</span>
+          </h1>
+          <p className="max-w-xl text-balance text-lg text-muted">
+            Analiza tu portafolio en segundos y toma decisiones basadas en datos con nuestros agentes inteligentes. Tus posiciones se calculan automáticamente desde tu CSV.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => window.location.href = '/upload'}
+            className="rounded-lg bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            Analizar Mi Cartera
+          </button>
+          <button
+            onClick={() => {
+              const el = document.getElementById('holdings-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="rounded-lg border border-border bg-surface/50 px-6 py-3 text-base font-semibold text-text transition-all hover:bg-surface-muted"
+          >
+            Ver Posiciones
+          </button>
+        </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -44,7 +65,7 @@ export function DashboardClient() {
         <StatCard label="P&amp;L realizado" value={realizedTotal} />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section id="holdings-section" className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-3">
           <Card title="Participaciones" subtitle="Solo posiciones abiertas con su precio promedio">
             {holdings.length > 0 ? (
