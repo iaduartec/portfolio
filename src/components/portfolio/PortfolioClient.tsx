@@ -5,7 +5,7 @@ import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/Allocati
 import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { formatPercent } from "@/lib/formatters";
 

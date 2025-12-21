@@ -9,7 +9,7 @@ import { TradingViewTechnicalAnalysis } from "@/components/charts/TradingViewTec
 import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories";
 import { TradingViewCompanyProfile } from "@/components/charts/TradingViewCompanyProfile";
 import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 import { AIChat } from "@/components/ai/AIChat";

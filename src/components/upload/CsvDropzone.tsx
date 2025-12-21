@@ -2,7 +2,7 @@
 
 import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
 import { Transaction, TransactionType } from "@/types/transactions";

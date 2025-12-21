@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { Activity, Thermometer } from "lucide-react";
 
 export function MarketPulse() {

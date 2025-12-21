@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Holding } from "@/types/portfolio";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 
 type SortKey =
   | "ticker"
@@ -61,7 +61,7 @@ const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection)
   return (valueA - valueB) * factor;
 };
 
-import { Skeleton } from "@/components/ui/Skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface HoldingsTableProps {
   holdings: Holding[];

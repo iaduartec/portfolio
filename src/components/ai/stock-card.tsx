@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, TrendingUp } from "lucide-react";
 
 interface StockCardProps {

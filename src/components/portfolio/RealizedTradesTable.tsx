@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/formatters";
 import { RealizedTrade } from "@/types/portfolio";
 
