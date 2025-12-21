@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CsvDropzone } from "@/components/upload/CsvDropzone";
 import { Shell } from "@/components/layout/Shell";
 import { TransactionsTable } from "@/components/upload/TransactionsTable";
@@ -9,14 +9,18 @@ import { SESSION_ID_KEY } from "@/lib/storage";
 
 export default function UploadPage() {
   const { transactions } = usePortfolioData();
-  const [sessionId, setSessionId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
     const existingSession = window.sessionStorage.getItem(SESSION_ID_KEY);
-    if (existingSession) return existingSession;
+    if (existingSession) {
+      setSessionId(existingSession);
+      return;
+    }
     const newSession = new Date().toISOString();
     window.sessionStorage.setItem(SESSION_ID_KEY, newSession);
-    return newSession;
-  });
+    setSessionId(newSession);
+  }, []);
 
   const handleSave = () => {
     const sid = window.sessionStorage.getItem(SESSION_ID_KEY);
