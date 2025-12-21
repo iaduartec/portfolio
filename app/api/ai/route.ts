@@ -1,6 +1,11 @@
-import { google } from '@ai-sdk/google';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, tool } from 'ai';
 import { z } from 'zod';
+
+// Create a custom Google provider instance with the API key from environment variables
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY,
+});
 
 export const maxDuration = 30;
 
@@ -8,7 +13,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const result = streamText({
-    model: google('gemini-1.5-pro-latest'),
+    model: google('gemini-1.5-pro'),
     messages,
     tools: {
       showStock: tool({
