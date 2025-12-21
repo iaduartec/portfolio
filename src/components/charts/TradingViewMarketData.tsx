@@ -26,11 +26,11 @@ export function TradingViewMarketData({ width = 550, height = 550 }: TradingView
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = "Market summary";
+    span.textContent = "Resumen del mercado";
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
-    tail.textContent = " by TradingView";
+    tail.textContent = " por TradingView";
     copyright.appendChild(link);
     copyright.appendChild(tail);
 
@@ -52,41 +52,41 @@ export function TradingViewMarketData({ width = 550, height = 550 }: TradingView
         {
           name: "Indices",
           symbols: [
-            { name: "FOREXCOM:SPXUSD", displayName: "S&P 500 Index" },
-            { name: "FOREXCOM:NSXUSD", displayName: "US 100 Cash CFD" },
-            { name: "FOREXCOM:DJI", displayName: "Dow Jones Industrial Average Index" },
-            { name: "INDEX:NKY", displayName: "Japan 225" },
-            { name: "INDEX:DEU40", displayName: "DAX Index" },
-            { name: "FOREXCOM:UKXGBP", displayName: "FTSE 100 Index" },
+            { name: "FOREXCOM:SPXUSD", displayName: "Indice S&P 500" },
+            { name: "FOREXCOM:NSXUSD", displayName: "US 100 CFD al contado" },
+            { name: "FOREXCOM:DJI", displayName: "Indice Dow Jones Industrial Average" },
+            { name: "INDEX:NKY", displayName: "Japon 225" },
+            { name: "INDEX:DEU40", displayName: "Indice DAX" },
+            { name: "FOREXCOM:UKXGBP", displayName: "Indice FTSE 100" },
           ],
         },
         {
-          name: "Futures",
+          name: "Futuros",
           symbols: [
             { name: "BMFBOVESPA:ISP1!", displayName: "S&P 500" },
             { name: "BMFBOVESPA:EUR1!", displayName: "Euro" },
-            { name: "CMCMARKETS:GOLD", displayName: "Gold" },
-            { name: "PYTH:WTI3!", displayName: "WTI Crude Oil" },
-            { name: "BMFBOVESPA:CCM1!", displayName: "Corn" },
+            { name: "CMCMARKETS:GOLD", displayName: "Oro" },
+            { name: "PYTH:WTI3!", displayName: "Crudo WTI" },
+            { name: "BMFBOVESPA:CCM1!", displayName: "Maiz" },
           ],
         },
         {
-          name: "Bonds",
+          name: "Bonos",
           symbols: [
-            { name: "EUREX:FGBL1!", displayName: "Euro Bund" },
-            { name: "EUREX:FBTP1!", displayName: "Euro BTP" },
-            { name: "EUREX:FGBM1!", displayName: "Euro BOBL" },
+            { name: "EUREX:FGBL1!", displayName: "Bund europeo" },
+            { name: "EUREX:FBTP1!", displayName: "BTP europeo" },
+            { name: "EUREX:FGBM1!", displayName: "BOBL europeo" },
           ],
         },
         {
-          name: "Forex",
+          name: "Divisas",
           symbols: [
-            { name: "FX:EURUSD", displayName: "EUR to USD" },
-            { name: "FX:GBPUSD", displayName: "GBP to USD" },
-            { name: "FX:USDJPY", displayName: "USD to JPY" },
-            { name: "FX:USDCHF", displayName: "USD to CHF" },
-            { name: "FX:AUDUSD", displayName: "AUD to USD" },
-            { name: "FX:USDCAD", displayName: "USD to CAD" },
+            { name: "FX:EURUSD", displayName: "EUR a USD" },
+            { name: "FX:GBPUSD", displayName: "GBP a USD" },
+            { name: "FX:USDJPY", displayName: "USD a JPY" },
+            { name: "FX:USDCHF", displayName: "USD a CHF" },
+            { name: "FX:AUDUSD", displayName: "AUD a USD" },
+            { name: "FX:USDCAD", displayName: "USD a CAD" },
           ],
         },
       ],

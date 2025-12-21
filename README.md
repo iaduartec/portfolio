@@ -1,6 +1,6 @@
 # 📉 MyInvestView
 
-**MyInvestView** es una plataforma avanzada de análisis de inversiones que combina la potencia de **Next.js**, la visualización técnica de **TradingView** y la inteligencia artificial de **Google Gemini** para transformar tus datos de inversión en decisiones estratégicas.
+**MyInvestView** es una plataforma avanzada de análisis de inversiones que combina la potencia de **Next.js**, la visualización técnica de **TradingView** y la inteligencia artificial para transformar tus datos de inversión en decisiones estratégicas.
 
 ---
 

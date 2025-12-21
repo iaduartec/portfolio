@@ -159,7 +159,7 @@ export function CandlestickChart({
         <span>
           {dayChangePercent !== undefined
             ? `Día ${dayChangePercent >= 0 ? "+" : ""}${dayChangePercent.toFixed(2)}%`
-            : "Mock candles"}
+            : "Velas simuladas"}
         </span>
       </div>
       <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/50" />

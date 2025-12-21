@@ -3,7 +3,7 @@ import { Activity } from "lucide-react";
 
 export function MarketPulse() {
     // Static data for now, would be dynamic with AI
-    const sentiment = "Cautiously Optimistic";
+    const sentiment = "Optimismo cauteloso";
     const score = 65; // 0-100
 
     return (
@@ -12,12 +12,12 @@ export function MarketPulse() {
                 <div className="p-2 bg-blue-500/10 rounded-full text-blue-500">
                     <Activity size={20} />
                 </div>
-                <h3 className="font-bold text-lg">Market Pulse</h3>
+                <h3 className="font-bold text-lg">Pulso de mercado</h3>
             </div>
 
             <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm">
-                    <span className="text-muted-foreground">Sentiment</span>
+                    <span className="text-muted-foreground">Sentimiento</span>
                     <span className="font-medium text-blue-400">{sentiment}</span>
                 </div>
 
@@ -28,7 +28,7 @@ export function MarketPulse() {
                     />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                    Based on recent sector performance and volatility.
+                    Basado en el rendimiento reciente del sector y la volatilidad.
                 </p>
             </div>
         </Card>

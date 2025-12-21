@@ -35,11 +35,11 @@ export function TradingViewTopStories({
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = "Top stories";
+    span.textContent = "Principales noticias";
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
-    tail.textContent = " by TradingView";
+    tail.textContent = " por TradingView";
     copyright.appendChild(link);
     copyright.appendChild(tail);
 

@@ -29,11 +29,11 @@ export function TradingViewMarketOverview({
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = "Market summary";
+    span.textContent = "Resumen del mercado";
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
-    tail.textContent = " by TradingView";
+    tail.textContent = " por TradingView";
     copyright.appendChild(link);
     copyright.appendChild(tail);
 
@@ -61,44 +61,44 @@ export function TradingViewMarketOverview({
         {
           title: "Indices",
           symbols: [
-            { s: "FOREXCOM:SPXUSD", d: "S&P 500 Index" },
-            { s: "FOREXCOM:NSXUSD", d: "US 100 Cash CFD" },
-            { s: "FOREXCOM:DJI", d: "Dow Jones Industrial Average Index" },
-            { s: "INDEX:NKY", d: "Japan 225" },
-            { s: "INDEX:DEU40", d: "DAX Index" },
-            { s: "FOREXCOM:UKXGBP", d: "FTSE 100 Index" },
+            { s: "FOREXCOM:SPXUSD", d: "Indice S&P 500" },
+            { s: "FOREXCOM:NSXUSD", d: "US 100 CFD al contado" },
+            { s: "FOREXCOM:DJI", d: "Indice Dow Jones Industrial Average" },
+            { s: "INDEX:NKY", d: "Japon 225" },
+            { s: "INDEX:DEU40", d: "Indice DAX" },
+            { s: "FOREXCOM:UKXGBP", d: "Indice FTSE 100" },
           ],
           originalTitle: "Indices",
         },
         {
-          title: "Futures",
+          title: "Futuros",
           symbols: [
             { s: "BMFBOVESPA:ISP1!", d: "S&P 500" },
             { s: "BMFBOVESPA:EUR1!", d: "Euro" },
-            { s: "CMCMARKETS:GOLD", d: "Gold" },
-            { s: "PYTH:WTI3!", d: "WTI Crude Oil" },
-            { s: "BMFBOVESPA:CCM1!", d: "Corn" },
+            { s: "CMCMARKETS:GOLD", d: "Oro" },
+            { s: "PYTH:WTI3!", d: "Crudo WTI" },
+            { s: "BMFBOVESPA:CCM1!", d: "Maiz" },
           ],
           originalTitle: "Futures",
         },
         {
-          title: "Bonds",
+          title: "Bonos",
           symbols: [
-            { s: "EUREX:FGBL1!", d: "Euro Bund" },
-            { s: "EUREX:FBTP1!", d: "Euro BTP" },
-            { s: "EUREX:FGBM1!", d: "Euro BOBL" },
+            { s: "EUREX:FGBL1!", d: "Bund europeo" },
+            { s: "EUREX:FBTP1!", d: "BTP europeo" },
+            { s: "EUREX:FGBM1!", d: "BOBL europeo" },
           ],
           originalTitle: "Bonds",
         },
         {
-          title: "Forex",
+          title: "Divisas",
           symbols: [
-            { s: "FX:EURUSD", d: "EUR to USD" },
-            { s: "FX:GBPUSD", d: "GBP to USD" },
-            { s: "FX:USDJPY", d: "USD to JPY" },
-            { s: "FX:USDCHF", d: "USD to CHF" },
-            { s: "FX:AUDUSD", d: "AUD to USD" },
-            { s: "FX:USDCAD", d: "USD to CAD" },
+            { s: "FX:EURUSD", d: "EUR a USD" },
+            { s: "FX:GBPUSD", d: "GBP a USD" },
+            { s: "FX:USDJPY", d: "USD a JPY" },
+            { s: "FX:USDCHF", d: "USD a CHF" },
+            { s: "FX:AUDUSD", d: "AUD a USD" },
+            { s: "FX:USDCAD", d: "USD a CAD" },
           ],
           originalTitle: "Forex",
         },

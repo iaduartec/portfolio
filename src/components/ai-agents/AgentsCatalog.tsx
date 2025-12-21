@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { Holding } from "@/types/portfolio";
+import { formatCurrency } from "@/lib/formatters";
 
 type RecommendationMap = Record<string, string>;
 
@@ -17,11 +18,11 @@ const formatOptional = (value: number | undefined, digits = 2) =>
   Number.isFinite(value) ? value!.toFixed(digits) : "n/d";
 
 const buildTickerPrompt = (holding: Holding) => {
-  const avg = formatNumber(holding.averageBuyPrice);
-  const cur = formatNumber(holding.currentPrice);
+  const avg = formatCurrency(holding.averageBuyPrice);
+  const cur = formatCurrency(holding.currentPrice);
   const qty = formatNumber(holding.totalQuantity, 4);
-  const mv = formatNumber(holding.marketValue);
-  const pnlValue = formatNumber(holding.pnlValue);
+  const mv = formatCurrency(holding.marketValue);
+  const pnlValue = formatCurrency(holding.pnlValue);
   const pnlPercent = formatNumber(holding.pnlPercent);
   const dayChange = formatOptional(holding.dayChangePercent);
 
@@ -232,8 +233,8 @@ export function AgentsCatalog() {
                   <p className="text-xs font-semibold text-text">{holding.ticker}</p>
                   <p className="text-[11px] text-muted">{pnlText}</p>
                   <p className="text-[11px] text-muted">
-                    {formatNumber(holding.totalQuantity, 4)} uds · avg{" "}
-                    {formatNumber(holding.averageBuyPrice)}
+                    {formatNumber(holding.totalQuantity, 4)} uds · media{" "}
+                    {formatCurrency(holding.averageBuyPrice)}
                   </p>
                 </div>
               </button>
@@ -258,15 +259,14 @@ export function AgentsCatalog() {
                 <div>
                   <p className="text-xs uppercase tracking-[0.08em] text-muted">Posicion</p>
                   <p className="text-sm text-text/90">
-                    {formatNumber(selectedHolding.totalQuantity, 4)} uds · avg {formatNumber(
-                      selectedHolding.averageBuyPrice
-                    )}
+                    {formatNumber(selectedHolding.totalQuantity, 4)} uds · media{" "}
+                    {formatCurrency(selectedHolding.averageBuyPrice)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.08em] text-muted">P&L</p>
                   <p className="text-sm text-text/90">
-                    {formatNumber(selectedHolding.pnlValue)} USD ({formatNumber(
+                    {formatCurrency(selectedHolding.pnlValue)} ({formatNumber(
                       selectedHolding.pnlPercent
                     )}%)
                   </p>
@@ -378,11 +378,11 @@ export function AgentsCatalog() {
                           {formatNumber(holding.averageBuyPrice)}
                         </p>
                         <p className="text-xs text-muted">
-                          Actual {formatNumber(holding.currentPrice)} · P&L{" "}
+                          Actual {formatCurrency(holding.currentPrice)} · P&L{" "}
                           {formatNumber(holding.pnlPercent)}%
                         </p>
                         <p className="text-xs text-muted">
-                          Valor {formatNumber(holding.marketValue)} USD
+                          Valor {formatCurrency(holding.marketValue)}
                         </p>
                       </div>
                       <div className="space-y-2">

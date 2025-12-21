@@ -33,7 +33,7 @@ export function DashboardClient() {
         <div className="flex flex-col gap-3">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Inteligencia Artificial aplicada al Trading</p>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text max-w-2xl leading-[1.1]">
-            Maximiza tu Rentabilidad con <span className="text-accent">Insights de IA</span>
+            Maximiza tu Rentabilidad con <span className="text-accent">Analisis de IA</span>
           </h1>
           <p className="max-w-xl text-balance text-lg text-muted">
             Analiza tu portafolio en segundos y toma decisiones basadas en datos con nuestros agentes inteligentes. Tus posiciones se calculan automáticamente desde tu CSV.
@@ -79,10 +79,11 @@ export function DashboardClient() {
             <MarketPulse />
             <ScenarioBuilder />
           </div>
-          <Card title="AI Analysis" subtitle="Real-time insights on your portfolio">
+          <Card title="Analisis de IA" subtitle="Informacion en tiempo real de tu cartera">
             <p className="text-muted-foreground text-sm p-4">
-              The AI Assistant (left) can analyze your specific holdings. Try asking &quot;How is AAPL performing?&quot; or &quot;What is my risk exposure?&quot;.
-              The widgets above provide quick &quot;pulse&quot; checks and scenario planning.
+              El asistente de IA (izquierda) puede analizar tus participaciones concretas. Prueba a preguntar
+              &quot;Como va AAPL?&quot; o &quot;Cual es mi exposicion al riesgo?&quot;. Los widgets de arriba ofrecen
+              chequeos rapidos de &quot;pulso&quot; y planificacion de escenarios.
             </p>
           </Card>
         </div>
@@ -130,27 +131,27 @@ export function DashboardClient() {
                 <TradingViewTopStories symbol={selectedHolding.ticker} height="100%" />
               </section>
               <section className="rounded-lg border border-border/60 bg-surface-muted/50 p-4 text-sm text-muted">
-                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Powered by TradingView</p>
+                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Con tecnologia TradingView</p>
                 <p>
-                  Charts and financial information provided by TradingView. Explore more{" "}
+                  Graficos e informacion financiera proporcionados por TradingView. Explora mas{" "}
                   <a
                     href="https://www.tradingview.com/features/"
                     className="text-accent"
                     target="_blank"
                     rel="noopener nofollow"
                   >
-                    advanced features
+                    funciones avanzadas
                   </a>{" "}
-                  or{" "}
+                  o{" "}
                   <a
                     href="https://www.tradingview.com/widget/"
                     className="text-accent"
                     target="_blank"
                     rel="noopener nofollow"
                   >
-                    grab widgets
+                    usa widgets
                   </a>{" "}
-                  for your site.
+                  en tu sitio.
                 </p>
               </section>
             </div>

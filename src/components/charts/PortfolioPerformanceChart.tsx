@@ -45,7 +45,7 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
           </span>
         </div>
         <div className="ml-auto text-xs text-muted">
-          {rangeStart && rangeEnd ? `${rangeStart}–${rangeEnd}` : "Últimos 6 meses"} • Mock
+          {rangeStart && rangeEnd ? `${rangeStart}–${rangeEnd}` : "Últimos 6 meses"} • Datos simulados
         </div>
       </div>
       <div className="h-64 rounded-2xl border border-border bg-surface-muted/30 p-3">

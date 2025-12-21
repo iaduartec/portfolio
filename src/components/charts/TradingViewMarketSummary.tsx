@@ -9,12 +9,12 @@ interface TradingViewMarketSummaryProps {
 export function TradingViewMarketSummary({ direction = "horizontal" }: TradingViewMarketSummaryProps) {
   useEffect(() => {
     const existing = document.querySelector(
-      'script[src="https://widgets.tradingview-widget.com/w/en/tv-market-summary.js"]'
+      'script[src="https://widgets.tradingview-widget.com/w/es/tv-market-summary.js"]'
     );
     if (existing) return;
     const script = document.createElement("script");
     script.type = "module";
-    script.src = "https://widgets.tradingview-widget.com/w/en/tv-market-summary.js";
+    script.src = "https://widgets.tradingview-widget.com/w/es/tv-market-summary.js";
     document.body.appendChild(script);
   }, []);
 

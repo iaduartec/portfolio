@@ -17,7 +17,7 @@ export function ScenarioBuilder() {
         // Simulation logic would go here (call AI)
         // For now, mock result
         setTimeout(() => {
-            setResult("Based on historical beta, a 10% market drop could impact your portfolio by approximately -8.5%.");
+            setResult("Segun la beta historica, una caida del mercado del 10% podria afectar tu cartera en aproximadamente -8,5%.");
             setLoading(false);
         }, 1500);
     };
@@ -28,12 +28,12 @@ export function ScenarioBuilder() {
                 <div className="p-2 bg-purple-500/10 rounded-full text-purple-500">
                     <BrainCircuit size={20} />
                 </div>
-                <h3 className="font-bold text-lg">Smart Scenarios</h3>
+                <h3 className="font-bold text-lg">Escenarios inteligentes</h3>
             </div>
 
             <div className="flex flex-col gap-3">
                 <Input
-                    placeholder="e.g. What if rates rise 1%?"
+                    placeholder="p.ej. Que pasa si los tipos suben 1%?"
                     value={scenario}
                     onChange={(e) => setScenario(e.target.value)}
                     className="bg-background/50"
@@ -43,7 +43,7 @@ export function ScenarioBuilder() {
                     disabled={loading || !scenario}
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white"
                 >
-                    {loading ? "Simulating..." : "Simulate Impact"}
+                    {loading ? "Simulando..." : "Simular impacto"}
                 </Button>
 
                 {result && (
