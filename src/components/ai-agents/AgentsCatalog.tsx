@@ -19,7 +19,8 @@ export function AgentsCatalog() {
   const selectedAgent = agents.find((a) => a.id === selected);
 
   const runAgent = async (customPrompt?: string) => {
-    const text = (customPrompt ?? prompt).trim();
+    const rawPrompt = customPrompt ?? prompt;
+    const text = typeof rawPrompt === "string" ? rawPrompt.trim() : "";
     if (!text) {
       setError("Escribe un prompt o usa el prompt sugerido.");
       return;
@@ -31,7 +32,7 @@ export function AgentsCatalog() {
       const res = await fetch("/api/ai-agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, agent: selected, provider }),
+        body: JSON.stringify({ prompt: text, agent: selected, provider }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al llamar al agente");
