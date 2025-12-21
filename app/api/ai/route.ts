@@ -32,6 +32,9 @@ export async function POST(req: Request) {
         })
       }
     });
+
+    console.log('Result keys:', Object.keys(result));
+    console.log('Result prototype:', Object.getPrototypeOf(result));
   
     // @ts-expect-error AI SDK 5.0 type definition mismatch
     return result.toDataStreamResponse();
