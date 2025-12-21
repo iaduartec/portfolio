@@ -6,8 +6,8 @@ import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape
 
 export const metadata: Metadata = {
   title: "MyInvestView | Análisis de Portafolio con IA y TradingView",
-  description: "Optimiza tus inversiones con Inteligencia Artificial. Dashboard de portafolio avanzado con agentes de IA, análisis técnico de TradingView y seguimiento de rentabilidad en tiempo real.",
-  keywords: ["Trading AI", "Análisis de Portafolio", "Inversión Inteligente", "TradingView Dashboard", "Agentes de IA", "Finanzas"],
+  description: "Optimiza tus inversiones con Inteligencia Artificial. Panel de portafolio avanzado con agentes de IA, analisis tecnico de TradingView y seguimiento de rentabilidad en tiempo real.",
+  keywords: ["IA para trading", "Analisis de portafolio", "Inversion inteligente", "Panel TradingView", "Agentes de IA", "Finanzas"],
   authors: [{ name: "Duartec" }],
   openGraph: {
     title: "MyInvestView - Inteligencia Artificial aplicada al Trading",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "MyInvestView | Análisis de Portafolio con IA",
-    description: "Maximiza tu rentabilidad con insights de IA y TradingView.",
+    description: "Maximiza tu rentabilidad con analisis de IA y TradingView.",
   },
 };
 
