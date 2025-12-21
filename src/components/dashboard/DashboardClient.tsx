@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 export function DashboardClient() {
-  const { holdings, summary, realizedTrades } = usePortfolioData();
+  const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const totalPnlPercent =
     summary.totalValue - summary.totalPnl > 0
@@ -55,24 +55,26 @@ export function DashboardClient() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Valor total" value={summary.totalValue} />
+        <StatCard label="Valor total" value={summary.totalValue} isLoading={isLoading} />
         <StatCard
           label="P&amp;L abierto"
           value={summary.totalPnl}
           change={totalPnlPercent}
           changeVariant="percent"
+          isLoading={isLoading}
         />
-        <StatCard label="P&amp;L realizado" value={realizedTotal} />
+        <StatCard label="P&amp;L realizado" value={realizedTotal} isLoading={isLoading} />
       </section>
 
       <section id="holdings-section" className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-3">
           <Card title="Participaciones" subtitle="Solo posiciones abiertas con su precio promedio">
-            {holdings.length > 0 ? (
+            {(holdings.length > 0 || isLoading) ? (
               <HoldingsTable
                 holdings={holdings}
                 selectedTicker={activeTicker}
                 onSelect={setSelectedTicker}
+                isLoading={isLoading}
               />
             ) : (
               <p className="text-sm text-muted">

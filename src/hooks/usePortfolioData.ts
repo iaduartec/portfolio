@@ -152,12 +152,17 @@ export function usePortfolioData() {
   const holdings = useMemo(() => computeHoldings(transactions, priceMap), [transactions, priceMap]);
   const summary = useMemo(() => computeSummary(holdings), [holdings]);
   const realizedTrades = useMemo(() => computeRealizedTrades(transactions), [transactions]);
+  const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
   const hasTransactions = transactions.length > 0;
 
   useEffect(() => {
     const tickers = Array.from(new Set(transactions.map((tx) => tx.ticker))).filter(Boolean);
-    if (tickers.length === 0) return;
+    if (tickers.length === 0) {
+      setIsLoadingQuotes(false);
+      return;
+    }
     const controller = new AbortController();
+    setIsLoadingQuotes(true);
     fetch(`/api/quotes?tickers=${encodeURIComponent(tickers.join(","))}`, {
       signal: controller.signal,
     })
@@ -177,10 +182,13 @@ export function usePortfolioData() {
         }
         setPriceMap((prev) => ({ ...prev, ...nextMap }));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setIsLoadingQuotes(false);
+      });
 
     return () => controller.abort();
   }, [transactions]);
 
-  return { transactions, holdings, summary, realizedTrades, hasTransactions };
+  return { transactions, holdings, summary, realizedTrades, hasTransactions, isLoading: isLoadingQuotes };
 }

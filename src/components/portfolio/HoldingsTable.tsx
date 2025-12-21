@@ -61,14 +61,17 @@ const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection)
   return (valueA - valueB) * factor;
 };
 
+import { Skeleton } from "@/components/ui/Skeleton";
+
 interface HoldingsTableProps {
   holdings: Holding[];
   selectedTicker?: string | null;
   // eslint-disable-next-line no-unused-vars
   onSelect?: (value: string) => void;
+  isLoading?: boolean;
 }
 
-export function HoldingsTable({ holdings, selectedTicker, onSelect }: HoldingsTableProps) {
+export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
     direction: "desc",
@@ -123,56 +126,70 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect }: HoldingsTa
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-sm">
-            {sortedHoldings.map((holding) => {
-              const isPositive = holding.pnlValue >= 0;
-              const isSelected = selectedTicker === holding.ticker;
-              return (
-                <tr
-                  key={holding.ticker}
-                  className={cn(
-                    "cursor-pointer hover:bg-surface-muted/50",
-                    isSelected && "bg-surface-muted/70"
-                  )}
-                  onClick={() => onSelect?.(holding.ticker)}
-                >
-                  <td className="whitespace-nowrap px-4 py-3 font-semibold text-text">
-                    {holding.ticker}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
-                    {formatCurrency(holding.averageBuyPrice)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-text">
-                    {formatCurrency(holding.currentPrice)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    <Badge tone={isPositive ? "success" : "danger"}>
-                      {formatPercent(holding.pnlPercent / 100)}
-                    </Badge>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right">
-                    {holding.dayChangePercent !== undefined ? (
-                      <Badge tone={holding.dayChangePercent >= 0 ? "success" : "danger"}>
-                        {formatPercent(holding.dayChangePercent / 100)}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
-                    {formatCurrency(holding.marketValue)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted">
-                    {getFinancialInfo(holding.ticker)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted">
-                    {getRiskInfo(holding.ticker)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted">
-                    {getTechnicalInfo(holding.ticker)}
-                  </td>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={`skeleton-${i}`}>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-12" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-16 ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-16 ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-5 w-24 ml-auto" /></td>
+                  <td className="px-4 py-3" colSpan={3}><Skeleton className="h-5 w-full" /></td>
                 </tr>
-              );
-            })}
+              ))
+            ) : (
+              sortedHoldings.map((holding) => {
+                const isPositive = holding.pnlValue >= 0;
+                const isSelected = selectedTicker === holding.ticker;
+                return (
+                  <tr
+                    key={holding.ticker}
+                    className={cn(
+                      "cursor-pointer hover:bg-surface-muted/50",
+                      isSelected && "bg-surface-muted/70"
+                    )}
+                    onClick={() => onSelect?.(holding.ticker)}
+                  >
+                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-text">
+                      {holding.ticker}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
+                      {formatCurrency(holding.averageBuyPrice)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-text">
+                      {formatCurrency(holding.currentPrice)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <Badge tone={isPositive ? "success" : "danger"}>
+                        {formatPercent(holding.pnlPercent / 100)}
+                      </Badge>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      {holding.dayChangePercent !== undefined ? (
+                        <Badge tone={holding.dayChangePercent >= 0 ? "success" : "danger"}>
+                          {formatPercent(holding.dayChangePercent / 100)}
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
+                      {formatCurrency(holding.marketValue)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted">
+                      {getFinancialInfo(holding.ticker)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted">
+                      {getRiskInfo(holding.ticker)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted">
+                      {getTechnicalInfo(holding.ticker)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
