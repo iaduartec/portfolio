@@ -88,16 +88,21 @@ const fetchStooqQuote = async (ticker: string): Promise<Quote | null> => {
   const symbol = normalizeSymbolForStooq(ticker);
   if (!/^[a-z0-9.]+$/i.test(symbol)) return null;
   const url = `https://stooq.pl/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
-  const res = await fetch(url, { next: { revalidate: 60 } });
-  const csv = await res.text();
-  const parsed = parseStooqCsv(csv);
-  if (parsed.length === 0) return null;
-  const quote = parsed[0];
-  if (!Number.isFinite(quote.price)) return null;
-  return {
-    ...quote,
-    ticker,
-  };
+  try {
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    const csv = await res.text();
+    const parsed = parseStooqCsv(csv);
+    if (parsed.length === 0) return null;
+    const quote = parsed[0];
+    if (!Number.isFinite(quote.price)) return null;
+    return {
+      ...quote,
+      ticker,
+    };
+  } catch (err) {
+    console.error("stooq fetch failed", { ticker, err });
+    return null;
+  }
 };
 
 const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | null> => {
@@ -106,23 +111,28 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
   const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(
     symbol
   )}&apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: 60 } });
-  const json = await res.json();
-  const data = json?.["Global Quote"] ?? {};
-  const price = Number(data["05. price"]);
-  if (!Number.isFinite(price)) return null;
-  const prevClose = Number(data["08. previous close"]);
-  const dayChange = Number.isFinite(prevClose) ? price - prevClose : undefined;
-  const dayChangePercent =
-    Number.isFinite(prevClose) && prevClose !== 0 ? (dayChange! / prevClose) * 100 : undefined;
-  return {
-    ticker,
-    price,
-    dayChange,
-    dayChangePercent,
-    asOf: data["07. latest trading day"] ?? undefined,
-    sourceSymbol: symbol,
-  };
+  try {
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    const json = await res.json();
+    const data = json?.["Global Quote"] ?? {};
+    const price = Number(data["05. price"]);
+    if (!Number.isFinite(price)) return null;
+    const prevClose = Number(data["08. previous close"]);
+    const dayChange = Number.isFinite(prevClose) ? price - prevClose : undefined;
+    const dayChangePercent =
+      Number.isFinite(prevClose) && prevClose !== 0 ? (dayChange! / prevClose) * 100 : undefined;
+    return {
+      ticker,
+      price,
+      dayChange,
+      dayChangePercent,
+      asOf: data["07. latest trading day"] ?? undefined,
+      sourceSymbol: symbol,
+    };
+  } catch (err) {
+    console.error("alphavantage fetch failed", { ticker, err });
+    return null;
+  }
 };
 
 export async function GET(request: Request) {
