@@ -25,7 +25,7 @@ fi
 
 # Fallback: usa ss para capturar PIDs si quedaran
 for i in {1..3}; do
-  PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":$PORT" '$0 ~ port {match($0,/pid=([0-9]+)/,m); if (m[1]) print m[1]}' | sort -u | tr '\n' ' ')
+  PIDS=$(ss -ltnp 2>/dev/null | awk -v port=":$PORT" '$0 ~ port {if (match($0,/pid=[0-9]+/)) {pid=substr($0,RSTART+4,RLENGTH-4); print pid}}' | sort -u | tr '\n' ' ')
   if [[ -n "$PIDS" ]]; then
     echo "🛑 Cerrando $PORT via ss: $PIDS"
     kill -9 $PIDS 2>/dev/null || true
