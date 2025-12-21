@@ -27,8 +27,12 @@ export async function POST(req: NextRequest) {
     };
 
     const normalizeError = (msg: string) => {
-      if (msg.toLowerCase().includes("openai_api_key")) {
+      const lower = msg.toLowerCase();
+      if (lower.includes("openai_api_key")) {
         return "OPENAI_API_KEY falta en el servidor de agentes. Configura la clave o usa otro proveedor (Anthropic/Ollama).";
+      }
+      if (lower.includes("anthropic") && lower.includes("api") && lower.includes("key")) {
+        return "ANTHROPIC_API_KEY falta en el servidor de agentes. Configúrala o cambia de proveedor.";
       }
       return msg;
     };
