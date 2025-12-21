@@ -6,7 +6,7 @@
     "dev": "next dev --hostname 0.0.0.0 --port ${PORT:-3000}",
     "dev:clean": "bash ./scripts/dev.sh",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 0.0.0.0 --port ${PORT:-3000}",
     "lint": "eslint app src --max-warnings=0",
     "type-check": "tsc --noEmit",
     "vercel": "pnpm dlx vercel"
