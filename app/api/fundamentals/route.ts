@@ -31,11 +31,29 @@ const exchangeSuffixMap: Record<string, string> = {
   SIX: ".SW",
 };
 
+const exchangeYahooSuffixMap: Record<string, string> = {
+  BME: ".MC",
+  MIL: ".MI",
+  XETR: ".DE",
+  FRA: ".DE",
+  LSE: ".L",
+  SWX: ".SW",
+  SIX: ".SW",
+};
+
 const normalizeSymbolForFinnhub = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   if (rawSymbol.includes(".")) return rawSymbol;
   const suffix = exchangeSuffixMap[exchange] ?? "";
+  return `${rawSymbol}${suffix}`;
+};
+
+const normalizeSymbolForYahoo = (ticker: string) => {
+  const cleaned = ticker.trim().toUpperCase();
+  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
+  if (rawSymbol.includes(".")) return rawSymbol;
+  const suffix = exchangeYahooSuffixMap[exchange] ?? "";
   return `${rawSymbol}${suffix}`;
 };
 
@@ -82,6 +100,32 @@ const fetchFundamentals = async (
   return point;
 };
 
+const fetchYahooFundamentals = async (
+  ticker: string,
+  symbol: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
+    symbol
+  )}?modules=summaryDetail,defaultKeyStatistics,financialData`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const json = await res.json();
+  const result = json?.quoteSummary?.result?.[0];
+  if (!result) return null;
+  const summaryDetail = result.summaryDetail ?? {};
+  const keyStats = result.defaultKeyStatistics ?? {};
+  const financialData = result.financialData ?? {};
+  const point: FundamentalPoint = {
+    ticker,
+    symbol,
+    pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
+    ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
+    pb: toNumber(keyStats.priceToBook?.raw),
+    evEbitda: toNumber(keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw),
+    beta: toNumber(keyStats.beta?.raw),
+  };
+  return point;
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickersParam = searchParams.get("tickers") ?? "";
@@ -110,9 +154,17 @@ export async function GET(req: Request) {
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
       const data = await fetchFundamentals(ticker, symbol, apiKey);
-      if (data) {
+      const hasMetrics = data && Object.values(data).some((value) => typeof value === "number");
+      if (hasMetrics && data) {
         setCached(ticker, data);
         results.push(data);
+        continue;
+      }
+      const yahooSymbol = normalizeSymbolForYahoo(ticker);
+      const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
+      if (yahooData) {
+        setCached(ticker, yahooData);
+        results.push(yahooData);
       }
     } catch (err) {
       console.error("finnhub fundamentals failed", { ticker, err });
