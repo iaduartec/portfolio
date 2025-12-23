@@ -486,14 +486,6 @@ export function PatternAnalysisLab() {
 
   const aiPrompt = useMemo(() => {
     const patternNames = activePatterns.map((pattern) => pattern.name).join(", ") || "ninguno";
-    if (dataMode === "tradingview") {
-      return [
-        "Eres un analista tecnico.",
-        `Analiza el ticker ${selected.symbol} con enfoque educativo.`,
-        "No tienes OHLC en vivo desde el embed, asi que describe un checklist de patrones y niveles.",
-        "Devuelve un resumen breve, niveles clave hipoteticos y un plan de validacion.",
-      ].join(" ");
-    }
     const recent = analysis.candles.slice(-20).map((candle) => ({
       time: candle.time,
       open: candle.open,
@@ -503,16 +495,45 @@ export function PatternAnalysisLab() {
     }));
     return [
       "Eres un analista tecnico.",
-      `Ticker simulado: ${selected.symbol}.`,
+      `Ticker: ${selected.symbol}.`,
+      `Fuente de datos: ${dataMode === "live" ? "Alpha Vantage" : "demo simulada"}.`,
       `Patrones detectados: ${patternNames}.`,
-      "Usa las ultimas 20 velas simuladas para comentar estructura, sesgo y niveles.",
+      "Usa las ultimas 20 velas para comentar estructura, sesgo y niveles.",
       "Devuelve un resumen breve y niveles de soporte/resistencia.",
       `Velas: ${JSON.stringify(recent)}`,
     ].join(" ");
   }, [activePatterns, analysis.candles, dataMode, selected.symbol]);
 
   useEffect(() => {
-    if (!containerRef.current || dataMode !== "demo") return;
+    let ignore = false;
+    if (dataMode !== "live") return;
+    setLiveStatus("loading");
+    setLiveError(null);
+    fetch(`/api/market/ohlc?symbol=${selected.symbol}`)
+      .then(async (res) => {
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload?.error || "No data");
+        }
+        if (!ignore) {
+          setLiveSeries({ candles: payload.candles ?? [], volumes: payload.volumes ?? [] });
+          setLiveStatus("idle");
+        }
+      })
+      .catch((err: Error) => {
+        if (!ignore) {
+          setLiveStatus("error");
+          setLiveError(err.message);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [dataMode, selected.symbol]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (analysis.candles.length === 0) return;
     const chart = createChart(containerRef.current, {
       height: 420,
       layout: {
@@ -591,7 +612,7 @@ export function PatternAnalysisLab() {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [analysis, activePatterns, dataMode]);
+  }, [analysis, activePatterns]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2.1fr,1fr]">
@@ -600,7 +621,7 @@ export function PatternAnalysisLab() {
         subtitle={
           dataMode === "demo"
             ? "Serie simulada con patrones conocidos y overlays IA."
-            : "Datos en vivo desde TradingView."
+            : "Datos reales (Alpha Vantage) con overlays IA."
         }
         className="flex flex-col gap-4"
       >
@@ -624,11 +645,11 @@ export function PatternAnalysisLab() {
             <select
               value={dataMode}
               onChange={(event) =>
-                setDataMode(event.target.value === "demo" ? "demo" : "tradingview")
+                setDataMode(event.target.value === "demo" ? "demo" : "live")
               }
               className="rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
             >
-              <option value="tradingview">TradingView</option>
+              <option value="live">Alpha Vantage</option>
               <option value="demo">IA demo</option>
             </select>
           </label>
@@ -642,8 +663,7 @@ export function PatternAnalysisLab() {
               key={item.id}
               className={cn(
                 "flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 transition",
-                filters[item.id] ? "bg-surface text-text" : "text-muted",
-                dataMode === "tradingview" && "opacity-50"
+                filters[item.id] ? "bg-surface text-text" : "text-muted"
               )}
             >
               <input
@@ -653,19 +673,22 @@ export function PatternAnalysisLab() {
                   setFilters((prev) => ({ ...prev, [item.id]: event.target.checked }))
                 }
                 className="accent-accent"
-                disabled={dataMode === "tradingview"}
               />
               {item.label}
             </label>
           ))}
         </div>
-        {dataMode === "demo" ? (
-          <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/40" />
-        ) : (
-          <div className="h-[420px] w-full overflow-hidden rounded-lg border border-border/60 bg-surface-muted/40">
-            <TradingViewAdvancedChart symbol={selected.tvSymbol} height="100%" />
+        {dataMode === "live" && liveStatus === "loading" && (
+          <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-4 text-xs text-muted">
+            Cargando datos en vivo...
           </div>
         )}
+        {dataMode === "live" && liveStatus === "error" && (
+          <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-4 text-xs text-danger">
+            Error al cargar datos: {liveError || "intenta nuevamente"}
+          </div>
+        )}
+        <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/40" />
       </Card>
 
       <Card
@@ -673,7 +696,7 @@ export function PatternAnalysisLab() {
         subtitle={
           dataMode === "demo"
             ? "Heuristicas rapidas sobre puntos de giro."
-            : "TradingView embebido no expone velas, usa el modo IA demo para overlays."
+            : "Analisis IA sobre velas reales."
         }
       >
         <div className="flex flex-col gap-4 text-sm text-muted">
