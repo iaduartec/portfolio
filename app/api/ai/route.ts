@@ -9,6 +9,7 @@ export async function POST(req: Request) {
 
     const result = streamText({
       model: openai('gpt-4o'),
+      system: 'You are a helpful assistant. Respond to the user in Markdown format.',
       messages: convertToModelMessages(messages ?? []),
       // tools: {
       //   showStock: tool({

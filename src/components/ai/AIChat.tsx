@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { useChat } from "@ai-sdk/react";
+import React, { useState } from "react";
+import { Chat, useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { StockCard } from "./stock-card";
 import { Button } from "@/components/ui/button";
@@ -9,37 +9,22 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MemoizedMarkdown } from "@/components/ai/memoized-markdown";
+
+const chat = new Chat({
+    transport: new DefaultChatTransport({ api: "/api/ai" }),
+});
 
 export function AIChat() {
-    const [input, setInput] = useState("");
-    const transport = useMemo(() => new DefaultChatTransport({ api: "/api/ai" }), []);
-    const { messages, sendMessage, status, error } = useChat({
-        transport,
+    const { messages, status, error } = useChat({
+        chat,
+        experimental_throttle: 50,
         onError: (error: Error) => {
             console.error("AI Chat Error:", error);
         }
     });
 
     const isLoading = status === "submitted" || status === "streaming";
-
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInput(e.target.value);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!input.trim() || isLoading) return;
-
-        const userMessage = input;
-        setInput(""); // Clear input immediately
-
-        try {
-            await sendMessage({ text: userMessage });
-        } catch (err) {
-            console.error("Failed to send message:", err);
-            setInput(userMessage); // Restore input on error
-        }
-    };
 
     return (
         <div className="flex flex-col h-[600px] w-full max-w-md border border-border rounded-xl bg-surface shadow-xl overflow-hidden">
@@ -104,7 +89,9 @@ export function AIChat() {
                                             m.role === "user" ? "bg-primary text-primary-foreground rounded-tr-none" : "bg-card border border-border rounded-tl-none"
                                         )}
                                     >
-                                        {messageText}
+                                        <div className="space-y-2">
+                                            <MemoizedMarkdown id={m.id} content={messageText} />
+                                        </div>
                                     </div>
                                 )}
 
@@ -134,18 +121,42 @@ export function AIChat() {
                 </div>
             </ScrollArea>
 
-            <form onSubmit={handleSubmit} className="p-4 border-t border-border bg-surface-muted/30 flex gap-2">
-                <Input
-                    value={input}
-                    onChange={handleInputChange}
-                    placeholder="Escribe un mensaje..."
-                    className="flex-1"
-                    disabled={isLoading}
-                />
-                <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-                    <Send size={18} />
-                </Button>
-            </form>
+            <MessageInput isLoading={isLoading} />
         </div>
+    );
+}
+
+function MessageInput({ isLoading }: { isLoading: boolean }) {
+    const [input, setInput] = useState("");
+    const { sendMessage } = useChat({ chat });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = input;
+        setInput("");
+
+        try {
+            await sendMessage({ text: userMessage });
+        } catch (err) {
+            console.error("Failed to send message:", err);
+            setInput(userMessage);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="p-4 border-t border-border bg-surface-muted/30 flex gap-2">
+            <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Escribe un mensaje..."
+                className="flex-1"
+                disabled={isLoading}
+            />
+            <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
+                <Send size={18} />
+            </Button>
+        </form>
     );
 }
