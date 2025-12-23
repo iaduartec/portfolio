@@ -85,7 +85,13 @@ const fetchFundamentals = async (
     symbol
   )}&metric=all&token=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, { next: { revalidate: 3600 } });
-  const json = (await res.json()) as MetricPayload;
+  const raw = await res.text();
+  let json: MetricPayload;
+  try {
+    json = JSON.parse(raw) as MetricPayload;
+  } catch {
+    return null;
+  }
   const metric = json?.metric ?? {};
   const point: FundamentalPoint = {
     ticker,
@@ -102,6 +108,17 @@ const fetchFundamentals = async (
 
 const fmpHeaders = { "User-Agent": "Mozilla/5.0", Accept: "application/json" };
 
+const fetchFmpJson = async (url: string) => {
+  try {
+    const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
+    const raw = await res.text();
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+};
+
 const fetchFmpStableProfile = async (
   ticker: string,
   symbol: string,
@@ -110,8 +127,7 @@ const fetchFmpStableProfile = async (
   const url = `https://financialmodelingprep.com/stable/profile?symbol=${encodeURIComponent(
     symbol
   )}&apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
-  const json = await res.json();
+  const json = await fetchFmpJson(url);
   const row = Array.isArray(json) ? json[0] : null;
   if (!row) return null;
   return {
@@ -130,8 +146,8 @@ const fetchFmpStableRatios = async (
   const url = `https://financialmodelingprep.com/stable/ratios-ttm?symbol=${encodeURIComponent(
     symbol
   )}&apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
-  const json = await res.json();
+  const json = await fetchFmpJson(url);
+  if (!json || (json as { "Error Message"?: string })["Error Message"]) return null;
   const row = Array.isArray(json) ? json[0] : null;
   if (!row) return null;
   return {
@@ -143,25 +159,6 @@ const fetchFmpStableRatios = async (
   };
 };
 
-const fetchFmpStableKeyMetrics = async (
-  ticker: string,
-  symbol: string,
-  apiKey: string
-): Promise<FundamentalPoint | null> => {
-  const url = `https://financialmodelingprep.com/stable/key-metrics-ttm?symbol=${encodeURIComponent(
-    symbol
-  )}&apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
-  const json = await res.json();
-  const row = Array.isArray(json) ? json[0] : null;
-  if (!row) return null;
-  return {
-    ticker,
-    symbol,
-    evEbitda: toNumber(row.enterpriseValueOverEBITDATTM),
-  };
-};
-
 const fetchFmpStableHistory = async (
   symbol: string,
   apiKey: string
@@ -169,9 +166,10 @@ const fetchFmpStableHistory = async (
   const url = `https://financialmodelingprep.com/stable/historical-price-full?symbol=${encodeURIComponent(
     symbol
   )}&timeseries=30&apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
-  const json = await res.json();
-  const history = Array.isArray(json?.historical) ? json.historical : null;
+  const json = await fetchFmpJson(url);
+  const history = Array.isArray((json as { historical?: unknown[] } | null)?.historical)
+    ? (json as { historical: Array<{ close?: number }> }).historical
+    : null;
   if (!history || history.length === 0) return null;
   const closes = history
     .map((row: { close?: number }) => Number(row.close))
@@ -207,11 +205,12 @@ const fetchFmpStableFundamentals = async (
   symbol: string,
   apiKey: string
 ): Promise<FundamentalPoint | null> => {
-  const [profile, ratios, keyMetrics] = await Promise.all([
+  const [profileResult, ratiosResult] = await Promise.allSettled([
     fetchFmpStableProfile(ticker, symbol, apiKey),
     fetchFmpStableRatios(ticker, symbol, apiKey),
-    fetchFmpStableKeyMetrics(ticker, symbol, apiKey),
   ]);
+  const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
+  const ratios = ratiosResult.status === "fulfilled" ? ratiosResult.value : null;
   const point: FundamentalPoint = {
     ticker,
     symbol,
@@ -219,7 +218,6 @@ const fetchFmpStableFundamentals = async (
     beta: profile?.beta,
     ps: ratios?.ps,
     pb: ratios?.pb,
-    evEbitda: keyMetrics?.evEbitda,
   };
   const hasAny = Object.values(point).some((value) => typeof value === "number");
   return hasAny ? point : null;
@@ -317,28 +315,26 @@ export async function GET(req: Request) {
             ...fmpData,
             rsi,
           };
-          if (apiKey) {
-            const finnhubData = await fetchFundamentals(ticker, symbol, apiKey);
-            merged.rsi = finnhubData?.rsi ?? merged.rsi;
-          }
           setCached(ticker, merged);
           results.push(merged);
           continue;
         }
       }
-      const data = await fetchFundamentals(ticker, symbol, apiKey);
-      const hasMetrics =
-        data !== null &&
-        (Number.isFinite(data.pe) ||
-          Number.isFinite(data.ps) ||
-          Number.isFinite(data.pb) ||
-          Number.isFinite(data.evEbitda) ||
-          Number.isFinite(data.beta) ||
-          Number.isFinite(data.rsi));
-      if (hasMetrics && data) {
-        setCached(ticker, data);
-        results.push(data);
-        continue;
+      if (apiKey) {
+        const data = await fetchFundamentals(ticker, symbol, apiKey);
+        const hasMetrics =
+          data !== null &&
+          (Number.isFinite(data.pe) ||
+            Number.isFinite(data.ps) ||
+            Number.isFinite(data.pb) ||
+            Number.isFinite(data.evEbitda) ||
+            Number.isFinite(data.beta) ||
+            Number.isFinite(data.rsi));
+        if (hasMetrics && data) {
+          setCached(ticker, data);
+          results.push(data);
+          continue;
+        }
       }
       const yahooSymbol = normalizeSymbolForYahoo(ticker);
       const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
