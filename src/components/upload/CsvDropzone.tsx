@@ -3,7 +3,12 @@
 import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/badge";
-import { convertCurrencyFrom, formatCurrency, inferCurrencyFromTicker } from "@/lib/formatters";
+import {
+  convertCurrencyFrom,
+  formatCurrency,
+  inferCurrencyFromTicker,
+  type CurrencyCode,
+} from "@/lib/formatters";
 import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
 import { Transaction, TransactionType } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
@@ -17,6 +22,7 @@ const fieldAliases: Record<keyof Transaction, string[]> = {
   quantity: ["quantity", "qty", "shares", "units", "qty shares"],
   price: ["price", "fill price", "fill_price", "avg_price", "cost"],
   fee: ["fee", "fees", "commission", "broker fee"],
+  currency: ["currency", "ccy", "currency_code", "moneda"],
 };
 
 const normalizeNumber = (value: unknown): number | null => {
@@ -44,6 +50,13 @@ const normalizeType = (raw: string): TransactionType => {
   return "OTHER";
 };
 
+const normalizeCurrency = (raw: string | undefined | null): CurrencyCode | undefined => {
+  if (!raw) return undefined;
+  const normalized = String(raw).trim().toUpperCase();
+  if (normalized === "EUR" || normalized === "USD") return normalized as CurrencyCode;
+  return undefined;
+};
+
 interface CsvDropzoneProps {
   // eslint-disable-next-line no-unused-vars
   onSave?: (rows: Transaction[]) => void;
@@ -66,6 +79,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
     const qtyRaw = pickField(row, fieldAliases.quantity.map((a) => a.toLowerCase()));
     const priceRaw = pickField(row, fieldAliases.price.map((a) => a.toLowerCase()));
     const feeRaw = pickField(row, fieldAliases.fee.map((a) => a.toLowerCase()));
+    const currencyRaw = pickField(row, fieldAliases.currency.map((a) => a.toLowerCase()));
 
     const date = dateRaw ? String(dateRaw).trim() : "";
     const ticker = tickerRaw ? String(tickerRaw).trim().toUpperCase() : "";
@@ -73,12 +87,13 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
     const quantity = normalizeNumber(qtyRaw) ?? 0;
     const price = normalizeNumber(priceRaw) ?? 0;
     const fee = feeRaw !== undefined ? normalizeNumber(feeRaw) ?? undefined : undefined;
+    const currency = normalizeCurrency(currencyRaw);
 
     if (!date || !ticker) {
       return null;
     }
 
-    return { date, ticker, type, quantity, price, fee };
+    return { date, ticker, type, quantity, price, fee, currency };
   };
 
   const handleFiles = (fileList: FileList | null) => {
@@ -201,7 +216,17 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
                       row.Asset ??
                       ""
                   ).trim();
-                  const rowCurrency = inferCurrencyFromTicker(rowTicker);
+                  const rowCurrency =
+                    normalizeCurrency(
+                      row.currency ??
+                        row.Currency ??
+                        row.ccy ??
+                        row.CCY ??
+                        row.currency_code ??
+                        row.Currency_code ??
+                        row.moneda ??
+                        row.Moneda
+                    ) ?? inferCurrencyFromTicker(rowTicker);
                   return (
                     <tr key={idx} className="hover:bg-surface-muted/40">
                       {Object.entries(row).map(([key, value]) => (

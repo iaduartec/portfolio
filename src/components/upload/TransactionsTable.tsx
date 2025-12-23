@@ -45,7 +45,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                   {formatCurrency(
                     convertCurrencyFrom(
                       tx.price,
-                      inferCurrencyFromTicker(tx.ticker),
+                      tx.currency ?? inferCurrencyFromTicker(tx.ticker),
                       currency,
                       fxRate,
                       baseCurrency
@@ -58,7 +58,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                     ? formatCurrency(
                         convertCurrencyFrom(
                           tx.fee,
-                          inferCurrencyFromTicker(tx.ticker),
+                          tx.currency ?? inferCurrencyFromTicker(tx.ticker),
                           currency,
                           fxRate,
                           baseCurrency

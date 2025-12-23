@@ -17,7 +17,10 @@ const computeHoldings = (
   fxRate: number,
   baseCurrency: CurrencyCode
 ): Holding[] => {
-  const positions = new Map<string, { quantity: number; cost: number; lastPrice: number }>();
+  const positions = new Map<
+    string,
+    { quantity: number; cost: number; lastPrice: number; currency: CurrencyCode }
+  >();
   const ordered = transactions
     .map((tx, idx) => ({ tx, idx }))
     .sort((a, b) => {
@@ -30,9 +33,17 @@ const computeHoldings = (
     });
 
   ordered.forEach(({ tx }) => {
-    const entry = positions.get(tx.ticker) ?? { quantity: 0, cost: 0, lastPrice: 0 };
+    const entry = positions.get(tx.ticker) ?? {
+      quantity: 0,
+      cost: 0,
+      lastPrice: 0,
+      currency: tx.currency ?? inferCurrencyFromTicker(tx.ticker),
+    };
     const fee = tx.fee ?? 0;
-    const currency = inferCurrencyFromTicker(tx.ticker);
+    const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+    if (!entry.currency) {
+      entry.currency = currency;
+    }
     const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
     const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
 
@@ -60,7 +71,7 @@ const computeHoldings = (
       const tickerKey = ticker.toUpperCase();
       const averageBuyPrice = data.quantity > 0 ? data.cost / data.quantity : 0;
       const override = priceMap[tickerKey];
-      const currency = inferCurrencyFromTicker(tickerKey);
+      const currency = data.currency ?? inferCurrencyFromTicker(tickerKey);
       const currentPriceRaw = override?.price ?? (data.lastPrice || averageBuyPrice);
       const currentPrice = convertCurrencyFrom(
         currentPriceRaw,
@@ -124,7 +135,7 @@ const computeRealizedTrades = (
   ordered.forEach(({ tx, idx }) => {
     const entry = positions.get(tx.ticker) ?? { quantity: 0, averageCost: 0 };
     const fee = tx.fee ?? 0;
-    const currency = inferCurrencyFromTicker(tx.ticker);
+    const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
     const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
     const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
 
