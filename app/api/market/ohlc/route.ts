@@ -141,6 +141,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: payload["Note"] }, { status: 429 });
   }
 
+  if (payload["Information"]) {
+    return NextResponse.json({ error: payload["Information"] }, { status: 429 });
+  }
+
   if (payload["Error Message"]) {
     return NextResponse.json(
       { error: payload["Error Message"], resolvedSymbol },
@@ -150,7 +154,12 @@ export async function GET(req: Request) {
 
   if (!series) {
     return NextResponse.json(
-      { error: "No time series data", resolvedSymbol, searchedSymbol: symbol },
+      {
+        error: "No time series data",
+        resolvedSymbol,
+        searchedSymbol: symbol,
+        payloadKeys: Object.keys(payload),
+      },
       { status: 502 }
     );
   }

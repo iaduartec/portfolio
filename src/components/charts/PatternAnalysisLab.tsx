@@ -722,7 +722,14 @@ export function PatternAnalysisLab() {
       .then(async (res) => {
         const payload = await res.json();
         if (!res.ok) {
-          throw new Error(payload?.error || "No data");
+          const details = [
+            payload?.error,
+            payload?.resolvedSymbol ? `resuelto: ${payload.resolvedSymbol}` : "",
+            payload?.searchedSymbol ? `buscado: ${payload.searchedSymbol}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          throw new Error(details || "No data");
         }
         if (!Array.isArray(payload.candles) || payload.candles.length === 0) {
           throw new Error("Sin velas disponibles");
