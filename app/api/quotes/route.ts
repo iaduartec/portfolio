@@ -38,6 +38,16 @@ const exchangeRegionMap: Record<string, string> = {
   SIX: "Switzerland",
 };
 
+const exchangeYahooSuffixMap: Record<string, string> = {
+  BME: ".MC",
+  MIL: ".MI",
+  XETRA: ".DE",
+  FRA: ".DE",
+  LSE: ".L",
+  SWX: ".SW",
+  SIX: ".SW",
+};
+
 const normalizeSymbolForStooq = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
@@ -51,6 +61,14 @@ const normalizeSymbolForAlpha = (ticker: string) => {
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   if (rawSymbol.includes(".")) return rawSymbol;
   const suffix = exchangeSuffixMap[exchange] ?? "";
+  return `${rawSymbol}${suffix}`;
+};
+
+const normalizeSymbolForYahoo = (ticker: string) => {
+  const cleaned = ticker.trim().toUpperCase();
+  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
+  if (rawSymbol.includes(".")) return rawSymbol;
+  const suffix = exchangeYahooSuffixMap[exchange] ?? "";
   return `${rawSymbol}${suffix}`;
 };
 
@@ -182,6 +200,41 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
   }
 };
 
+const fetchYahooQuote = async (ticker: string): Promise<Quote | null> => {
+  const symbol = normalizeSymbolForYahoo(ticker);
+  if (!/^[A-Z0-9.]+$/.test(symbol)) return null;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    symbol
+  )}?interval=1d&range=5d`;
+  try {
+    const res = await fetch(url, { next: { revalidate: 60 } });
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    const meta = result?.meta;
+    const timestamps = result?.timestamp;
+    const closes = result?.indicators?.quote?.[0]?.close;
+    if (!Array.isArray(timestamps) || !Array.isArray(closes)) return null;
+    const lastIndex = closes.length - 1;
+    const lastClose = Number(closes[lastIndex]);
+    if (!Number.isFinite(lastClose)) return null;
+    const prevClose = Number(meta?.previousClose);
+    const dayChange = Number.isFinite(prevClose) ? lastClose - prevClose : undefined;
+    const dayChangePercent =
+      Number.isFinite(prevClose) && prevClose !== 0 ? (dayChange! / prevClose) * 100 : undefined;
+    return {
+      ticker,
+      price: lastClose,
+      dayChange,
+      dayChangePercent,
+      asOf: meta?.regularMarketTime ? String(meta.regularMarketTime) : undefined,
+      sourceSymbol: symbol,
+    };
+  } catch (err) {
+    console.error("yahoo fetch failed", { ticker, err });
+    return null;
+  }
+};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const tickersParam = searchParams.get("tickers") ?? "";
@@ -206,6 +259,12 @@ export async function GET(request: Request) {
       if (stooqQuote) {
         setCachedQuote(stooqQuote);
         results.push(stooqQuote);
+        continue;
+      }
+      const yahooQuote = await fetchYahooQuote(ticker);
+      if (yahooQuote) {
+        setCachedQuote(yahooQuote);
+        results.push(yahooQuote);
         continue;
       }
       if (alphaKey) {
