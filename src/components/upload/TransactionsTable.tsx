@@ -1,6 +1,6 @@
 "use client";
 
-import { convertCurrency, formatCurrency } from "@/lib/formatters";
+import { convertCurrencyFrom, formatCurrency, inferCurrencyFromTicker } from "@/lib/formatters";
 import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
@@ -43,14 +43,26 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                 <td className="whitespace-nowrap px-4 py-3 text-right">{tx.quantity}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   {formatCurrency(
-                    convertCurrency(tx.price, currency, fxRate, baseCurrency),
+                    convertCurrencyFrom(
+                      tx.price,
+                      inferCurrencyFromTicker(tx.ticker),
+                      currency,
+                      fxRate,
+                      baseCurrency
+                    ),
                     currency
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
                   {tx.fee !== undefined
                     ? formatCurrency(
-                        convertCurrency(tx.fee, currency, fxRate, baseCurrency),
+                        convertCurrencyFrom(
+                          tx.fee,
+                          inferCurrencyFromTicker(tx.ticker),
+                          currency,
+                          fxRate,
+                          baseCurrency
+                        ),
                         currency
                       )
                     : "—"}

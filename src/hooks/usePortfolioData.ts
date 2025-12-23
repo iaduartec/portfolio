@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { loadStoredTransactions, TRANSACTIONS_UPDATED_EVENT } from "@/lib/storage";
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { Transaction } from "@/types/transactions";
+import { convertCurrencyFrom, inferCurrencyFromTicker, type CurrencyCode } from "@/lib/formatters";
+import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 type PriceSnapshot = {
   price: number;
@@ -11,7 +13,9 @@ type PriceSnapshot = {
 
 const computeHoldings = (
   transactions: Transaction[],
-  priceMap: Record<string, PriceSnapshot>
+  priceMap: Record<string, PriceSnapshot>,
+  fxRate: number,
+  baseCurrency: CurrencyCode
 ): Holding[] => {
   const positions = new Map<string, { quantity: number; cost: number; lastPrice: number }>();
   const ordered = transactions
@@ -28,21 +32,24 @@ const computeHoldings = (
   ordered.forEach(({ tx }) => {
     const entry = positions.get(tx.ticker) ?? { quantity: 0, cost: 0, lastPrice: 0 };
     const fee = tx.fee ?? 0;
+    const currency = inferCurrencyFromTicker(tx.ticker);
+    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+    const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
 
     if (tx.type === "BUY") {
-      entry.cost += tx.quantity * tx.price + fee;
+      entry.cost += tx.quantity * priceBase + feeBase;
       entry.quantity += tx.quantity;
-      entry.lastPrice = tx.price;
+      entry.lastPrice = priceBase;
     } else if (tx.type === "SELL") {
       const avgCost = entry.quantity > 0 ? entry.cost / entry.quantity : 0;
       const qtySold = Math.min(entry.quantity, tx.quantity);
       entry.quantity = Math.max(0, entry.quantity - tx.quantity);
       entry.cost = Math.max(0, entry.cost - avgCost * qtySold);
-      entry.lastPrice = tx.price;
+      entry.lastPrice = priceBase;
     } else if (tx.type === "FEE") {
-      entry.cost += fee;
+      entry.cost += feeBase;
     } else {
-      entry.lastPrice = entry.lastPrice || tx.price || entry.lastPrice;
+      entry.lastPrice = entry.lastPrice || priceBase || entry.lastPrice;
     }
 
     positions.set(tx.ticker, entry);
@@ -53,17 +60,29 @@ const computeHoldings = (
       const tickerKey = ticker.toUpperCase();
       const averageBuyPrice = data.quantity > 0 ? data.cost / data.quantity : 0;
       const override = priceMap[tickerKey];
-      const currentPrice = override?.price ?? (data.lastPrice || averageBuyPrice);
+      const currency = inferCurrencyFromTicker(tickerKey);
+      const currentPriceRaw = override?.price ?? (data.lastPrice || averageBuyPrice);
+      const currentPrice = convertCurrencyFrom(
+        currentPriceRaw,
+        currency,
+        baseCurrency,
+        fxRate,
+        baseCurrency
+      );
       const marketValue = data.quantity * currentPrice;
       const pnlValue = marketValue - data.cost;
       const pnlPercent = data.cost > 0 ? (pnlValue / data.cost) * 100 : 0;
 
       return {
         ticker,
+        currency,
         totalQuantity: data.quantity,
         averageBuyPrice,
         currentPrice,
-        dayChange: override?.dayChange,
+        dayChange:
+          override?.dayChange !== undefined
+            ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency)
+            : undefined,
         dayChangePercent: override?.dayChangePercent,
         marketValue,
         pnlValue,
@@ -84,7 +103,11 @@ const computeSummary = (holdings: Holding[]): PortfolioSummary => {
   };
 };
 
-const computeRealizedTrades = (transactions: Transaction[]): RealizedTrade[] => {
+const computeRealizedTrades = (
+  transactions: Transaction[],
+  fxRate: number,
+  baseCurrency: CurrencyCode
+): RealizedTrade[] => {
   const positions = new Map<string, { quantity: number; averageCost: number }>();
   const ordered = transactions
     .map((tx, idx) => ({ tx, idx }))
@@ -101,22 +124,26 @@ const computeRealizedTrades = (transactions: Transaction[]): RealizedTrade[] => 
   ordered.forEach(({ tx, idx }) => {
     const entry = positions.get(tx.ticker) ?? { quantity: 0, averageCost: 0 };
     const fee = tx.fee ?? 0;
+    const currency = inferCurrencyFromTicker(tx.ticker);
+    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+    const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
 
     if (tx.type === "BUY") {
-      const totalCost = entry.averageCost * entry.quantity + tx.quantity * tx.price + fee;
+      const totalCost = entry.averageCost * entry.quantity + tx.quantity * priceBase + feeBase;
       entry.quantity += tx.quantity;
       entry.averageCost = entry.quantity > 0 ? totalCost / entry.quantity : 0;
     } else if (tx.type === "SELL") {
       const qtySold = Math.min(entry.quantity, tx.quantity);
       if (qtySold > 0) {
-        const pnlValue = (tx.price - entry.averageCost) * qtySold - fee;
+        const pnlValue = (priceBase - entry.averageCost) * qtySold - feeBase;
         realized.push({
           id: `${tx.ticker}-${tx.date}-${idx}`,
           ticker: tx.ticker,
+          currency,
           date: tx.date,
           quantity: qtySold,
           entryPrice: entry.averageCost,
-          exitPrice: tx.price,
+          exitPrice: priceBase,
           pnlValue,
         });
         entry.quantity = Math.max(0, entry.quantity - qtySold);
@@ -133,6 +160,7 @@ const computeRealizedTrades = (transactions: Transaction[]): RealizedTrade[] => 
 };
 
 export function usePortfolioData() {
+  const { fxRate, baseCurrency } = useCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [priceMap, setPriceMap] = useState<Record<string, PriceSnapshot>>({});
 
@@ -149,9 +177,15 @@ export function usePortfolioData() {
     };
   }, []);
 
-  const holdings = useMemo(() => computeHoldings(transactions, priceMap), [transactions, priceMap]);
+  const holdings = useMemo(
+    () => computeHoldings(transactions, priceMap, fxRate, baseCurrency),
+    [transactions, priceMap, fxRate, baseCurrency]
+  );
   const summary = useMemo(() => computeSummary(holdings), [holdings]);
-  const realizedTrades = useMemo(() => computeRealizedTrades(transactions), [transactions]);
+  const realizedTrades = useMemo(
+    () => computeRealizedTrades(transactions, fxRate, baseCurrency),
+    [transactions, fxRate, baseCurrency]
+  );
   const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
   const hasTransactions = transactions.length > 0;
 

@@ -3,7 +3,7 @@
 import { DragEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/badge";
-import { convertCurrency, formatCurrency } from "@/lib/formatters";
+import { convertCurrencyFrom, formatCurrency, inferCurrencyFromTicker } from "@/lib/formatters";
 import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
 import { Transaction, TransactionType } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
@@ -191,20 +191,38 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60 text-text">
-                {preview.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-surface-muted/40">
-                    {Object.entries(row).map(([key, value]) => (
-                      <td key={key} className="px-3 py-2">
-                        {typeof value === "number" && key !== "quantity"
-                          ? formatCurrency(
-                              convertCurrency(value, currency, fxRate, baseCurrency),
-                              currency
-                            )
-                          : String(value ?? "")}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {preview.map((row, idx) => {
+                  const rowTicker = String(
+                    row.ticker ??
+                      row.Ticker ??
+                      row.symbol ??
+                      row.Symbol ??
+                      row.asset ??
+                      row.Asset ??
+                      ""
+                  ).trim();
+                  const rowCurrency = inferCurrencyFromTicker(rowTicker);
+                  return (
+                    <tr key={idx} className="hover:bg-surface-muted/40">
+                      {Object.entries(row).map(([key, value]) => (
+                        <td key={key} className="px-3 py-2">
+                          {typeof value === "number" && key !== "quantity"
+                            ? formatCurrency(
+                                convertCurrencyFrom(
+                                  value,
+                                  rowCurrency,
+                                  currency,
+                                  fxRate,
+                                  baseCurrency
+                                ),
+                                currency
+                              )
+                            : String(value ?? "")}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
