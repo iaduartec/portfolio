@@ -28,6 +28,16 @@ const exchangeSuffixMap: Record<string, string> = {
   SIX: ".SW",
 };
 
+const exchangeRegionMap: Record<string, string> = {
+  BME: "Spain",
+  MIL: "Italy",
+  XETRA: "Germany",
+  FRA: "Germany",
+  LSE: "United Kingdom",
+  SWX: "Switzerland",
+  SIX: "Switzerland",
+};
+
 const normalizeSymbolForStooq = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
@@ -42,6 +52,26 @@ const normalizeSymbolForAlpha = (ticker: string) => {
   if (rawSymbol.includes(".")) return rawSymbol;
   const suffix = exchangeSuffixMap[exchange] ?? "";
   return `${rawSymbol}${suffix}`;
+};
+
+const findBestMatchSymbol = (
+  matches: Array<Record<string, string>>,
+  coreSymbol: string,
+  regionHint?: string
+) => {
+  const normalized = coreSymbol.toUpperCase();
+  const exact = matches.find((match) => match["1. symbol"]?.toUpperCase() === normalized);
+  if (exact) return exact["1. symbol"];
+  if (regionHint) {
+    const byRegion = matches.find(
+      (match) => match["4. region"]?.toLowerCase() === regionHint.toLowerCase()
+    );
+    if (byRegion) return byRegion["1. symbol"];
+  }
+  const starts = matches.find((match) =>
+    match["1. symbol"]?.toUpperCase().startsWith(normalized)
+  );
+  return starts?.["1. symbol"] ?? matches[0]?.["1. symbol"];
 };
 
 const parseStooqCsv = (raw: string) => {
@@ -106,12 +136,14 @@ const fetchStooqQuote = async (ticker: string): Promise<Quote | null> => {
 };
 
 const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | null> => {
+  const cleaned = ticker.trim().toUpperCase();
+  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   const symbol = normalizeSymbolForAlpha(ticker);
   if (!/^[A-Z0-9.]+$/.test(symbol)) return null;
-  const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(
-    symbol
-  )}&apikey=${encodeURIComponent(apiKey)}`;
-  try {
+  const fetchGlobalQuote = async (targetSymbol: string) => {
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(
+      targetSymbol
+    )}&apikey=${encodeURIComponent(apiKey)}`;
     const res = await fetch(url, { next: { revalidate: 60 } });
     const json = await res.json();
     const data = json?.["Global Quote"] ?? {};
@@ -127,8 +159,23 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
       dayChange,
       dayChangePercent,
       asOf: data["07. latest trading day"] ?? undefined,
-      sourceSymbol: symbol,
+      sourceSymbol: targetSymbol,
     };
+  };
+  try {
+    const directQuote = await fetchGlobalQuote(symbol);
+    if (directQuote) return directQuote;
+    const regionHint = exchange ? exchangeRegionMap[exchange] : undefined;
+    const searchUrl = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(
+      rawSymbol
+    )}&apikey=${encodeURIComponent(apiKey)}`;
+    const searchRes = await fetch(searchUrl, { next: { revalidate: 60 } });
+    const searchJson = await searchRes.json();
+    const matches = Array.isArray(searchJson?.bestMatches) ? searchJson.bestMatches : [];
+    const matchSymbol =
+      matches.length > 0 ? findBestMatchSymbol(matches, rawSymbol, regionHint) : undefined;
+    if (!matchSymbol) return null;
+    return await fetchGlobalQuote(matchSymbol);
   } catch (err) {
     console.error("alphavantage fetch failed", { ticker, err });
     return null;
