@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
@@ -23,9 +23,21 @@ export function DashboardClient() {
     summary.totalValue - summary.totalPnl > 0
       ? (summary.totalPnl / (summary.totalValue - summary.totalPnl)) * 100
       : 0;
-  const realizedTotal = realizedTrades.reduce((sum, trade) => sum + trade.pnlValue, 0);
+  // ⚡ Bolt: Memoize realizedTotal to prevent re-calculation on every render.
+  // This is a performance optimization that avoids a potentially expensive
+  // reduce operation on the `realizedTrades` array, which could be large.
+  const realizedTotal = useMemo(
+    () => realizedTrades.reduce((sum, trade) => sum + trade.pnlValue, 0),
+    [realizedTrades]
+  );
   const activeTicker = selectedTicker ?? holdings[0]?.ticker ?? null;
-  const selectedHolding = holdings.find((holding) => holding.ticker === activeTicker);
+  // ⚡ Bolt: Memoize selectedHolding to prevent re-calculation on every render.
+  // This is a performance optimization that avoids a potentially expensive
+  // find operation on the `holdings` array, which could be large.
+  const selectedHolding = useMemo(
+    () => holdings.find((holding) => holding.ticker === activeTicker),
+    [holdings, activeTicker]
+  );
 
   return (
     <>
