@@ -180,7 +180,14 @@ export async function GET(req: Request) {
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
       const data = await fetchFundamentals(ticker, symbol, apiKey);
-      const hasMetrics = data && Object.values(data).some((value) => typeof value === "number");
+      const hasMetrics =
+        data !== null &&
+        (Number.isFinite(data.pe) ||
+          Number.isFinite(data.ps) ||
+          Number.isFinite(data.pb) ||
+          Number.isFinite(data.evEbitda) ||
+          Number.isFinite(data.beta) ||
+          Number.isFinite(data.rsi));
       if (hasMetrics && data) {
         setCached(ticker, data);
         results.push(data);
