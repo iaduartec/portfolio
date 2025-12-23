@@ -202,7 +202,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-sm font-semibold text-text">
+                        <span className="text-base font-semibold text-text">
                           {formatCurrency(holding.averageBuyPrice, "EUR")}
                         </span>
                         <span className="text-xs text-muted">
@@ -215,7 +215,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-text">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-sm font-semibold text-text">
+                        <span className="text-base font-semibold text-text">
                           {formatCurrency(holding.currentPrice, "EUR")}
                         </span>
                         <span className="text-xs text-muted">
@@ -242,7 +242,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-sm font-semibold text-text">
+                        <span className="text-base font-semibold text-text">
                           {formatCurrency(holding.marketValue, "EUR")}
                         </span>
                         <span className="text-xs text-muted">
