@@ -39,29 +39,36 @@ type FundamentalPoint = {
   rsi?: number;
 };
 
-const formatMetric = (value?: number, digits = 2) => {
-  if (!Number.isFinite(value)) return "—";
+const formatMetric = (value?: number, digits = 2, fallback = "—") => {
+  if (!Number.isFinite(value)) return fallback;
   return value!.toFixed(digits);
 };
 
-const getFinancialInfo = (fundamental?: FundamentalPoint) => {
+const getFinancialInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
   const pe = fundamental?.pe;
   const tone =
     pe === undefined ? "default" : pe >= 30 ? "danger" : pe >= 22 ? "warning" : "success";
-  return { label: `P/E ${formatMetric(pe, 2)}`, tone };
+  return {
+    label: `P/E ${formatMetric(pe, 2, fmpLimited ? "Cuota FMP alcanzada" : "—")}`,
+    tone,
+  };
 };
 
-const getRiskInfo = (fundamental?: FundamentalPoint) => {
+const getRiskInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
   const beta = fundamental?.beta;
   const tone =
     beta === undefined ? "default" : beta >= 1.3 ? "danger" : beta >= 1.1 ? "warning" : "success";
-  return { label: `Beta ${formatMetric(beta, 2)}`, tone };
+  return {
+    label: `Beta ${formatMetric(beta, 2, fmpLimited ? "Cuota FMP alcanzada" : "—")}`,
+    tone,
+  };
 };
 
-const getTechnicalInfo = (fundamental?: FundamentalPoint) => {
+const getTechnicalInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
   const rsi = fundamental?.rsi;
+  const isMissing = rsi === undefined;
   const tone =
-    rsi === undefined
+    isMissing
       ? "default"
       : rsi >= 75 || rsi <= 25
         ? "danger"
@@ -69,8 +76,20 @@ const getTechnicalInfo = (fundamental?: FundamentalPoint) => {
           ? "warning"
           : "default";
   const hint =
-    rsi === undefined ? "Sin datos" : rsi >= 70 ? "Sobrecompra" : rsi <= 30 ? "Sobreventa" : "Neutral";
-  return { label: `RSI ${formatMetric(rsi, 0)}`, hint, tone };
+    isMissing
+      ? fmpLimited
+        ? ""
+        : "Sin datos"
+      : rsi >= 70
+        ? "Sobrecompra"
+        : rsi <= 30
+          ? "Sobreventa"
+          : "Neutral";
+  return {
+    label: `RSI ${formatMetric(rsi, 0, fmpLimited ? "Cuota FMP alcanzada" : "—")}`,
+    hint,
+    tone,
+  };
 };
 
 const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection) => {
@@ -96,6 +115,7 @@ interface HoldingsTableProps {
 export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
   const { fxRate } = useCurrency();
   const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>({});
+  const [fmpLimited, setFmpLimited] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
     direction: "desc",
@@ -116,6 +136,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
           return acc;
         }, {});
         setFundamentals(next);
+        setFmpLimited(Boolean(payload?.meta?.fmpLimited));
       })
       .catch(() => {});
     return () => controller.abort();
@@ -185,9 +206,9 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                 const isPositive = holding.pnlValue >= 0;
                 const isSelected = selectedTicker === holding.ticker;
                 const fundamental = fundamentals[holding.ticker];
-                const financialInfo = getFinancialInfo(fundamental);
-                const riskInfo = getRiskInfo(fundamental);
-                const technicalInfo = getTechnicalInfo(fundamental);
+                const financialInfo = getFinancialInfo(fundamental, fmpLimited);
+                const riskInfo = getRiskInfo(fundamental, fmpLimited);
+                const technicalInfo = getTechnicalInfo(fundamental, fmpLimited);
                 return (
                   <tr
                     key={holding.ticker}
@@ -259,9 +280,11 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         <Badge tone={riskInfo.tone}>{riskInfo.label}</Badge>
                         <Badge tone={technicalInfo.tone}>
                           {technicalInfo.label}
-                          <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
-                            {technicalInfo.hint}
-                          </span>
+                          {technicalInfo.hint ? (
+                            <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
+                              {technicalInfo.hint}
+                            </span>
+                          ) : null}
                         </Badge>
                       </div>
                     </td>

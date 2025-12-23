@@ -112,10 +112,20 @@ const fetchFmpJson = async (url: string) => {
   try {
     const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
     const raw = await res.text();
-    if (!raw) return null;
-    return JSON.parse(raw) as unknown;
+    if (!raw) return { json: null, limited: false };
+    const parsed = JSON.parse(raw) as { "Error Message"?: string } | unknown;
+    const limited =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "Error Message" in parsed &&
+      typeof (parsed as { "Error Message"?: string })["Error Message"] === "string" &&
+      (parsed as { "Error Message": string })["Error Message"].includes("Limit Reach");
+    if (limited) {
+      return { json: null, limited: true };
+    }
+    return { json: parsed, limited: false };
   } catch {
-    return null;
+    return { json: null, limited: false };
   }
 };
 
@@ -123,18 +133,21 @@ const fetchFmpStableProfile = async (
   ticker: string,
   symbol: string,
   apiKey: string
-): Promise<FundamentalPoint | null> => {
+): Promise<{ data: FundamentalPoint | null; limited: boolean }> => {
   const url = `https://financialmodelingprep.com/stable/profile?symbol=${encodeURIComponent(
     symbol
   )}&apikey=${encodeURIComponent(apiKey)}`;
-  const json = await fetchFmpJson(url);
+  const { json, limited } = await fetchFmpJson(url);
   const row = Array.isArray(json) ? json[0] : null;
-  if (!row) return null;
+  if (!row) return { data: null, limited };
   return {
-    ticker,
-    symbol,
-    pe: toNumber(row.pe),
-    beta: toNumber(row.beta),
+    data: {
+      ticker,
+      symbol,
+      pe: toNumber(row.pe),
+      beta: toNumber(row.beta),
+    },
+    limited,
   };
 };
 
@@ -142,39 +155,41 @@ const fetchFmpStableRatios = async (
   ticker: string,
   symbol: string,
   apiKey: string
-): Promise<FundamentalPoint | null> => {
+): Promise<{ data: FundamentalPoint | null; limited: boolean }> => {
   const url = `https://financialmodelingprep.com/stable/ratios-ttm?symbol=${encodeURIComponent(
     symbol
   )}&apikey=${encodeURIComponent(apiKey)}`;
-  const json = await fetchFmpJson(url);
-  if (!json || (json as { "Error Message"?: string })["Error Message"]) return null;
+  const { json, limited } = await fetchFmpJson(url);
   const row = Array.isArray(json) ? json[0] : null;
-  if (!row) return null;
+  if (!row) return { data: null, limited };
   return {
-    ticker,
-    symbol,
-    pe: toNumber(row.priceEarningsRatioTTM),
-    ps: toNumber(row.priceToSalesRatioTTM),
-    pb: toNumber(row.priceToBookRatioTTM),
+    data: {
+      ticker,
+      symbol,
+      pe: toNumber(row.priceEarningsRatioTTM),
+      ps: toNumber(row.priceToSalesRatioTTM),
+      pb: toNumber(row.priceToBookRatioTTM),
+    },
+    limited,
   };
 };
 
 const fetchFmpStableHistory = async (
   symbol: string,
   apiKey: string
-): Promise<number[] | null> => {
+): Promise<{ data: number[] | null; limited: boolean }> => {
   const url = `https://financialmodelingprep.com/stable/historical-price-full?symbol=${encodeURIComponent(
     symbol
   )}&timeseries=30&apikey=${encodeURIComponent(apiKey)}`;
-  const json = await fetchFmpJson(url);
+  const { json, limited } = await fetchFmpJson(url);
   const history = Array.isArray((json as { historical?: unknown[] } | null)?.historical)
     ? (json as { historical: Array<{ close?: number }> }).historical
     : null;
-  if (!history || history.length === 0) return null;
+  if (!history || history.length === 0) return { data: null, limited };
   const closes = history
     .map((row: { close?: number }) => Number(row.close))
     .filter((value: number) => Number.isFinite(value));
-  return closes.length > 0 ? closes.reverse() : null;
+  return { data: closes.length > 0 ? closes.reverse() : null, limited };
 };
 
 const computeRsi = (closes: number[], period = 14) => {
@@ -204,13 +219,18 @@ const fetchFmpStableFundamentals = async (
   ticker: string,
   symbol: string,
   apiKey: string
-): Promise<FundamentalPoint | null> => {
+): Promise<{ data: FundamentalPoint | null; limited: boolean }> => {
   const [profileResult, ratiosResult] = await Promise.allSettled([
     fetchFmpStableProfile(ticker, symbol, apiKey),
     fetchFmpStableRatios(ticker, symbol, apiKey),
   ]);
-  const profile = profileResult.status === "fulfilled" ? profileResult.value : null;
-  const ratios = ratiosResult.status === "fulfilled" ? ratiosResult.value : null;
+  const profile =
+    profileResult.status === "fulfilled" ? profileResult.value.data : null;
+  const ratios =
+    ratiosResult.status === "fulfilled" ? ratiosResult.value.data : null;
+  const limited =
+    (profileResult.status === "fulfilled" && profileResult.value.limited) ||
+    (ratiosResult.status === "fulfilled" && ratiosResult.value.limited);
   const point: FundamentalPoint = {
     ticker,
     symbol,
@@ -220,7 +240,7 @@ const fetchFmpStableFundamentals = async (
     pb: ratios?.pb,
   };
   const hasAny = Object.values(point).some((value) => typeof value === "number");
-  return hasAny ? point : null;
+  return { data: hasAny ? point : null, limited };
 };
 
 const fetchYahooFundamentals = async (
@@ -297,6 +317,7 @@ export async function GET(req: Request) {
   }
 
   const results: FundamentalPoint[] = [];
+  let fmpLimited = false;
 
   for (const ticker of tickers) {
     const cached = getCached(ticker);
@@ -307,12 +328,18 @@ export async function GET(req: Request) {
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
       if (fmpKey) {
-        const fmpData = await fetchFmpStableFundamentals(ticker, symbol, fmpKey);
-        if (fmpData) {
-          const closes = await fetchFmpStableHistory(symbol, fmpKey);
-          const rsi = closes ? computeRsi(closes) : undefined;
+        const fmpResult = await fetchFmpStableFundamentals(ticker, symbol, fmpKey);
+        if (fmpResult.limited) {
+          fmpLimited = true;
+        }
+        if (fmpResult.data) {
+          const history = await fetchFmpStableHistory(symbol, fmpKey);
+          if (history.limited) {
+            fmpLimited = true;
+          }
+          const rsi = history.data ? computeRsi(history.data) : undefined;
           const merged: FundamentalPoint = {
-            ...fmpData,
+            ...fmpResult.data,
             rsi,
           };
           setCached(ticker, merged);
@@ -347,5 +374,5 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ data: results });
+  return NextResponse.json({ data: results, meta: { fmpLimited } });
 }
