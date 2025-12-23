@@ -1,3 +1,5 @@
+import type { CurrencyCode } from "@/lib/formatters";
+
 export interface PricePoint {
   ticker: string;
   price: number;
@@ -6,6 +8,7 @@ export interface PricePoint {
 
 export interface Holding {
   ticker: string;
+  currency: CurrencyCode;
   totalQuantity: number;
   averageBuyPrice: number;
   currentPrice: number;
@@ -25,6 +28,7 @@ export interface PortfolioSummary {
 export interface RealizedTrade {
   id: string;
   ticker: string;
+  currency: CurrencyCode;
   date: string;
   quantity: number;
   entryPrice: number;

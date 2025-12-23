@@ -63,7 +63,7 @@ export const convertCurrencyFrom = (
 
 export const inferCurrencyFromTicker = (
   ticker: string,
-  fallback: CurrencyCode = "EUR"
+  fallback: CurrencyCode = "USD"
 ): CurrencyCode => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
@@ -71,7 +71,7 @@ export const inferCurrencyFromTicker = (
   for (const suffix of EUR_SUFFIXES) {
     if (rawSymbol.endsWith(suffix)) return "EUR";
   }
-  return fallback === "EUR" ? "USD" : "USD";
+  return fallback;
 };
 
 export const formatPercent = (value: number) => percentFormatter.format(value);
