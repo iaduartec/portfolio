@@ -35,16 +35,24 @@ type FundamentalPoint = {
   ticker: string;
   symbol: string;
   pe?: number;
+  ps?: number;
+  pb?: number;
+  evEbitda?: number;
   beta?: number;
   rsi?: number;
 };
+
+type BadgeTone = "default" | "success" | "danger" | "warning";
 
 const formatMetric = (value?: number, digits = 2, fallback = "—") => {
   if (!Number.isFinite(value)) return fallback;
   return value!.toFixed(digits);
 };
 
-const getFinancialInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
+const getFinancialInfo = (
+  fundamental?: FundamentalPoint,
+  fmpLimited?: boolean
+): { label: string; tone: BadgeTone } => {
   const pe = fundamental?.pe;
   const tone =
     pe === undefined ? "default" : pe >= 30 ? "danger" : pe >= 22 ? "warning" : "success";
@@ -54,7 +62,10 @@ const getFinancialInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) 
   };
 };
 
-const getRiskInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
+const getRiskInfo = (
+  fundamental?: FundamentalPoint,
+  fmpLimited?: boolean
+): { label: string; tone: BadgeTone } => {
   const beta = fundamental?.beta;
   const tone =
     beta === undefined ? "default" : beta >= 1.3 ? "danger" : beta >= 1.1 ? "warning" : "success";
@@ -64,7 +75,10 @@ const getRiskInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
   };
 };
 
-const getTechnicalInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) => {
+const getTechnicalInfo = (
+  fundamental?: FundamentalPoint,
+  fmpLimited?: boolean
+): { label: string; hint: string; tone: BadgeTone } => {
   const rsi = fundamental?.rsi;
   const isMissing = rsi === undefined;
   const tone =

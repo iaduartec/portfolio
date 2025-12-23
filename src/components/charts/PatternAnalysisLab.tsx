@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ColorType,
   LineStyle,
+  type LineWidth,
   createChart,
   type SeriesMarker,
   type Time,
@@ -112,6 +113,11 @@ const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): Analysis
   const supportLines = buildSupportResistance(candles, swings);
 
   return { candles, volumes, patterns, support: supportLines };
+};
+
+const normalizeLineWidth = (value?: number): LineWidth => {
+  if (value === 1 || value === 2 || value === 3 || value === 4) return value;
+  return 2;
 };
 
 const findSwings = (candles: CandlePoint[], window: number): SwingPoint[] => {
@@ -828,7 +834,7 @@ export function PatternAnalysisLab() {
       (line) => {
         const series = chart.addLineSeries({
           color: line.color,
-          lineWidth: line.width ?? 2,
+          lineWidth: normalizeLineWidth(line.width),
           lineStyle: line.style ?? LineStyle.Solid,
           priceLineVisible: false,
           lastValueVisible: false,

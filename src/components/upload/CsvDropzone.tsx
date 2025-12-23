@@ -50,7 +50,7 @@ const normalizeType = (raw: string): TransactionType => {
   return "OTHER";
 };
 
-const normalizeCurrency = (raw: string | undefined | null): CurrencyCode | undefined => {
+const normalizeCurrency = (raw: unknown): CurrencyCode | undefined => {
   if (!raw) return undefined;
   const normalized = String(raw).trim().toUpperCase();
   if (normalized === "EUR" || normalized === "USD") return normalized as CurrencyCode;
