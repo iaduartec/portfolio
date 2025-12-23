@@ -94,7 +94,8 @@ interface HoldingsTableProps {
 }
 
 export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
-  const { currency, baseCurrency, fxRate } = useCurrency();
+  const { baseCurrency, fxRate } = useCurrency();
+  const otherCurrency = baseCurrency === "EUR" ? "USD" : "EUR";
   const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>({});
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
@@ -201,16 +202,30 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                       {holding.ticker}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
-                      {formatCurrency(
-                        convertCurrency(holding.averageBuyPrice, currency, fxRate, baseCurrency),
-                        currency
-                      )}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-text">
+                          {formatCurrency(holding.averageBuyPrice, baseCurrency)}
+                        </span>
+                        <span className="text-xs text-muted">
+                          {formatCurrency(
+                            convertCurrency(holding.averageBuyPrice, otherCurrency, fxRate, baseCurrency),
+                            otherCurrency
+                          )}
+                        </span>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-text">
-                      {formatCurrency(
-                        convertCurrency(holding.currentPrice, currency, fxRate, baseCurrency),
-                        currency
-                      )}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-text">
+                          {formatCurrency(holding.currentPrice, baseCurrency)}
+                        </span>
+                        <span className="text-xs text-muted">
+                          {formatCurrency(
+                            convertCurrency(holding.currentPrice, otherCurrency, fxRate, baseCurrency),
+                            otherCurrency
+                          )}
+                        </span>
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <Badge tone={isPositive ? "success" : "danger"}>
@@ -227,10 +242,17 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
-                      {formatCurrency(
-                        convertCurrency(holding.marketValue, currency, fxRate, baseCurrency),
-                        currency
-                      )}
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-text">
+                          {formatCurrency(holding.marketValue, baseCurrency)}
+                        </span>
+                        <span className="text-xs text-muted">
+                          {formatCurrency(
+                            convertCurrency(holding.marketValue, otherCurrency, fxRate, baseCurrency),
+                            otherCurrency
+                          )}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
