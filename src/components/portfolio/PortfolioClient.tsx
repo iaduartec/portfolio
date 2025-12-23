@@ -63,12 +63,12 @@ export function PortfolioClient() {
             )}
           </Card>
         </div>
-        <div className="flex flex-col gap-4">
-          <Card title="Allocation" subtitle="Peso por ticker (top 6)">
+        <div className="grid gap-4 lg:col-span-3 lg:grid-cols-2">
+          <Card title="Distribucion" subtitle="Peso por ticker (top 6)">
             {allocation.length > 0 ? (
               <>
                 <AllocationChart data={allocation} />
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
                   {allocation.map((item, index) => (
                     <div key={item.label} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
