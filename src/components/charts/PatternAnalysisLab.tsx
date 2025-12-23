@@ -691,13 +691,22 @@ export function PatternAnalysisLab() {
           ? latestAssistant.parts.filter(isTextPart)
           : [];
         const partsText = parts.map((part) => part.text).join("\n");
-        return (
-          partsText ||
-          (typeof latestAssistant.content === "string" ? latestAssistant.content : "") ||
-          (typeof (latestAssistant as { text?: string }).text === "string"
-            ? (latestAssistant as { text?: string }).text
-            : "")
-        );
+        const rawMessage = latestAssistant as unknown;
+        const legacyContent =
+          rawMessage &&
+          typeof rawMessage === "object" &&
+          "content" in rawMessage &&
+          typeof (rawMessage as { content?: unknown }).content === "string"
+            ? (rawMessage as { content: string }).content
+            : "";
+        const legacyText =
+          rawMessage &&
+          typeof rawMessage === "object" &&
+          "text" in rawMessage &&
+          typeof (rawMessage as { text?: unknown }).text === "string"
+            ? (rawMessage as { text: string }).text
+            : "";
+        return partsText || legacyContent || legacyText;
       })()
     : "";
 
