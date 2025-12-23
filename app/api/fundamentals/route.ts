@@ -100,6 +100,26 @@ const fetchFundamentals = async (
   return point;
 };
 
+const fetchFmpFundamentals = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(
+    symbol
+  )}?apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const json = await res.json();
+  const row = Array.isArray(json) ? json[0] : null;
+  if (!row) return null;
+  return {
+    ticker,
+    symbol,
+    pe: toNumber(row.pe),
+    beta: toNumber(row.beta),
+  };
+};
+
 const fetchYahooFundamentals = async (
   ticker: string,
   symbol: string
@@ -156,14 +176,18 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickersParam = searchParams.get("tickers") ?? "";
   const apiKey = process.env.FINNHUB_API_KEY;
+  const fmpKey = process.env.FMP_API_KEY;
 
   const tickers = tickersParam
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
 
-  if (!apiKey) {
-    return NextResponse.json({ data: [], error: "Missing FINNHUB_API_KEY" }, { status: 500 });
+  if (!apiKey && !fmpKey) {
+    return NextResponse.json(
+      { data: [], error: "Missing FINNHUB_API_KEY and FMP_API_KEY" },
+      { status: 500 }
+    );
   }
   if (tickers.length === 0) {
     return NextResponse.json({ data: [] });
@@ -179,19 +203,29 @@ export async function GET(req: Request) {
     }
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
-      const data = await fetchFundamentals(ticker, symbol, apiKey);
-      const hasMetrics =
-        data !== null &&
-        (Number.isFinite(data.pe) ||
-          Number.isFinite(data.ps) ||
-          Number.isFinite(data.pb) ||
-          Number.isFinite(data.evEbitda) ||
-          Number.isFinite(data.beta) ||
-          Number.isFinite(data.rsi));
-      if (hasMetrics && data) {
-        setCached(ticker, data);
-        results.push(data);
-        continue;
+      if (apiKey) {
+        const data = await fetchFundamentals(ticker, symbol, apiKey);
+        const hasMetrics =
+          data !== null &&
+          (Number.isFinite(data.pe) ||
+            Number.isFinite(data.ps) ||
+            Number.isFinite(data.pb) ||
+            Number.isFinite(data.evEbitda) ||
+            Number.isFinite(data.beta) ||
+            Number.isFinite(data.rsi));
+        if (hasMetrics && data) {
+          setCached(ticker, data);
+          results.push(data);
+          continue;
+        }
+      }
+      if (fmpKey) {
+        const fmpData = await fetchFmpFundamentals(ticker, symbol, fmpKey);
+        if (fmpData) {
+          setCached(ticker, fmpData);
+          results.push(fmpData);
+          continue;
+        }
       }
       const yahooSymbol = normalizeSymbolForYahoo(ticker);
       const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
