@@ -138,7 +138,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface card-glow">
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed divide-y divide-border/70">
+        <table className="w-full table-auto divide-y divide-border/70">
           <thead className="bg-surface-muted/50 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
               {columns.map((column) => {
@@ -164,9 +164,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                   </th>
                 );
               })}
-              <th className="px-4 py-3 text-left font-semibold">Finanzas</th>
-              <th className="px-4 py-3 text-left font-semibold">Riesgo</th>
-              <th className="px-4 py-3 text-left font-semibold">Tecnico</th>
+              <th className="px-4 py-3 text-left font-semibold">Señales</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-sm">
@@ -234,23 +232,17 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         currency
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <Badge tone={financialInfo.tone}>
-                        {financialInfo.label}
-                      </Badge>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <Badge tone={riskInfo.tone}>
-                        {riskInfo.label}
-                      </Badge>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      <Badge tone={technicalInfo.tone}>
-                        {technicalInfo.label}
-                        <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
-                          {technicalInfo.hint}
-                        </span>
-                      </Badge>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge tone={financialInfo.tone}>{financialInfo.label}</Badge>
+                        <Badge tone={riskInfo.tone}>{riskInfo.label}</Badge>
+                        <Badge tone={technicalInfo.tone}>
+                          {technicalInfo.label}
+                          <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
+                            {technicalInfo.hint}
+                          </span>
+                        </Badge>
+                      </div>
                     </td>
                   </tr>
                 );
