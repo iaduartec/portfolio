@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Holding } from "@/types/portfolio";
 import { convertCurrency, formatCurrency, formatPercent } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
@@ -31,29 +31,46 @@ const columns: Column[] = [
   { key: "marketValue", label: "Valor de mercado", align: "right" },
 ];
 
-const hashTicker = (ticker: string) =>
-  ticker.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0);
-
-const getFinancialInfo = (ticker: string) => {
-  const seed = hashTicker(ticker);
-  const pe = 10 + (seed % 35);
-  const tone = pe >= 30 ? "danger" : pe >= 22 ? "warning" : "success";
-  return { label: `P/E ${pe} (estimado)`, tone };
+type FundamentalPoint = {
+  ticker: string;
+  symbol: string;
+  pe?: number;
+  beta?: number;
+  rsi?: number;
 };
 
-const getRiskInfo = (ticker: string) => {
-  const seed = hashTicker(ticker);
-  const beta = 0.6 + (seed % 120) / 100;
-  const tone = beta >= 1.3 ? "danger" : beta >= 1.1 ? "warning" : "success";
-  return { label: `Beta ${beta.toFixed(2)} (estimado)`, tone };
+const formatMetric = (value?: number, digits = 2) => {
+  if (!Number.isFinite(value)) return "—";
+  return value!.toFixed(digits);
 };
 
-const getTechnicalInfo = (ticker: string) => {
-  const seed = hashTicker(ticker);
-  const rsi = 35 + (seed % 40);
-  const tone = rsi >= 75 || rsi <= 25 ? "danger" : rsi >= 70 || rsi <= 30 ? "warning" : "default";
-  const hint = rsi >= 70 ? "Sobrecompra" : rsi <= 30 ? "Sobreventa" : "Neutral";
-  return { label: `RSI ${rsi} (estimado)`, hint, tone };
+const getFinancialInfo = (fundamental?: FundamentalPoint) => {
+  const pe = fundamental?.pe;
+  const tone =
+    pe === undefined ? "default" : pe >= 30 ? "danger" : pe >= 22 ? "warning" : "success";
+  return { label: `P/E ${formatMetric(pe, 2)}`, tone };
+};
+
+const getRiskInfo = (fundamental?: FundamentalPoint) => {
+  const beta = fundamental?.beta;
+  const tone =
+    beta === undefined ? "default" : beta >= 1.3 ? "danger" : beta >= 1.1 ? "warning" : "success";
+  return { label: `Beta ${formatMetric(beta, 2)}`, tone };
+};
+
+const getTechnicalInfo = (fundamental?: FundamentalPoint) => {
+  const rsi = fundamental?.rsi;
+  const tone =
+    rsi === undefined
+      ? "default"
+      : rsi >= 75 || rsi <= 25
+        ? "danger"
+        : rsi >= 70 || rsi <= 30
+          ? "warning"
+          : "default";
+  const hint =
+    rsi === undefined ? "Sin datos" : rsi >= 70 ? "Sobrecompra" : rsi <= 30 ? "Sobreventa" : "Neutral";
+  return { label: `RSI ${formatMetric(rsi, 0)}`, hint, tone };
 };
 
 const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection) => {
@@ -78,10 +95,31 @@ interface HoldingsTableProps {
 
 export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
   const { fxRate } = useCurrency();
+  const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>({});
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
     direction: "desc",
   });
+
+  useEffect(() => {
+    const tickers = holdings.map((holding) => holding.ticker).filter(Boolean);
+    if (tickers.length === 0) return;
+    const controller = new AbortController();
+    fetch(`/api/fundamentals?tickers=${encodeURIComponent(tickers.join(","))}`, {
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((payload) => {
+        const data = Array.isArray(payload?.data) ? payload.data : [];
+        const next = data.reduce((acc: Record<string, FundamentalPoint>, item: FundamentalPoint) => {
+          if (item?.ticker) acc[item.ticker] = item;
+          return acc;
+        }, {});
+        setFundamentals(next);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [holdings]);
 
   const sortedHoldings = useMemo(
     () => [...holdings].sort((a, b) => compare(a, b, sort.key, sort.direction)),
@@ -146,9 +184,10 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
               sortedHoldings.map((holding) => {
                 const isPositive = holding.pnlValue >= 0;
                 const isSelected = selectedTicker === holding.ticker;
-                const financialInfo = getFinancialInfo(holding.ticker);
-                const riskInfo = getRiskInfo(holding.ticker);
-                const technicalInfo = getTechnicalInfo(holding.ticker);
+                const fundamental = fundamentals[holding.ticker];
+                const financialInfo = getFinancialInfo(fundamental);
+                const riskInfo = getRiskInfo(fundamental);
+                const technicalInfo = getTechnicalInfo(fundamental);
                 return (
                   <tr
                     key={holding.ticker}

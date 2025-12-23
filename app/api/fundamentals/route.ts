@@ -100,6 +100,131 @@ const fetchFundamentals = async (
   return point;
 };
 
+const fmpHeaders = { "User-Agent": "Mozilla/5.0", Accept: "application/json" };
+
+const fetchFmpStableProfile = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://financialmodelingprep.com/stable/profile?symbol=${encodeURIComponent(
+    symbol
+  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
+  const json = await res.json();
+  const row = Array.isArray(json) ? json[0] : null;
+  if (!row) return null;
+  return {
+    ticker,
+    symbol,
+    pe: toNumber(row.pe),
+    beta: toNumber(row.beta),
+  };
+};
+
+const fetchFmpStableRatios = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://financialmodelingprep.com/stable/ratios-ttm?symbol=${encodeURIComponent(
+    symbol
+  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
+  const json = await res.json();
+  const row = Array.isArray(json) ? json[0] : null;
+  if (!row) return null;
+  return {
+    ticker,
+    symbol,
+    pe: toNumber(row.priceEarningsRatioTTM),
+    ps: toNumber(row.priceToSalesRatioTTM),
+    pb: toNumber(row.priceToBookRatioTTM),
+  };
+};
+
+const fetchFmpStableKeyMetrics = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://financialmodelingprep.com/stable/key-metrics-ttm?symbol=${encodeURIComponent(
+    symbol
+  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
+  const json = await res.json();
+  const row = Array.isArray(json) ? json[0] : null;
+  if (!row) return null;
+  return {
+    ticker,
+    symbol,
+    evEbitda: toNumber(row.enterpriseValueOverEBITDATTM),
+  };
+};
+
+const fetchFmpStableHistory = async (
+  symbol: string,
+  apiKey: string
+): Promise<number[] | null> => {
+  const url = `https://financialmodelingprep.com/stable/historical-price-full?symbol=${encodeURIComponent(
+    symbol
+  )}&timeseries=30&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 }, headers: fmpHeaders });
+  const json = await res.json();
+  const history = Array.isArray(json?.historical) ? json.historical : null;
+  if (!history || history.length === 0) return null;
+  const closes = history
+    .map((row: { close?: number }) => Number(row.close))
+    .filter((value: number) => Number.isFinite(value));
+  return closes.length > 0 ? closes.reverse() : null;
+};
+
+const computeRsi = (closes: number[], period = 14) => {
+  if (closes.length <= period) return undefined;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i += 1) {
+    const delta = closes[i] - closes[i - 1];
+    if (delta >= 0) gains += delta;
+    else losses -= delta;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < closes.length; i += 1) {
+    const delta = closes[i] - closes[i - 1];
+    const gain = delta > 0 ? delta : 0;
+    const loss = delta < 0 ? -delta : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+};
+
+const fetchFmpStableFundamentals = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const [profile, ratios, keyMetrics] = await Promise.all([
+    fetchFmpStableProfile(ticker, symbol, apiKey),
+    fetchFmpStableRatios(ticker, symbol, apiKey),
+    fetchFmpStableKeyMetrics(ticker, symbol, apiKey),
+  ]);
+  const point: FundamentalPoint = {
+    ticker,
+    symbol,
+    pe: profile?.pe ?? ratios?.pe,
+    beta: profile?.beta,
+    ps: ratios?.ps,
+    pb: ratios?.pb,
+    evEbitda: keyMetrics?.evEbitda,
+  };
+  const hasAny = Object.values(point).some((value) => typeof value === "number");
+  return hasAny ? point : null;
+};
+
 const fetchYahooFundamentals = async (
   ticker: string,
   symbol: string
@@ -156,14 +281,18 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const tickersParam = searchParams.get("tickers") ?? "";
   const apiKey = process.env.FINNHUB_API_KEY;
+  const fmpKey = process.env.FMP_API_KEY;
 
   const tickers = tickersParam
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
 
-  if (!apiKey) {
-    return NextResponse.json({ data: [], error: "Missing FINNHUB_API_KEY" }, { status: 500 });
+  if (!apiKey && !fmpKey) {
+    return NextResponse.json(
+      { data: [], error: "Missing FINNHUB_API_KEY and FMP_API_KEY" },
+      { status: 500 }
+    );
   }
   if (tickers.length === 0) {
     return NextResponse.json({ data: [] });
@@ -179,6 +308,24 @@ export async function GET(req: Request) {
     }
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
+      if (fmpKey) {
+        const fmpData = await fetchFmpStableFundamentals(ticker, symbol, fmpKey);
+        if (fmpData) {
+          const closes = await fetchFmpStableHistory(symbol, fmpKey);
+          const rsi = closes ? computeRsi(closes) : undefined;
+          const merged: FundamentalPoint = {
+            ...fmpData,
+            rsi,
+          };
+          if (apiKey) {
+            const finnhubData = await fetchFundamentals(ticker, symbol, apiKey);
+            merged.rsi = finnhubData?.rsi ?? merged.rsi;
+          }
+          setCached(ticker, merged);
+          results.push(merged);
+          continue;
+        }
+      }
       const data = await fetchFundamentals(ticker, symbol, apiKey);
       const hasMetrics =
         data !== null &&
