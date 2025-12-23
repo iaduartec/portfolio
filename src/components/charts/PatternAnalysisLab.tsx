@@ -14,6 +14,7 @@ import { MemoizedMarkdown } from "@/components/ai/memoized-markdown";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 type CandlePoint = {
   time: string;
@@ -46,7 +47,17 @@ type PatternLine = {
 };
 
 type Pattern = {
-  kind: "double-top" | "double-bottom" | "head-shoulders" | "ascending-triangle";
+  kind:
+    | "double-top"
+    | "double-bottom"
+    | "head-shoulders"
+    | "ascending-triangle"
+    | "descending-triangle"
+    | "symmetrical-triangle"
+    | "rising-channel"
+    | "falling-channel"
+    | "bullish-engulfing"
+    | "bearish-engulfing";
   name: string;
   description: string;
   confidence: number;
@@ -61,64 +72,10 @@ type AnalysisResult = {
   support: PatternLine[];
 };
 
-const buildDemoSeries = (basePrice: number): { candles: CandlePoint[]; volumes: VolumePoint[] } => {
-  const anchors = [
-    { i: 0, v: basePrice * 0.85 },
-    { i: 10, v: basePrice * 0.92 },
-    { i: 20, v: basePrice * 1.05 },
-    { i: 30, v: basePrice * 0.96 },
-    { i: 40, v: basePrice * 1.05 },
-    { i: 50, v: basePrice * 0.95 },
-    { i: 60, v: basePrice * 1.02 },
-    { i: 70, v: basePrice * 1.1 },
-    { i: 80, v: basePrice * 1.02 },
-    { i: 90, v: basePrice * 0.98 },
-    { i: 110, v: basePrice * 1.04 },
-    { i: 119, v: basePrice * 1.08 },
-  ];
-
-  const points: CandlePoint[] = [];
-  const volumes: VolumePoint[] = [];
-  const startDate = new Date("2025-06-01T00:00:00Z");
-  let prevClose = anchors[0].v;
-  let anchorIndex = 0;
-
-  for (let i = 0; i < 120; i += 1) {
-    if (anchorIndex < anchors.length - 1 && i > anchors[anchorIndex + 1].i) {
-      anchorIndex += 1;
-    }
-    const current = anchors[anchorIndex];
-    const next = anchors[Math.min(anchorIndex + 1, anchors.length - 1)];
-    const span = Math.max(1, next.i - current.i);
-    const t = Math.min(1, (i - current.i) / span);
-    const target = current.v + (next.v - current.v) * t;
-    const wiggle = Math.sin(i * 0.35) * basePrice * 0.006;
-    const close = target + wiggle;
-    const open = prevClose;
-    const high = Math.max(open, close) + basePrice * (0.01 + Math.abs(Math.sin(i * 0.7)) * 0.004);
-    const low = Math.min(open, close) - basePrice * (0.01 + Math.abs(Math.cos(i * 0.55)) * 0.004);
-    const currentDate = new Date(startDate);
-    currentDate.setUTCDate(startDate.getUTCDate() + i);
-    const time = currentDate.toISOString().slice(0, 10);
-    points.push({
-      time,
-      open: Number(open.toFixed(2)),
-      high: Number(high.toFixed(2)),
-      low: Number(Math.max(1, low).toFixed(2)),
-      close: Number(close.toFixed(2)),
-    });
-    volumes.push({
-      time,
-      value: Math.floor(140000 + i * 1000 + Math.abs(wiggle) * 4000),
-      color: close >= open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)",
-    });
-    prevClose = close;
-  }
-
-  return { candles: points, volumes };
-};
-
 const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): AnalysisResult => {
+  if (candles.length === 0) {
+    return { candles: [], volumes: [], patterns: [], support: [] };
+  }
   const swings = findSwings(candles, 3);
   const patterns: Pattern[] = [];
 
@@ -133,6 +90,24 @@ const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): Analysis
 
   const ascendingTriangle = detectAscendingTriangle(candles, swings);
   if (ascendingTriangle) patterns.push(ascendingTriangle);
+
+  const descendingTriangle = detectDescendingTriangle(candles, swings);
+  if (descendingTriangle) patterns.push(descendingTriangle);
+
+  const symmetricalTriangle = detectSymmetricalTriangle(candles, swings);
+  if (symmetricalTriangle) patterns.push(symmetricalTriangle);
+
+  const risingChannel = detectChannel(candles, swings, "rising");
+  if (risingChannel) patterns.push(risingChannel);
+
+  const fallingChannel = detectChannel(candles, swings, "falling");
+  if (fallingChannel) patterns.push(fallingChannel);
+
+  const bullishEngulfing = detectEngulfing(candles, "bullish");
+  if (bullishEngulfing) patterns.push(bullishEngulfing);
+
+  const bearishEngulfing = detectEngulfing(candles, "bearish");
+  if (bearishEngulfing) patterns.push(bearishEngulfing);
 
   const supportLines = buildSupportResistance(candles, swings);
 
@@ -379,6 +354,232 @@ const detectAscendingTriangle = (candles: CandlePoint[], swings: SwingPoint[]): 
   };
 };
 
+const detectDescendingTriangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const highs = swings.filter((swing) => swing.type === "high");
+  const lows = swings.filter((swing) => swing.type === "low");
+  const tailStart = Math.max(0, candles.length - 40);
+  const recentHighs = highs.filter((point) => point.index >= tailStart);
+  const recentLows = lows.filter((point) => point.index >= tailStart);
+  if (recentHighs.length < 2 || recentLows.length < 3) return null;
+  const lastLows = recentLows.slice(-3);
+  const lowValues = lastLows.map((point) => point.price);
+  const lowAvg = lowValues.reduce((sum, value) => sum + value, 0) / lowValues.length;
+  const lowSpread = (Math.max(...lowValues) - Math.min(...lowValues)) / lowAvg;
+  if (lowSpread > 0.012) return null;
+  const lastHighs = recentHighs.slice(-2);
+  if (lastHighs[1].price >= lastHighs[0].price) return null;
+  return {
+    kind: "descending-triangle",
+    name: "Triangulo descendente",
+    description: "Minimos planos y maximos descendentes.",
+    confidence: Number((1 - lowSpread).toFixed(2)),
+    markers: [
+      {
+        time: lastLows[lastLows.length - 1].time,
+        position: "belowBar",
+        color: "#ff9f6b",
+        shape: "circle",
+        text: "TD",
+      },
+    ],
+    lines: [
+      {
+        id: "triangle-floor",
+        name: "Soporte plano",
+        points: [
+          { time: lastLows[0].time, value: lowAvg },
+          { time: lastLows[lastLows.length - 1].time, value: lowAvg },
+        ],
+        color: "rgba(255,159,107,0.85)",
+        style: LineStyle.Solid,
+        width: 2,
+      },
+      {
+        id: "triangle-falling",
+        name: "Resistencia descendente",
+        points: [
+          { time: lastHighs[0].time, value: lastHighs[0].price },
+          { time: lastHighs[1].time, value: lastHighs[1].price },
+        ],
+        color: "rgba(255,159,107,0.6)",
+        style: LineStyle.Dashed,
+        width: 2,
+      },
+    ],
+  };
+};
+
+const detectSymmetricalTriangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const highs = swings.filter((swing) => swing.type === "high");
+  const lows = swings.filter((swing) => swing.type === "low");
+  const tailStart = Math.max(0, candles.length - 45);
+  const recentHighs = highs.filter((point) => point.index >= tailStart).slice(-3);
+  const recentLows = lows.filter((point) => point.index >= tailStart).slice(-3);
+  if (recentHighs.length < 2 || recentLows.length < 2) return null;
+  const highSlope =
+    (recentHighs[recentHighs.length - 1].price - recentHighs[0].price) /
+    (recentHighs[recentHighs.length - 1].index - recentHighs[0].index);
+  const lowSlope =
+    (recentLows[recentLows.length - 1].price - recentLows[0].price) /
+    (recentLows[recentLows.length - 1].index - recentLows[0].index);
+  if (!(highSlope < 0 && lowSlope > 0)) return null;
+  const startGap = recentHighs[0].price - recentLows[0].price;
+  const endGap =
+    recentHighs[recentHighs.length - 1].price - recentLows[recentLows.length - 1].price;
+  if (endGap >= startGap * 0.85) return null;
+  return {
+    kind: "symmetrical-triangle",
+    name: "Triangulo simetrico",
+    description: "Maximos descendentes y minimos ascendentes con compresion.",
+    confidence: Number((1 - endGap / startGap).toFixed(2)),
+    markers: [
+      {
+        time: recentHighs[recentHighs.length - 1].time,
+        position: "aboveBar",
+        color: "#9a7dff",
+        shape: "circle",
+        text: "TS",
+      },
+    ],
+    lines: [
+      {
+        id: "triangle-upper",
+        name: "Resistencia",
+        points: [
+          { time: recentHighs[0].time, value: recentHighs[0].price },
+          { time: recentHighs[recentHighs.length - 1].time, value: recentHighs[recentHighs.length - 1].price },
+        ],
+        color: "rgba(154,125,255,0.7)",
+        style: LineStyle.Solid,
+        width: 2,
+      },
+      {
+        id: "triangle-lower",
+        name: "Soporte",
+        points: [
+          { time: recentLows[0].time, value: recentLows[0].price },
+          { time: recentLows[recentLows.length - 1].time, value: recentLows[recentLows.length - 1].price },
+        ],
+        color: "rgba(154,125,255,0.6)",
+        style: LineStyle.Dashed,
+        width: 2,
+      },
+    ],
+  };
+};
+
+const detectChannel = (
+  candles: CandlePoint[],
+  swings: SwingPoint[],
+  direction: "rising" | "falling"
+): Pattern | null => {
+  const highs = swings.filter((swing) => swing.type === "high");
+  const lows = swings.filter((swing) => swing.type === "low");
+  const tailStart = Math.max(0, candles.length - 50);
+  const recentHighs = highs.filter((point) => point.index >= tailStart).slice(-2);
+  const recentLows = lows.filter((point) => point.index >= tailStart).slice(-2);
+  if (recentHighs.length < 2 || recentLows.length < 2) return null;
+  const highSlope =
+    (recentHighs[1].price - recentHighs[0].price) / (recentHighs[1].index - recentHighs[0].index);
+  const lowSlope =
+    (recentLows[1].price - recentLows[0].price) / (recentLows[1].index - recentLows[0].index);
+  if (direction === "rising" && !(highSlope > 0 && lowSlope > 0)) return null;
+  if (direction === "falling" && !(highSlope < 0 && lowSlope < 0)) return null;
+  const slopeGap = Math.abs(highSlope - lowSlope) / Math.max(Math.abs(highSlope), Math.abs(lowSlope));
+  if (!Number.isFinite(slopeGap) || slopeGap > 0.35) return null;
+  const name = direction === "rising" ? "Canal ascendente" : "Canal descendente";
+  const color = direction === "rising" ? "rgba(0,190,130,0.7)" : "rgba(246,70,93,0.7)";
+  return {
+    kind: direction === "rising" ? "rising-channel" : "falling-channel",
+    name,
+    description: "Dos bandas paralelas que guian el movimiento del precio.",
+    confidence: Number((1 - slopeGap).toFixed(2)),
+    markers: [
+      {
+        time: recentHighs[1].time,
+        position: "aboveBar",
+        color,
+        shape: "circle",
+        text: direction === "rising" ? "CA" : "CD",
+      },
+    ],
+    lines: [
+      {
+        id: `${direction}-channel-top`,
+        name: "Banda superior",
+        points: [
+          { time: recentHighs[0].time, value: recentHighs[0].price },
+          { time: recentHighs[1].time, value: recentHighs[1].price },
+        ],
+        color,
+        style: LineStyle.Solid,
+        width: 2,
+      },
+      {
+        id: `${direction}-channel-bottom`,
+        name: "Banda inferior",
+        points: [
+          { time: recentLows[0].time, value: recentLows[0].price },
+          { time: recentLows[1].time, value: recentLows[1].price },
+        ],
+        color,
+        style: LineStyle.Dashed,
+        width: 2,
+      },
+    ],
+  };
+};
+
+const detectEngulfing = (
+  candles: CandlePoint[],
+  direction: "bullish" | "bearish"
+): Pattern | null => {
+  if (candles.length < 2) return null;
+  const prev = candles[candles.length - 2];
+  const curr = candles[candles.length - 1];
+  const prevBody = Math.abs(prev.close - prev.open);
+  const currBody = Math.abs(curr.close - curr.open);
+  if (prevBody === 0 || currBody === 0) return null;
+  if (direction === "bullish") {
+    if (!(prev.close < prev.open && curr.close > curr.open)) return null;
+    if (!(curr.open <= prev.close && curr.close >= prev.open)) return null;
+    return {
+      kind: "bullish-engulfing",
+      name: "Engulfing alcista",
+      description: "Vela verde que envuelve el cuerpo de la previa.",
+      confidence: Number(Math.min(1, currBody / prevBody).toFixed(2)),
+      markers: [
+        {
+          time: curr.time,
+          position: "belowBar",
+          color: "#2ecc71",
+          shape: "arrowUp",
+          text: "EA",
+        },
+      ],
+      lines: [],
+    };
+  }
+  if (!(prev.close > prev.open && curr.close < curr.open)) return null;
+  if (!(curr.open >= prev.close && curr.close <= prev.open)) return null;
+  return {
+    kind: "bearish-engulfing",
+    name: "Engulfing bajista",
+    description: "Vela roja que envuelve el cuerpo de la previa.",
+    confidence: Number(Math.min(1, currBody / prevBody).toFixed(2)),
+    markers: [
+      {
+        time: curr.time,
+        position: "aboveBar",
+        color: "#e74c3c",
+        shape: "arrowDown",
+        text: "EB",
+      },
+    ],
+    lines: [],
+  };
+};
+
 const buildSupportResistance = (candles: CandlePoint[], swings: SwingPoint[]): PatternLine[] => {
   const highs = swings.filter((swing) => swing.type === "high").slice(-5);
   const lows = swings.filter((swing) => swing.type === "low").slice(-5);
@@ -423,31 +624,39 @@ const confidenceLabel = (value: number) => {
 export function PatternAnalysisLab() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [ticker, setTicker] = useState("AAPL");
-  const [dataMode, setDataMode] = useState<"demo" | "live">("live");
+  const [searchValue, setSearchValue] = useState("");
   const [filters, setFilters] = useState({
     "double-top": true,
     "double-bottom": true,
     "head-shoulders": true,
     "ascending-triangle": true,
+    "descending-triangle": true,
+    "symmetrical-triangle": true,
+    "rising-channel": true,
+    "falling-channel": true,
+    "bullish-engulfing": true,
+    "bearish-engulfing": true,
   });
-  const tickers = useMemo(
-    () => [
-      { symbol: "AAPL", basePrice: 185 },
-      { symbol: "MSFT", basePrice: 420 },
-      { symbol: "TSLA", basePrice: 240 },
-      { symbol: "NVDA", basePrice: 118 },
-      { symbol: "AMD", basePrice: 165 },
-    ],
+  const { holdings } = usePortfolioData();
+  const portfolioTickers = useMemo(() => {
+    const symbols = holdings.map((holding) => holding.ticker.toUpperCase()).filter(Boolean);
+    return Array.from(new Set(symbols)).sort();
+  }, [holdings]);
+  const fallbackTickers = useMemo(
+    () => ["AAPL", "MSFT", "TSLA", "NVDA", "AMD"],
     []
   );
-  const selected = tickers.find((item) => item.symbol === ticker) ?? tickers[0];
-  const demoSeries = useMemo(() => buildDemoSeries(selected.basePrice), [selected.basePrice]);
+  const allTickers = useMemo(() => {
+    const merged = new Set([...portfolioTickers, ...fallbackTickers]);
+    return Array.from(merged).sort();
+  }, [portfolioTickers, fallbackTickers]);
+  const selected = { symbol: ticker };
   const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>(
     { candles: [], volumes: [] }
   );
   const [liveStatus, setLiveStatus] = useState<"idle" | "loading" | "error">("idle");
   const [liveError, setLiveError] = useState<string | null>(null);
-  const series = dataMode === "live" ? liveSeries : demoSeries;
+  const series = liveSeries;
   const analysis = useMemo(() => buildAnalysis(series.candles, series.volumes), [series]);
 
   const activePatterns = useMemo(
@@ -467,6 +676,7 @@ export function PatternAnalysisLab() {
     },
   });
   const isLoading = status === "submitted" || status === "streaming";
+  const canAnalyze = liveStatus === "idle" && analysis.candles.length > 0 && !isLoading;
   const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
   const latestText = latestAssistant
     ? (() => {
@@ -496,17 +706,16 @@ export function PatternAnalysisLab() {
     return [
       "Eres un analista tecnico.",
       `Ticker: ${selected.symbol}.`,
-      `Fuente de datos: ${dataMode === "live" ? "Alpha Vantage" : "demo simulada"}.`,
+      "Fuente de datos: Alpha Vantage.",
       `Patrones detectados: ${patternNames}.`,
       "Usa las ultimas 20 velas para comentar estructura, sesgo y niveles.",
       "Devuelve un resumen breve y niveles de soporte/resistencia.",
       `Velas: ${JSON.stringify(recent)}`,
     ].join(" ");
-  }, [activePatterns, analysis.candles, dataMode, selected.symbol]);
+  }, [activePatterns, analysis.candles, selected.symbol]);
 
   useEffect(() => {
     let ignore = false;
-    if (dataMode !== "live") return;
     setLiveStatus("loading");
     setLiveError(null);
     fetch(`/api/market/ohlc?symbol=${selected.symbol}`)
@@ -514,6 +723,9 @@ export function PatternAnalysisLab() {
         const payload = await res.json();
         if (!res.ok) {
           throw new Error(payload?.error || "No data");
+        }
+        if (!Array.isArray(payload.candles) || payload.candles.length === 0) {
+          throw new Error("Sin velas disponibles");
         }
         if (!ignore) {
           setLiveSeries({ candles: payload.candles ?? [], volumes: payload.volumes ?? [] });
@@ -529,7 +741,7 @@ export function PatternAnalysisLab() {
     return () => {
       ignore = true;
     };
-  }, [dataMode, selected.symbol]);
+  }, [selected.symbol]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -617,12 +829,8 @@ export function PatternAnalysisLab() {
   return (
     <div className="grid gap-6 lg:grid-cols-[2.1fr,1fr]">
       <Card
-        title="Grafico de prueba"
-        subtitle={
-          dataMode === "demo"
-            ? "Serie simulada con patrones conocidos y overlays IA."
-            : "Datos reales (Alpha Vantage) con overlays IA."
-        }
+        title="Grafico en vivo"
+        subtitle="Datos reales (Alpha Vantage) con overlays IA."
         className="flex flex-col gap-4"
       >
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
@@ -633,31 +841,68 @@ export function PatternAnalysisLab() {
               onChange={(event) => setTicker(event.target.value)}
               className="rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
             >
-              {tickers.map((item) => (
-                <option key={item.symbol} value={item.symbol}>
-                  {item.symbol}
-                </option>
-              ))}
+              {!allTickers.includes(ticker) && (
+                <option value={ticker}>{ticker}</option>
+              )}
+              {portfolioTickers.length > 0 && (
+                <optgroup label="Mi portafolio">
+                  {portfolioTickers.map((symbol) => (
+                    <option key={symbol} value={symbol}>
+                      {symbol}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <optgroup label="Populares">
+                {fallbackTickers.map((symbol) => (
+                  <option key={symbol} value={symbol}>
+                    {symbol}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </label>
-          <label className="flex items-center gap-2 rounded-full border border-border/60 bg-surface-muted/40 px-3 py-1 text-xs text-muted">
-            <span className="uppercase tracking-[0.2em]">Fuente</span>
-            <select
-              value={dataMode}
-              onChange={(event) =>
-                setDataMode(event.target.value === "demo" ? "demo" : "live")
-              }
-              className="rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
+          <form
+            className="flex items-center gap-2 rounded-full border border-border/60 bg-surface-muted/40 px-3 py-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const next = searchValue.trim().toUpperCase();
+              if (!next) return;
+              setTicker(next);
+              setSearchValue("");
+            }}
+          >
+            <span className="uppercase tracking-[0.2em] text-muted">Buscar</span>
+            <input
+              list="ticker-list"
+              value={searchValue}
+              onChange={(event) => setSearchValue(event.target.value)}
+              placeholder="Ej: META"
+              className="w-24 rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text placeholder:text-muted"
+            />
+            <button
+              type="submit"
+              className="rounded-md border border-border/60 px-2 py-1 text-xs text-text transition hover:bg-surface"
             >
-              <option value="live">Alpha Vantage</option>
-              <option value="demo">IA demo</option>
-            </select>
-          </label>
+              Ir
+            </button>
+            <datalist id="ticker-list">
+              {allTickers.map((symbol) => (
+                <option key={symbol} value={symbol} />
+              ))}
+            </datalist>
+          </form>
           {([
             { id: "double-top", label: "Doble techo" },
             { id: "double-bottom", label: "Doble suelo" },
             { id: "head-shoulders", label: "H-C-H" },
-            { id: "ascending-triangle", label: "Triangulo" },
+            { id: "ascending-triangle", label: "Triangulo asc." },
+            { id: "descending-triangle", label: "Triangulo desc." },
+            { id: "symmetrical-triangle", label: "Triangulo sim." },
+            { id: "rising-channel", label: "Canal asc." },
+            { id: "falling-channel", label: "Canal desc." },
+            { id: "bullish-engulfing", label: "Engulfing alc." },
+            { id: "bearish-engulfing", label: "Engulfing baj." },
           ] as const).map((item) => (
             <label
               key={item.id}
@@ -678,12 +923,12 @@ export function PatternAnalysisLab() {
             </label>
           ))}
         </div>
-        {dataMode === "live" && liveStatus === "loading" && (
+        {liveStatus === "loading" && (
           <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-4 text-xs text-muted">
             Cargando datos en vivo...
           </div>
         )}
-        {dataMode === "live" && liveStatus === "error" && (
+        {liveStatus === "error" && (
           <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-4 text-xs text-danger">
             Error al cargar datos: {liveError || "intenta nuevamente"}
           </div>
@@ -691,14 +936,7 @@ export function PatternAnalysisLab() {
         <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/40" />
       </Card>
 
-      <Card
-        title="Deteccion IA"
-        subtitle={
-          dataMode === "demo"
-            ? "Heuristicas rapidas sobre puntos de giro."
-            : "Analisis IA sobre velas reales."
-        }
-      >
+      <Card title="Deteccion IA" subtitle="Analisis IA sobre velas reales.">
         <div className="flex flex-col gap-4 text-sm text-muted">
           <div className="flex flex-wrap items-center gap-3">
             <Button
@@ -707,11 +945,14 @@ export function PatternAnalysisLab() {
                 setMessages([]);
                 await sendMessage({ text: aiPrompt });
               }}
-              disabled={isLoading}
+              disabled={!canAnalyze}
               className="bg-accent text-white hover:brightness-110"
             >
               {isLoading ? "Analizando..." : "Analizar con IA"}
             </Button>
+            {!canAnalyze && liveStatus === "loading" && (
+              <span className="text-xs text-muted">Esperando datos en vivo...</span>
+            )}
             {error && (
               <span className="text-xs text-danger">
                 No se pudo conectar con la IA. Revisa la clave API.
