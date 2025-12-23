@@ -680,10 +680,17 @@ export function PatternAnalysisLab() {
   const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
   const latestText = latestAssistant
     ? (() => {
+        const isTextPart = (part: unknown): part is { type: "text"; text: string } =>
+          Boolean(
+            part &&
+              typeof part === "object" &&
+              (part as { type?: string }).type === "text" &&
+              typeof (part as { text?: string }).text === "string"
+          );
         const parts = Array.isArray(latestAssistant.parts)
-          ? latestAssistant.parts.filter((part: { type?: string }) => part.type === "text")
+          ? latestAssistant.parts.filter(isTextPart)
           : [];
-        const partsText = parts.map((part: { text?: string }) => part.text ?? "").join("\n");
+        const partsText = parts.map((part) => part.text).join("\n");
         return (
           partsText ||
           (typeof latestAssistant.content === "string" ? latestAssistant.content : "") ||
