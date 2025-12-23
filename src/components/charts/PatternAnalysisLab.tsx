@@ -8,6 +8,11 @@ import {
   type SeriesMarker,
   type Time,
 } from "lightweight-charts";
+import { Chat, useChat } from "@ai-sdk/react";
+import { DefaultChatTransport } from "ai";
+import { MemoizedMarkdown } from "@/components/ai/memoized-markdown";
+import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -414,21 +419,90 @@ const confidenceLabel = (value: number) => {
 
 export function PatternAnalysisLab() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [ticker, setTicker] = useState("AAPL");
+  const [dataMode, setDataMode] = useState<"demo" | "tradingview">("tradingview");
   const [filters, setFilters] = useState({
     "double-top": true,
     "double-bottom": true,
     "head-shoulders": true,
     "ascending-triangle": true,
   });
-  const analysis = useMemo(() => buildPatternSeries(150), []);
+  const tickers = useMemo(
+    () => [
+      { symbol: "AAPL", tvSymbol: "NASDAQ:AAPL", basePrice: 185 },
+      { symbol: "MSFT", tvSymbol: "NASDAQ:MSFT", basePrice: 420 },
+      { symbol: "TSLA", tvSymbol: "NASDAQ:TSLA", basePrice: 240 },
+      { symbol: "NVDA", tvSymbol: "NASDAQ:NVDA", basePrice: 118 },
+      { symbol: "AMD", tvSymbol: "NASDAQ:AMD", basePrice: 165 },
+    ],
+    []
+  );
+  const selected = tickers.find((item) => item.symbol === ticker) ?? tickers[0];
+  const analysis = useMemo(() => buildPatternSeries(selected.basePrice), [selected.basePrice]);
 
   const activePatterns = useMemo(
     () => analysis.patterns.filter((pattern) => filters[pattern.kind]),
     [analysis.patterns, filters]
   );
 
+  const aiChat = useMemo(
+    () => new Chat({ transport: new DefaultChatTransport({ api: "/api/chat" }) }),
+    []
+  );
+  const { messages, status, error, sendMessage, setMessages } = useChat({
+    chat: aiChat,
+    experimental_throttle: 50,
+    onError: (err: Error) => {
+      console.error("AI analysis error:", err);
+    },
+  });
+  const isLoading = status === "submitted" || status === "streaming";
+  const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+  const latestText = latestAssistant
+    ? (() => {
+        const parts = Array.isArray(latestAssistant.parts)
+          ? latestAssistant.parts.filter((part: { type?: string }) => part.type === "text")
+          : [];
+        const partsText = parts.map((part: { text?: string }) => part.text ?? "").join("\n");
+        return (
+          partsText ||
+          (typeof latestAssistant.content === "string" ? latestAssistant.content : "") ||
+          (typeof (latestAssistant as { text?: string }).text === "string"
+            ? (latestAssistant as { text?: string }).text
+            : "")
+        );
+      })()
+    : "";
+
+  const aiPrompt = useMemo(() => {
+    const patternNames = activePatterns.map((pattern) => pattern.name).join(", ") || "ninguno";
+    if (dataMode === "tradingview") {
+      return [
+        "Eres un analista tecnico.",
+        `Analiza el ticker ${selected.symbol} con enfoque educativo.`,
+        "No tienes OHLC en vivo desde el embed, asi que describe un checklist de patrones y niveles.",
+        "Devuelve un resumen breve, niveles clave hipoteticos y un plan de validacion.",
+      ].join(" ");
+    }
+    const recent = analysis.candles.slice(-20).map((candle) => ({
+      time: candle.time,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    }));
+    return [
+      "Eres un analista tecnico.",
+      `Ticker simulado: ${selected.symbol}.`,
+      `Patrones detectados: ${patternNames}.`,
+      "Usa las ultimas 20 velas simuladas para comentar estructura, sesgo y niveles.",
+      "Devuelve un resumen breve y niveles de soporte/resistencia.",
+      `Velas: ${JSON.stringify(recent)}`,
+    ].join(" ");
+  }, [activePatterns, analysis.candles, dataMode, selected.symbol]);
+
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || dataMode !== "demo") return;
     const chart = createChart(containerRef.current, {
       height: 420,
       layout: {
@@ -474,7 +548,12 @@ export function PatternAnalysisLab() {
     });
     volumeSeries.setData(analysis.volumes);
 
-    const markers = activePatterns.flatMap((pattern) => pattern.markers);
+    const markers = activePatterns
+      .flatMap((pattern) => pattern.markers)
+      .sort((a, b) => {
+        if (a.time === b.time) return 0;
+        return a.time > b.time ? 1 : -1;
+      });
     if (markers.length > 0) {
       candleSeries.setMarkers(markers);
     }
@@ -502,16 +581,47 @@ export function PatternAnalysisLab() {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [analysis, activePatterns]);
+  }, [analysis, activePatterns, dataMode]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2.1fr,1fr]">
       <Card
         title="Grafico de prueba"
-        subtitle="Serie simulada con patrones conocidos y overlays IA."
+        subtitle={
+          dataMode === "demo"
+            ? "Serie simulada con patrones conocidos y overlays IA."
+            : "Datos en vivo desde TradingView."
+        }
         className="flex flex-col gap-4"
       >
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted">
+          <label className="flex items-center gap-2 rounded-full border border-border/60 bg-surface-muted/40 px-3 py-1 text-xs text-muted">
+            <span className="uppercase tracking-[0.2em]">Ticker</span>
+            <select
+              value={ticker}
+              onChange={(event) => setTicker(event.target.value)}
+              className="rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
+            >
+              {tickers.map((item) => (
+                <option key={item.symbol} value={item.symbol}>
+                  {item.symbol}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 rounded-full border border-border/60 bg-surface-muted/40 px-3 py-1 text-xs text-muted">
+            <span className="uppercase tracking-[0.2em]">Fuente</span>
+            <select
+              value={dataMode}
+              onChange={(event) =>
+                setDataMode(event.target.value === "demo" ? "demo" : "tradingview")
+              }
+              className="rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
+            >
+              <option value="tradingview">TradingView</option>
+              <option value="demo">IA demo</option>
+            </select>
+          </label>
           {([
             { id: "double-top", label: "Doble techo" },
             { id: "double-bottom", label: "Doble suelo" },
@@ -522,7 +632,8 @@ export function PatternAnalysisLab() {
               key={item.id}
               className={cn(
                 "flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 transition",
-                filters[item.id] ? "bg-surface text-text" : "text-muted"
+                filters[item.id] ? "bg-surface text-text" : "text-muted",
+                dataMode === "tradingview" && "opacity-50"
               )}
             >
               <input
@@ -532,16 +643,49 @@ export function PatternAnalysisLab() {
                   setFilters((prev) => ({ ...prev, [item.id]: event.target.checked }))
                 }
                 className="accent-accent"
+                disabled={dataMode === "tradingview"}
               />
               {item.label}
             </label>
           ))}
         </div>
-        <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/40" />
+        {dataMode === "demo" ? (
+          <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/40" />
+        ) : (
+          <div className="h-[420px] w-full overflow-hidden rounded-lg border border-border/60 bg-surface-muted/40">
+            <TradingViewAdvancedChart symbol={selected.tvSymbol} height="100%" />
+          </div>
+        )}
       </Card>
 
-      <Card title="Deteccion IA" subtitle="Heuristicas rapidas sobre puntos de giro.">
-        <div className="flex flex-col gap-3 text-sm text-muted">
+      <Card
+        title="Deteccion IA"
+        subtitle={
+          dataMode === "demo"
+            ? "Heuristicas rapidas sobre puntos de giro."
+            : "TradingView embebido no expone velas, usa el modo IA demo para overlays."
+        }
+      >
+        <div className="flex flex-col gap-4 text-sm text-muted">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              onClick={async () => {
+                setMessages([]);
+                await sendMessage({ text: aiPrompt });
+              }}
+              disabled={isLoading}
+              className="bg-accent text-white hover:brightness-110"
+            >
+              {isLoading ? "Analizando..." : "Analizar con IA"}
+            </Button>
+            {error && (
+              <span className="text-xs text-danger">
+                No se pudo conectar con la IA. Revisa la clave API.
+              </span>
+            )}
+          </div>
+
           {activePatterns.length === 0 ? (
             <p>No hay patrones activos. Activa un filtro para ver resultados.</p>
           ) : (
@@ -560,6 +704,19 @@ export function PatternAnalysisLab() {
               </div>
             ))
           )}
+
+          <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted">Resumen IA</p>
+            {latestText ? (
+              <div className="mt-2 text-sm text-text">
+                <MemoizedMarkdown id="pattern-ia" content={latestText} />
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-muted">
+                Ejecuta la analisis para recibir un resumen.
+              </p>
+            )}
+          </div>
         </div>
       </Card>
     </div>
