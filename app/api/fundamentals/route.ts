@@ -100,14 +100,14 @@ const fetchFundamentals = async (
   return point;
 };
 
-const fetchFmpFundamentals = async (
+const fetchFmpStableProfile = async (
   ticker: string,
   symbol: string,
   apiKey: string
 ): Promise<FundamentalPoint | null> => {
-  const url = `https://financialmodelingprep.com/api/v3/profile/${encodeURIComponent(
+  const url = `https://financialmodelingprep.com/stable/profile?symbol=${encodeURIComponent(
     symbol
-  )}?apikey=${encodeURIComponent(apiKey)}`;
+  )}&apikey=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, { next: { revalidate: 3600 } });
   const json = await res.json();
   const row = Array.isArray(json) ? json[0] : null;
@@ -118,6 +118,69 @@ const fetchFmpFundamentals = async (
     pe: toNumber(row.pe),
     beta: toNumber(row.beta),
   };
+};
+
+const fetchFmpStableRatios = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://financialmodelingprep.com/stable/ratios-ttm?symbol=${encodeURIComponent(
+    symbol
+  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const json = await res.json();
+  const row = Array.isArray(json) ? json[0] : null;
+  if (!row) return null;
+  return {
+    ticker,
+    symbol,
+    pe: toNumber(row.priceEarningsRatioTTM),
+    ps: toNumber(row.priceToSalesRatioTTM),
+    pb: toNumber(row.priceToBookRatioTTM),
+  };
+};
+
+const fetchFmpStableKeyMetrics = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const url = `https://financialmodelingprep.com/stable/key-metrics-ttm?symbol=${encodeURIComponent(
+    symbol
+  )}&apikey=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { next: { revalidate: 3600 } });
+  const json = await res.json();
+  const row = Array.isArray(json) ? json[0] : null;
+  if (!row) return null;
+  return {
+    ticker,
+    symbol,
+    evEbitda: toNumber(row.enterpriseValueOverEBITDATTM),
+  };
+};
+
+const fetchFmpStableFundamentals = async (
+  ticker: string,
+  symbol: string,
+  apiKey: string
+): Promise<FundamentalPoint | null> => {
+  const [profile, ratios, keyMetrics] = await Promise.all([
+    fetchFmpStableProfile(ticker, symbol, apiKey),
+    fetchFmpStableRatios(ticker, symbol, apiKey),
+    fetchFmpStableKeyMetrics(ticker, symbol, apiKey),
+  ]);
+  const point: FundamentalPoint = {
+    ticker,
+    symbol,
+    pe: profile?.pe ?? ratios?.pe,
+    beta: profile?.beta,
+    ps: ratios?.ps,
+    pb: ratios?.pb,
+    evEbitda: keyMetrics?.evEbitda,
+  };
+  const hasAny = Object.values(point).some((value) => typeof value === "number");
+  return hasAny ? point : null;
 };
 
 const fetchYahooFundamentals = async (
@@ -220,7 +283,7 @@ export async function GET(req: Request) {
         }
       }
       if (fmpKey) {
-        const fmpData = await fetchFmpFundamentals(ticker, symbol, fmpKey);
+        const fmpData = await fetchFmpStableFundamentals(ticker, symbol, fmpKey);
         if (fmpData) {
           setCached(ticker, fmpData);
           results.push(fmpData);
