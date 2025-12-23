@@ -63,20 +63,22 @@ export function PortfolioClient() {
             )}
           </Card>
         </div>
-        <div className="grid gap-4 lg:col-span-3 lg:grid-cols-2">
-          <Card title="Distribucion" subtitle="Peso por ticker (top 6)">
+        <div className="grid gap-4 lg:col-span-3 lg:grid-cols-[minmax(240px,320px)_1fr]">
+          <Card title="Distribucion" subtitle="Peso por ticker (top 6)" className="max-w-sm">
             {allocation.length > 0 ? (
               <>
                 <AllocationChart data={allocation} />
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="mt-3 grid gap-1.5 text-xs">
                   {allocation.map((item, index) => (
-                    <div key={item.label} className="flex items-center justify-between text-sm">
+                    <div key={item.label} className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span
                           className="h-2.5 w-2.5 rounded-full"
                           style={{ backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length] }}
                         />
-                        <span className="text-text">{item.label}</span>
+                        <span className="truncate text-text" title={item.label}>
+                          {item.label}
+                        </span>
                       </div>
                       <span className="text-muted">{formatPercent(item.percent)}</span>
                     </div>
@@ -87,7 +89,7 @@ export function PortfolioClient() {
               <p className="text-sm text-muted">Sin allocation todavia.</p>
             )}
           </Card>
-          <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado">
+          <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado" className="w-full">
             <RealizedTradesTable trades={realizedTrades} />
           </Card>
         </div>

@@ -37,19 +37,23 @@ const hashTicker = (ticker: string) =>
 const getFinancialInfo = (ticker: string) => {
   const seed = hashTicker(ticker);
   const pe = 10 + (seed % 35);
-  return `P/E ${pe}`;
+  const tone = pe >= 30 ? "danger" : pe >= 22 ? "warning" : "success";
+  return { label: `P/E ${pe}`, tone };
 };
 
 const getRiskInfo = (ticker: string) => {
   const seed = hashTicker(ticker);
   const beta = 0.6 + (seed % 120) / 100;
-  return `Beta ${beta.toFixed(2)}`;
+  const tone = beta >= 1.3 ? "danger" : beta >= 1.1 ? "warning" : "success";
+  return { label: `Beta ${beta.toFixed(2)}`, tone };
 };
 
 const getTechnicalInfo = (ticker: string) => {
   const seed = hashTicker(ticker);
   const rsi = 35 + (seed % 40);
-  return `RSI ${rsi}`;
+  const tone = rsi >= 75 || rsi <= 25 ? "danger" : rsi >= 70 || rsi <= 30 ? "warning" : "default";
+  const hint = rsi >= 70 ? "Sobrecompra" : rsi <= 30 ? "Sobreventa" : "Neutral";
+  return { label: `RSI ${rsi}`, hint, tone };
 };
 
 const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection) => {
@@ -122,9 +126,9 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                   </th>
                 );
               })}
-              <th className="px-4 py-3 text-left font-semibold">Información financiera</th>
+              <th className="px-4 py-3 text-left font-semibold">Finanzas</th>
               <th className="px-4 py-3 text-left font-semibold">Riesgo</th>
-              <th className="px-4 py-3 text-left font-semibold">Datos técnicos</th>
+              <th className="px-4 py-3 text-left font-semibold">Tecnico</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-sm">
@@ -144,6 +148,9 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
               sortedHoldings.map((holding) => {
                 const isPositive = holding.pnlValue >= 0;
                 const isSelected = selectedTicker === holding.ticker;
+                const financialInfo = getFinancialInfo(holding.ticker);
+                const riskInfo = getRiskInfo(holding.ticker);
+                const technicalInfo = getTechnicalInfo(holding.ticker);
                 return (
                   <tr
                     key={holding.ticker}
@@ -188,14 +195,23 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         currency
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">
-                      {getFinancialInfo(holding.ticker)}
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <Badge tone={financialInfo.tone}>
+                        {financialInfo.label}
+                      </Badge>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">
-                      {getRiskInfo(holding.ticker)}
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <Badge tone={riskInfo.tone}>
+                        {riskInfo.label}
+                      </Badge>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted">
-                      {getTechnicalInfo(holding.ticker)}
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <Badge tone={technicalInfo.tone}>
+                        {technicalInfo.label}
+                        <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
+                          {technicalInfo.hint}
+                        </span>
+                      </Badge>
                     </td>
                   </tr>
                 );

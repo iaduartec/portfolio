@@ -13,7 +13,7 @@ export const ALLOCATION_COLORS = ["#2962ff", "#00c074", "#f5a524", "#f6465d", "#
 
 export function AllocationChart({ data }: AllocationChartProps) {
   return (
-    <div className="h-44 w-full">
+    <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -22,8 +22,8 @@ export function AllocationChart({ data }: AllocationChartProps) {
             nameKey="label"
             cx="50%"
             cy="50%"
-            innerRadius={48}
-            outerRadius={78}
+            innerRadius={42}
+            outerRadius={70}
             paddingAngle={3}
             stroke="rgba(255,255,255,0.08)"
           >
