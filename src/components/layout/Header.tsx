@@ -10,6 +10,7 @@ import { useCurrency } from "@/components/currency/CurrencyProvider";
 const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Panel" },
   { href: "/portfolio", label: "Portafolio" },
+  { href: "/lab", label: "Lab Tecnico" },
   { href: "/ai-agents", label: "Agentes de IA" },
   { href: "/upload", label: "Cargar CSV" },
 ];
