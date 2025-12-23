@@ -104,26 +104,52 @@ const fetchYahooFundamentals = async (
   ticker: string,
   symbol: string
 ): Promise<FundamentalPoint | null> => {
-  const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
+  const headers = { "User-Agent": "Mozilla/5.0" };
+  const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
     symbol
   )}?modules=summaryDetail,defaultKeyStatistics,financialData`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  const json = await res.json();
-  const result = json?.quoteSummary?.result?.[0];
-  if (!result) return null;
-  const summaryDetail = result.summaryDetail ?? {};
-  const keyStats = result.defaultKeyStatistics ?? {};
-  const financialData = result.financialData ?? {};
-  const point: FundamentalPoint = {
+  try {
+    const res = await fetch(summaryUrl, { next: { revalidate: 3600 }, headers });
+    if (res.ok) {
+      const json = await res.json();
+      const result = json?.quoteSummary?.result?.[0];
+      if (result) {
+        const summaryDetail = result.summaryDetail ?? {};
+        const keyStats = result.defaultKeyStatistics ?? {};
+        const financialData = result.financialData ?? {};
+        return {
+          ticker,
+          symbol,
+          pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
+          ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
+          pb: toNumber(keyStats.priceToBook?.raw),
+          evEbitda: toNumber(
+            keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw
+          ),
+          beta: toNumber(keyStats.beta?.raw),
+        };
+      }
+    }
+  } catch {
+    // fall through to quote endpoint
+  }
+
+  const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(
+    symbol
+  )}`;
+  const quoteRes = await fetch(quoteUrl, { next: { revalidate: 3600 }, headers });
+  if (!quoteRes.ok) return null;
+  const quoteJson = await quoteRes.json();
+  const item = quoteJson?.quoteResponse?.result?.[0];
+  if (!item) return null;
+  return {
     ticker,
     symbol,
-    pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
-    ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
-    pb: toNumber(keyStats.priceToBook?.raw),
-    evEbitda: toNumber(keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw),
-    beta: toNumber(keyStats.beta?.raw),
+    pe: toNumber(item.trailingPE),
+    ps: toNumber(item.priceToSalesTrailing12Months),
+    pb: toNumber(item.priceToBook),
+    beta: toNumber(item.beta),
   };
-  return point;
 };
 
 export async function GET(req: Request) {
