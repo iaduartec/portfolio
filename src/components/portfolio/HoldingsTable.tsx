@@ -92,6 +92,31 @@ const getTechnicalInfo = (fundamental?: FundamentalPoint, fmpLimited?: boolean) 
   };
 };
 
+const mergeMetric = (nextValue?: number, prevValue?: number) =>
+  Number.isFinite(nextValue) ? nextValue : prevValue;
+
+const mergeFundamentals = (
+  prev: Record<string, FundamentalPoint>,
+  next: Record<string, FundamentalPoint>
+) => {
+  const merged: Record<string, FundamentalPoint> = { ...prev };
+  Object.values(next).forEach((item) => {
+    if (!item?.ticker) return;
+    const existing = prev[item.ticker];
+    merged[item.ticker] = {
+      ticker: item.ticker,
+      symbol: item.symbol ?? existing?.symbol ?? item.ticker,
+      pe: mergeMetric(item.pe, existing?.pe),
+      ps: mergeMetric(item.ps, existing?.ps),
+      pb: mergeMetric(item.pb, existing?.pb),
+      evEbitda: mergeMetric(item.evEbitda, existing?.evEbitda),
+      beta: mergeMetric(item.beta, existing?.beta),
+      rsi: mergeMetric(item.rsi, existing?.rsi),
+    };
+  });
+  return merged;
+};
+
 const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection) => {
   const factor = direction === "asc" ? 1 : -1;
   if (key === "ticker") {
@@ -120,6 +145,30 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
     key: "marketValue",
     direction: "desc",
   });
+  const cacheKey = "portfolio.fundamentals.cache.v1";
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(cacheKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, FundamentalPoint>;
+      if (parsed && typeof parsed === "object") {
+        setFundamentals(parsed);
+      }
+    } catch {
+      // ignore cache parse errors
+    }
+  }, [cacheKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(cacheKey, JSON.stringify(fundamentals));
+    } catch {
+      // ignore cache write errors
+    }
+  }, [cacheKey, fundamentals]);
 
   useEffect(() => {
     const tickers = holdings.map((holding) => holding.ticker).filter(Boolean);
@@ -135,7 +184,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
           if (item?.ticker) acc[item.ticker] = item;
           return acc;
         }, {});
-        setFundamentals(next);
+        setFundamentals((prev) => mergeFundamentals(prev, next));
         setFmpLimited(Boolean(payload?.meta?.fmpLimited));
       })
       .catch(() => {});
