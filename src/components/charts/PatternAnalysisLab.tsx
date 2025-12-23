@@ -11,7 +11,6 @@ import {
 import { Chat, useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { MemoizedMarkdown } from "@/components/ai/memoized-markdown";
-import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -62,7 +61,7 @@ type AnalysisResult = {
   support: PatternLine[];
 };
 
-const buildPatternSeries = (basePrice: number): AnalysisResult => {
+const buildDemoSeries = (basePrice: number): { candles: CandlePoint[]; volumes: VolumePoint[] } => {
   const anchors = [
     { i: 0, v: basePrice * 0.85 },
     { i: 10, v: basePrice * 0.92 },
@@ -116,24 +115,28 @@ const buildPatternSeries = (basePrice: number): AnalysisResult => {
     prevClose = close;
   }
 
-  const swings = findSwings(points, 3);
+  return { candles: points, volumes };
+};
+
+const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): AnalysisResult => {
+  const swings = findSwings(candles, 3);
   const patterns: Pattern[] = [];
 
-  const doubleTop = detectDoubleTop(points, swings);
+  const doubleTop = detectDoubleTop(candles, swings);
   if (doubleTop) patterns.push(doubleTop);
 
-  const doubleBottom = detectDoubleBottom(points, swings);
+  const doubleBottom = detectDoubleBottom(candles, swings);
   if (doubleBottom) patterns.push(doubleBottom);
 
-  const headShoulders = detectHeadAndShoulders(points, swings);
+  const headShoulders = detectHeadAndShoulders(candles, swings);
   if (headShoulders) patterns.push(headShoulders);
 
-  const ascendingTriangle = detectAscendingTriangle(points, swings);
+  const ascendingTriangle = detectAscendingTriangle(candles, swings);
   if (ascendingTriangle) patterns.push(ascendingTriangle);
 
-  const supportLines = buildSupportResistance(points, swings);
+  const supportLines = buildSupportResistance(candles, swings);
 
-  return { candles: points, volumes, patterns, support: supportLines };
+  return { candles, volumes, patterns, support: supportLines };
 };
 
 const findSwings = (candles: CandlePoint[], window: number): SwingPoint[] => {
@@ -420,7 +423,7 @@ const confidenceLabel = (value: number) => {
 export function PatternAnalysisLab() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [ticker, setTicker] = useState("AAPL");
-  const [dataMode, setDataMode] = useState<"demo" | "tradingview">("tradingview");
+  const [dataMode, setDataMode] = useState<"demo" | "live">("live");
   const [filters, setFilters] = useState({
     "double-top": true,
     "double-bottom": true,
@@ -429,16 +432,23 @@ export function PatternAnalysisLab() {
   });
   const tickers = useMemo(
     () => [
-      { symbol: "AAPL", tvSymbol: "NASDAQ:AAPL", basePrice: 185 },
-      { symbol: "MSFT", tvSymbol: "NASDAQ:MSFT", basePrice: 420 },
-      { symbol: "TSLA", tvSymbol: "NASDAQ:TSLA", basePrice: 240 },
-      { symbol: "NVDA", tvSymbol: "NASDAQ:NVDA", basePrice: 118 },
-      { symbol: "AMD", tvSymbol: "NASDAQ:AMD", basePrice: 165 },
+      { symbol: "AAPL", basePrice: 185 },
+      { symbol: "MSFT", basePrice: 420 },
+      { symbol: "TSLA", basePrice: 240 },
+      { symbol: "NVDA", basePrice: 118 },
+      { symbol: "AMD", basePrice: 165 },
     ],
     []
   );
   const selected = tickers.find((item) => item.symbol === ticker) ?? tickers[0];
-  const analysis = useMemo(() => buildPatternSeries(selected.basePrice), [selected.basePrice]);
+  const demoSeries = useMemo(() => buildDemoSeries(selected.basePrice), [selected.basePrice]);
+  const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>(
+    { candles: [], volumes: [] }
+  );
+  const [liveStatus, setLiveStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const series = dataMode === "live" ? liveSeries : demoSeries;
+  const analysis = useMemo(() => buildAnalysis(series.candles, series.volumes), [series]);
 
   const activePatterns = useMemo(
     () => analysis.patterns.filter((pattern) => filters[pattern.kind]),
