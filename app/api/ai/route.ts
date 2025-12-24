@@ -6,7 +6,15 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   try {
     const { messages, data } = await req.json();
-    const systemMessage = data?.system ?? 'You are a helpful assistant. Respond to the user in Markdown format.';
+    const portfolio = data?.portfolio;
+    const portfolioJson = portfolio ? JSON.stringify(portfolio) : "";
+    const baseSystemMessage =
+      "Eres un asistente financiero. Responde en Markdown y usa los datos de la cartera cuando esten disponibles.";
+    const systemMessage =
+      data?.system ??
+      (portfolioJson
+        ? `${baseSystemMessage}\n\nDatos de la cartera (JSON): ${portfolioJson}`
+        : baseSystemMessage);
 
     const result = streamText({
       model: openai('gpt-4o'),
