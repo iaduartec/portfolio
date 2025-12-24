@@ -25,10 +25,9 @@ export function Header() {
         <Link href="/" className="flex items-center gap-3">
           <Image
             src="/myinvestor.png"
-            alt=""
+            alt="MyInvestView Logo"
             width={72}
             height={72}
-            aria-hidden="true"
             className="h-14 w-14 rounded-full bg-surface-muted/40 object-contain"
           />
           <span className="text-lg font-semibold tracking-tight">MyInvestView</span>
