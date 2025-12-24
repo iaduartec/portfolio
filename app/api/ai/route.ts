@@ -9,12 +9,10 @@ export async function POST(req: Request) {
     const portfolio = data?.portfolio;
     const portfolioJson = portfolio ? JSON.stringify(portfolio) : "";
     const baseSystemMessage =
-      "Eres un asistente financiero. Responde en Markdown y usa los datos de la cartera cuando esten disponibles.";
-    const systemMessage =
-      data?.system ??
-      (portfolioJson
-        ? `${baseSystemMessage}\n\nDatos de la cartera (JSON): ${portfolioJson}`
-        : baseSystemMessage);
+      "Eres un asistente financiero. Responde en Markdown y utiliza los datos de la cartera cuando esten disponibles.";
+    const systemMessage = portfolioJson
+      ? `${baseSystemMessage}\n\nDatos de la cartera (JSON): ${portfolioJson}\n\nUsa holdings/positions, summary y realizedTrades para responder sobre la cartera.`
+      : baseSystemMessage;
 
     const result = streamText({
       model: openai('gpt-4o'),

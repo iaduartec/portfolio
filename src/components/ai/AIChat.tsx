@@ -161,13 +161,6 @@ function MessageInput({
     setInput("");
 
     try {
-      const context = {
-        role: "system" as const,
-        content: `Eres un asistente financiero. El usuario ha cargado su cartera y está haciendo preguntas sobre ella. Aquí están los datos de su cartera en formato JSON: ${JSON.stringify(
-          portfolioContext
-        )}. Utiliza estos datos para responder a las preguntas del usuario sobre sus participaciones, resumen y operaciones realizadas.`,
-      };
-
       await sendMessage({
         text: userMessage,
         data: {
@@ -177,7 +170,6 @@ function MessageInput({
             summary: portfolioContext.summary,
             realizedTrades: portfolioContext.realizedTrades,
           },
-          system: context.content,
         },
       });
     } catch (err) {
