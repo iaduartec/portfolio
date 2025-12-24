@@ -10,7 +10,7 @@
     "lint": "eslint app src --max-warnings=0",
     "type-check": "tsc --noEmit",
     "vercel": "pnpm dlx vercel",
-    "analyze": "cross-env ANALYZE=true next build"
+    "analyze": "cross-env ANALYZE=true next build --webpack"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.51",

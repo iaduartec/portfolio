@@ -15,7 +15,7 @@ import {
   computeRealizedTrades, 
   PriceSnapshot 
 } from "@/lib/portfolio";
-import { normalizeType, pickField, fieldAliases, normalizeNumber, normalizeCurrency, toTransaction } from "./usePortfolioData.utils";
+import { normalizeType, pickField, fieldAliases, normalizeNumber, normalizeCurrency, toTransaction } from "@/hooks/usePortfolioData.utils";
 
 export function usePortfolioData() {
   const { fxRate, baseCurrency } = useCurrency();
