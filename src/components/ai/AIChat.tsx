@@ -7,7 +7,7 @@ import { StockCard } from "./stock-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Bot, User, AlertCircle } from "lucide-react";
+import { Send, Bot, User, AlertCircle, MessageCircle, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MemoizedMarkdown } from "@/components/ai/memoized-markdown";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
@@ -18,6 +18,7 @@ const chat = new Chat({
 
 export function AIChat() {
   const portfolio = usePortfolioData();
+  const [isMinimized, setIsMinimized] = useState(false);
   const { messages, status, error, sendMessage } = useChat({
     chat,
     experimental_throttle: 50,
@@ -28,15 +29,39 @@ export function AIChat() {
 
   const isLoading = status === "submitted" || status === "streaming";
 
+  if (isMinimized) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsMinimized(false)}
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-3 text-sm font-semibold text-text shadow-xl transition hover:bg-surface-muted sm:bottom-6 sm:right-6"
+        aria-label="Abrir chat de OpenAI"
+      >
+        <MessageCircle size={18} />
+        Chat IA
+      </button>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-[600px] w-full max-w-md border border-border rounded-xl bg-surface shadow-xl overflow-hidden">
-      <div className="flex items-center gap-2 p-4 border-b border-border bg-surface-muted/50">
-        <div className="p-2 bg-primary/10 rounded-full text-primary">
-          <Bot size={20} />
+    <div className="fixed bottom-4 right-4 z-50 flex h-[560px] w-[92vw] max-w-[360px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl sm:bottom-6 sm:right-6 sm:w-[360px]">
+      <div className="flex items-center justify-between gap-2 border-b border-border bg-surface-muted/50 p-4">
+        <div className="flex items-center gap-2">
+          <div className="rounded-full bg-primary/10 p-2 text-primary">
+            <Bot size={20} />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">API de OpenAI</h3>
+          </div>
         </div>
-        <div>
-          <h3 className="font-semibold text-sm">API de OpenAI</h3>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsMinimized(true)}
+          className="rounded-md border border-border bg-surface px-2 py-1 text-xs font-semibold text-text transition hover:bg-surface-muted"
+          aria-label="Minimizar chat de OpenAI"
+        >
+          <Minus size={14} />
+        </button>
       </div>
 
       <ScrollArea className="flex-1 p-4">
