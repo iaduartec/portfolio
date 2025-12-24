@@ -247,16 +247,47 @@ const fetchYahooFundamentals = async (
   ticker: string,
   symbol: string
 ): Promise<FundamentalPoint | null> => {
-  const headers = { "User-Agent": "Mozilla/5.0" };
+  const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" };
+  
+  // 1. Try Quote API (v7) - lightweight and reliable for basic stats
+  const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(
+    symbol
+  )}`;
+
+  try {
+    const quoteRes = await fetch(quoteUrl, { next: { revalidate: 3600 }, headers });
+    if (quoteRes.ok) {
+      const quoteJson = await quoteRes.json();
+      const item = quoteJson?.quoteResponse?.result?.[0];
+      if (item) {
+        console.log(`[Yahoo v7] Found data for ${ticker} (${symbol})`);
+        return {
+          ticker,
+          symbol,
+          pe: toNumber(item.trailingPE),
+          ps: toNumber(item.priceToSalesTrailing12Months),
+          pb: toNumber(item.priceToBook),
+          beta: toNumber(item.beta),
+          // eps: toNumber(item.epsTrailingTwelveMonths),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`[Yahoo v7] Failed for ${ticker}:`, err);
+  }
+
+  // 2. Fallback to Summary API (v10) - deeper data but sometimes rate-limited
   const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
     symbol
   )}?modules=summaryDetail,defaultKeyStatistics,financialData`;
+  
   try {
     const res = await fetch(summaryUrl, { next: { revalidate: 3600 }, headers });
     if (res.ok) {
       const json = await res.json();
       const result = json?.quoteSummary?.result?.[0];
       if (result) {
+        console.log(`[Yahoo v10] Found summary for ${ticker} (${symbol})`);
         const summaryDetail = result.summaryDetail ?? {};
         const keyStats = result.defaultKeyStatistics ?? {};
         const financialData = result.financialData ?? {};
@@ -273,39 +304,16 @@ const fetchYahooFundamentals = async (
         };
       }
     }
-  } catch {
-    // fall through to quote endpoint
+  } catch (err) {
+    console.warn(`[Yahoo v10] Failed for ${ticker}:`, err);
   }
 
-  const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(
-    symbol
-  )}`;
-  const quoteRes = await fetch(quoteUrl, { next: { revalidate: 3600 }, headers });
-  if (!quoteRes.ok) return null;
-  const quoteJson = await quoteRes.json();
-  const item = quoteJson?.quoteResponse?.result?.[0];
-  if (!item) return null;
-  return {
-    ticker,
-    symbol,
-    pe: toNumber(item.trailingPE),
-    ps: toNumber(item.priceToSalesTrailing12Months),
-    pb: toNumber(item.priceToBook),
-    beta: toNumber(item.beta),
-  };
+  console.log(`[Yahoo] No data found for ${ticker} (${symbol})`);
+  return null;
 };
 
-const generateMockFundamentals = (ticker: string, symbol: string): FundamentalPoint => {
-  return {
-    ticker,
-    symbol,
-    pe: 15 + Math.random() * 20,
-    ps: 1 + Math.random() * 5,
-    pb: 1 + Math.random() * 8,
-    beta: 0.5 + Math.random() * 1.5,
-    rsi: 30 + Math.random() * 40, // Usually mostly neutral
-  };
-};
+// Helper to delay requests and avoid rate limits
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -318,6 +326,9 @@ export async function GET(req: Request) {
     .map((t) => t.trim())
     .filter(Boolean);
 
+  if (!apiKey && !fmpKey) {
+    // We proceed to try Yahoo
+  }
   if (tickers.length === 0) {
     return NextResponse.json({ data: [] });
   }
@@ -333,6 +344,9 @@ export async function GET(req: Request) {
     }
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
+      let dataFound = false;
+
+      // 1. Try FMP if key exists
       if (fmpKey) {
         const fmpResult = await fetchFmpStableFundamentals(ticker, symbol, fmpKey);
         if (fmpResult.limited) {
@@ -350,10 +364,12 @@ export async function GET(req: Request) {
           };
           setCached(ticker, merged);
           results.push(merged);
-          continue;
+          dataFound = true;
         }
       }
-      if (apiKey) {
+
+      // 2. Try Finnhub if key exists and no data yet
+      if (!dataFound && apiKey) {
         const data = await fetchFundamentals(ticker, symbol, apiKey);
         const hasMetrics =
           data !== null &&
@@ -366,27 +382,29 @@ export async function GET(req: Request) {
         if (hasMetrics && data) {
           setCached(ticker, data);
           results.push(data);
-          continue;
+          dataFound = true;
         }
       }
       
-      const yahooSymbol = normalizeSymbolForYahoo(ticker);
-      const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
-      if (yahooData) {
-        setCached(ticker, yahooData);
-        results.push(yahooData);
-      } else {
-        // Final fallback: generate mock data
-        console.warn(`Generating mock fundamentals for ${ticker}`);
-        const mockData = generateMockFundamentals(ticker, symbol);
-        setCached(ticker, mockData);
-        results.push(mockData);
+      // 3. Try Yahoo as fallback (or primary if no keys)
+      if (!dataFound) {
+        // Add a small delay to be polite to Yahoo's public API and avoid rate limits
+        if (tickers.length > 1) await delay(250);
+
+        const yahooSymbol = normalizeSymbolForYahoo(ticker);
+        const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
+        if (yahooData) {
+          setCached(ticker, yahooData);
+          results.push(yahooData);
+          dataFound = true;
+        }
       }
+
+      // If still no data, we do NOT return mock data anymore to avoid misleading users.
+      // The frontend will show empty/default values.
+
     } catch (err) {
-      console.error("finnhub fundamentals failed", { ticker, err });
-      // On error, also fallback to mock data
-      const mockData = generateMockFundamentals(ticker, symbol);
-      results.push(mockData);
+      console.error("Fundamentals fetch error", { ticker, err });
     }
   }
 
