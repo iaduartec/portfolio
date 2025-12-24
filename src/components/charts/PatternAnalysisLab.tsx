@@ -740,6 +740,7 @@ export function PatternAnalysisLab() {
     let ignore = false;
 
     const fetchData = async () => {
+      console.log(`[PatternAnalysisLab] Fetching data for: ${selected.symbol}`);
       setLiveStatus("loading");
       setLiveError(null);
       try {
@@ -759,11 +760,13 @@ export function PatternAnalysisLab() {
           throw new Error("Sin velas disponibles");
         }
         if (!ignore) {
+          console.log(`[PatternAnalysisLab] Data loaded for ${selected.symbol}: ${payload.candles.length} candles`);
           setLiveSeries({ candles: payload.candles ?? [], volumes: payload.volumes ?? [] });
           setLiveStatus("idle");
         }
       } catch (err: any) {
         if (!ignore) {
+          console.error(`[PatternAnalysisLab] Error fetching ${selected.symbol}:`, err);
           setLiveStatus("error");
           setLiveError(err.message);
         }
@@ -779,7 +782,12 @@ export function PatternAnalysisLab() {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    
+    // Cleanup previous content just in case
+    containerRef.current.innerHTML = "";
+
     if (analysis.candles.length === 0) return;
+    
     const chart = createChart(containerRef.current, {
       height: 420,
       layout: {
