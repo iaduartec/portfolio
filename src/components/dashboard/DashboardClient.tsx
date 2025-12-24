@@ -1,40 +1,31 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Upload, List } from "lucide-react";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
-import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
-import { TradingViewFundamentals } from "@/components/charts/TradingViewFundamentals";
-import { TradingViewTechnicalAnalysis } from "@/components/charts/TradingViewTechnicalAnalysis";
-import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories";
-import { TradingViewCompanyProfile } from "@/components/charts/TradingViewCompanyProfile";
-import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
-import { Card } from "@/components/ui/card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
-
 import { AIChat } from "@/components/ai/AIChat";
-import { MarketPulse } from "@/components/ai/MarketPulse";
-import { ScenarioBuilder } from "@/components/ai/ScenarioBuilder";
+
+import { DashboardHero } from "./DashboardHero";
+import { DashboardStats } from "./DashboardStats";
+import { DashboardAIPulse } from "./DashboardAIPulse";
+import { DashboardHoldings } from "./DashboardHoldings";
+import { DashboardTradingView } from "./DashboardTradingView";
 
 export function DashboardClient() {
   const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const totalPnlPercent =
-    summary.totalValue - summary.totalPnl > 0
-      ? (summary.totalPnl / (summary.totalValue - summary.totalPnl)) * 100
-      : 0;
-  // ⚡ Bolt: Memoize realizedTotal to prevent re-calculation on every render.
-  // This is a performance optimization that avoids a potentially expensive
-  // reduce operation on the `realizedTrades` array, which could be large.
+
+  const totalPnlPercent = useMemo(() => {
+    const denominator = summary.totalValue - summary.totalPnl;
+    return denominator > 0 ? (summary.totalPnl / denominator) * 100 : 0;
+  }, [summary.totalValue, summary.totalPnl]);
+
   const realizedTotal = useMemo(
     () => realizedTrades.reduce((sum, trade) => sum + trade.pnlValue, 0),
     [realizedTrades]
   );
+
   const activeTicker = selectedTicker ?? holdings[0]?.ticker ?? null;
-  // ⚡ Bolt: Memoize selectedHolding to prevent re-calculation on every render.
-  // This is a performance optimization that avoids a potentially expensive
-  // find operation on the `holdings` array, which could be large.
+
   const selectedHolding = useMemo(
     () => holdings.find((holding) => holding.ticker === activeTicker),
     [holdings, activeTicker]
@@ -42,136 +33,25 @@ export function DashboardClient() {
 
   return (
     <>
-      <section className="flex flex-col items-start gap-5 py-6 md:py-10">
-        <div className="flex flex-col gap-3">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent">Inteligencia Artificial aplicada al Trading</p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-text max-w-2xl leading-[1.1]">
-            Maximiza tu Rentabilidad con <span className="text-accent">Analisis de IA</span>
-          </h1>
-          <p className="max-w-xl text-balance text-lg text-muted">
-            Analiza tu portafolio en segundos y toma decisiones basadas en datos con nuestros agentes inteligentes. Tus posiciones se calculan automáticamente desde tu CSV.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={() => window.location.href = '/upload'}
-            className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Upload className="h-5 w-5" />
-            Analizar Mi Cartera
-          </button>
-          <button
-            onClick={() => {
-              const el = document.getElementById('holdings-section');
-              el?.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-6 py-3 text-base font-semibold text-text transition-all hover:bg-surface-muted"
-          >
-            <List className="h-5 w-5" />
-            Ver Posiciones
-          </button>
-        </div>
-      </section>
+      <DashboardHero />
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Valor total" value={summary.totalValue} isLoading={isLoading} />
-        <StatCard
-          label="P&amp;L abierto"
-          value={summary.totalPnl}
-          change={totalPnlPercent}
-          changeVariant="percent"
-          isLoading={isLoading}
-        />
-        <StatCard label="P&amp;L realizado" value={realizedTotal} isLoading={isLoading} />
-      </section>
+      <DashboardStats
+        summary={summary}
+        realizedTotal={realizedTotal}
+        totalPnlPercent={totalPnlPercent}
+        isLoading={isLoading}
+      />
 
-      <section className="grid gap-6 md:grid-cols-3 lg:grid-cols-3">
-        <div className="md:col-span-3 flex flex-col gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <MarketPulse />
-            <ScenarioBuilder />
-          </div>
-          <Card title="Analisis de IA" subtitle="Informacion en tiempo real de tu cartera">
-            <p className="text-muted-foreground text-sm p-4">
-              El asistente de IA (esquina inferior) puede analizar tus participaciones concretas. Prueba a
-              preguntar &quot;Como va AAPL?&quot; o &quot;Cual es mi exposicion al riesgo?&quot;. Los widgets de
-              arriba ofrecen chequeos rapidos de &quot;pulso&quot; y planificacion de escenarios.
-            </p>
-          </Card>
-        </div>
-      </section>
+      <DashboardAIPulse />
 
-      <section id="holdings-section" className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-3">
-          <Card title="Participaciones" subtitle="Solo posiciones abiertas con su precio promedio">
-            {(holdings.length > 0 || isLoading) ? (
-              <HoldingsTable
-                holdings={holdings}
-                selectedTicker={activeTicker}
-                onSelect={setSelectedTicker}
-                isLoading={isLoading}
-              />
-            ) : (
-              <p className="text-sm text-muted">
-                No hay posiciones abiertas todavia. Sube un CSV para calcularlas.
-              </p>
-            )}
-          </Card>
-        </div>
-      </section>
+      <DashboardHoldings
+        holdings={holdings}
+        activeTicker={activeTicker}
+        onSelectTicker={setSelectedTicker}
+        isLoading={isLoading}
+      />
 
-      <section>
-        <Card title="TradingView" subtitle="Panel financiero completo estilo TradingView">
-          {selectedHolding ? (
-            <div className="tv-dark-scope mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">
-              <section className="md:col-span-2">
-                <TradingViewSymbolInfo symbol={selectedHolding.ticker} />
-              </section>
-              <section className="md:col-span-2 h-[500px]">
-                <TradingViewAdvancedChart symbol={selectedHolding.ticker} />
-              </section>
-              <section className="md:col-span-2 h-[390px]">
-                <TradingViewCompanyProfile symbol={selectedHolding.ticker} />
-              </section>
-              <section className="md:col-span-2 h-[775px]">
-                <TradingViewFundamentals symbol={selectedHolding.ticker} />
-              </section>
-              <section className="h-[425px]">
-                <TradingViewTechnicalAnalysis symbol={selectedHolding.ticker} />
-              </section>
-              <section className="h-[600px]">
-                <TradingViewTopStories symbol={selectedHolding.ticker} height="100%" />
-              </section>
-              <section className="rounded-lg border border-border/60 bg-surface-muted/50 p-4 text-sm text-muted">
-                <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Con tecnologia TradingView</p>
-                <p>
-                  Graficos e informacion financiera proporcionados por TradingView. Explora mas{" "}
-                  <a
-                    href="https://www.tradingview.com/features/"
-                    className="text-accent"
-                    target="_blank"
-                    rel="noopener nofollow"
-                  >
-                    funciones avanzadas
-                  </a>{" "}
-                  o{" "}
-                  <a
-                    href="https://www.tradingview.com/widget/"
-                    className="text-accent"
-                    target="_blank"
-                    rel="noopener nofollow"
-                  >
-                    usa widgets
-                  </a>{" "}
-                  en tu sitio.
-                </p>
-              </section>
-            </div>
-          ) : (
-            <p className="text-sm text-muted">Selecciona un ticker para ver el panel TradingView.</p>
-          )}
-        </Card>
-      </section>
+      <DashboardTradingView selectedHolding={selectedHolding} />
 
       <AIChat />
     </>

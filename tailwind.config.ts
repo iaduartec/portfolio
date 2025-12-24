@@ -21,6 +21,9 @@ const config: Config = {
         danger: "#f6465d",
         warning: "#f5a524",
       },
+      fontFamily: {
+        sans: ["var(--font-manrope)", "system-ui", "sans-serif"],
+      },
       boxShadow: {
         panel: "0 10px 40px rgba(0,0,0,0.35)",
       },
