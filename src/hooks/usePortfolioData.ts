@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadStoredTransactions, TRANSACTIONS_UPDATED_EVENT } from "@/lib/storage";
+import Papa, { ParseResult } from "papaparse";
+import {
+  loadStoredTransactions,
+  persistTransactions,
+  TRANSACTIONS_UPDATED_EVENT,
+} from "@/lib/storage";
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
-import { Transaction } from "@/types/transactions";
+import { Transaction, TransactionType } from "@/types/transactions";
 import { convertCurrencyFrom, inferCurrencyFromTicker, type CurrencyCode } from "@/lib/formatters";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
@@ -9,6 +14,74 @@ type PriceSnapshot = {
   price: number;
   dayChange?: number;
   dayChangePercent?: number;
+};
+
+type ParsedRow = Record<string, string | number>;
+
+const fieldAliases: Record<keyof Transaction, string[]> = {
+  date: ["date", "closing time", "close_time", "datetime", "trade_date"],
+  ticker: ["ticker", "symbol", "asset", "isin"],
+  type: ["type", "side", "action"],
+  quantity: ["quantity", "qty", "shares", "units", "qty shares"],
+  price: ["price", "fill price", "fill_price", "avg_price", "cost"],
+  fee: ["fee", "fees", "commission", "broker fee"],
+  currency: ["currency", "ccy", "currency_code", "moneda"],
+};
+
+const normalizeNumber = (value: unknown): number | null => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+  const cleaned = value.replace(/[^\d,.-]/g, "").replace(",", ".");
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const pickField = (row: ParsedRow, candidates: string[]) => {
+  const entries = Object.entries(row);
+  for (const [key, value] of entries) {
+    const normalizedKey = key.toLowerCase().trim();
+    if (candidates.includes(normalizedKey)) return value;
+  }
+  return undefined;
+};
+
+const normalizeType = (raw: string): TransactionType => {
+  const upper = raw.toUpperCase();
+  if (upper === "BUY" || upper === "SELL") return upper;
+  if (upper === "DIVIDEND" || upper === "DIV" || upper === "DIVS") return "DIVIDEND";
+  if (upper === "FEE" || upper === "COMMISSION") return "FEE";
+  return "OTHER";
+};
+
+const normalizeCurrency = (raw: unknown): CurrencyCode | undefined => {
+  if (!raw) return undefined;
+  const normalized = String(raw).trim().toUpperCase();
+  if (normalized === "EUR" || normalized === "USD") return normalized as CurrencyCode;
+  return undefined;
+};
+
+const toTransaction = (row: ParsedRow): Transaction | null => {
+  const dateRaw = pickField(row, fieldAliases.date.map((a) => a.toLowerCase()));
+  const tickerRaw = pickField(row, fieldAliases.ticker.map((a) => a.toLowerCase()));
+  const typeRaw = pickField(row, fieldAliases.type.map((a) => a.toLowerCase()));
+  const qtyRaw = pickField(row, fieldAliases.quantity.map((a) => a.toLowerCase()));
+  const priceRaw = pickField(row, fieldAliases.price.map((a) => a.toLowerCase()));
+  const feeRaw = pickField(row, fieldAliases.fee.map((a) => a.toLowerCase()));
+  const currencyRaw = pickField(row, fieldAliases.currency.map((a) => a.toLowerCase()));
+
+  const date = dateRaw ? String(dateRaw).trim() : "";
+  const ticker = tickerRaw ? String(tickerRaw).trim().toUpperCase() : "";
+  const type = typeRaw ? normalizeType(String(typeRaw).trim()) : "OTHER";
+  const quantity = normalizeNumber(qtyRaw) ?? 0;
+  const price = normalizeNumber(priceRaw) ?? 0;
+  const fee = feeRaw !== undefined ? normalizeNumber(feeRaw) ?? undefined : undefined;
+  const currency = normalizeCurrency(currencyRaw);
+
+  if (!date || !ticker) {
+    return null;
+  }
+
+  return { date, ticker, type, quantity, price, fee, currency };
 };
 
 const computeHoldings = (
@@ -176,9 +249,40 @@ export function usePortfolioData() {
   const [priceMap, setPriceMap] = useState<Record<string, PriceSnapshot>>({});
 
   useEffect(() => {
-    const sync = () => setTransactions(loadStoredTransactions());
+    const loadDefaultData = async () => {
+      const stored = loadStoredTransactions();
+      if (stored.length > 0) {
+        setTransactions(stored);
+        return;
+      }
 
-    sync();
+      try {
+        const response = await fetch("/Mi cartera_2025-11-29.csv");
+        if (!response.ok) return;
+
+        const text = await response.text();
+        Papa.parse<ParsedRow>(text, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (results: ParseResult<ParsedRow>) => {
+            const rows = Array.isArray(results.data) ? results.data : [];
+            const parsed = rows.map(toTransaction).filter((row): row is Transaction => Boolean(row));
+            if (parsed.length > 0) {
+              persistTransactions(parsed);
+              setTransactions(parsed);
+              console.log("INFO: Loaded default portfolio data.");
+            }
+          },
+        });
+      } catch (error) {
+        console.error("Failed to load default portfolio", error);
+      }
+    };
+
+    loadDefaultData();
+
+    const sync = () => setTransactions(loadStoredTransactions());
     window.addEventListener("storage", sync);
     window.addEventListener(TRANSACTIONS_UPDATED_EVENT, sync);
 

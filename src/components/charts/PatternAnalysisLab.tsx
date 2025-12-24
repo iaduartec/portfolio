@@ -738,10 +738,12 @@ export function PatternAnalysisLab() {
 
   useEffect(() => {
     let ignore = false;
-    setLiveStatus("loading");
-    setLiveError(null);
-    fetch(`/api/market/ohlc?symbol=${selected.symbol}`)
-      .then(async (res) => {
+
+    const fetchData = async () => {
+      setLiveStatus("loading");
+      setLiveError(null);
+      try {
+        const res = await fetch(`/api/market/ohlc?symbol=${selected.symbol}`);
         const payload = await res.json();
         if (!res.ok) {
           const details = [
@@ -760,13 +762,16 @@ export function PatternAnalysisLab() {
           setLiveSeries({ candles: payload.candles ?? [], volumes: payload.volumes ?? [] });
           setLiveStatus("idle");
         }
-      })
-      .catch((err: Error) => {
+      } catch (err: any) {
         if (!ignore) {
           setLiveStatus("error");
           setLiveError(err.message);
         }
-      });
+      }
+    };
+
+    fetchData();
+
     return () => {
       ignore = true;
     };

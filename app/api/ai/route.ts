@@ -5,11 +5,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { messages, data } = await req.json();
+    const systemMessage = data?.system ?? 'You are a helpful assistant. Respond to the user in Markdown format.';
 
     const result = streamText({
       model: openai('gpt-4o'),
-      system: 'You are a helpful assistant. Respond to the user in Markdown format.',
+      system: systemMessage,
       messages: convertToModelMessages(messages ?? []),
       // tools: {
       //   showStock: tool({

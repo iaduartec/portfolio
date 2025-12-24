@@ -153,27 +153,26 @@ interface HoldingsTableProps {
 
 export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
   const { fxRate } = useCurrency();
-  const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>({});
-  const [fmpLimited, setFmpLimited] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "marketValue",
     direction: "desc",
   });
   const cacheKey = "portfolio.fundamentals.cache.v1";
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>(() => {
+    if (typeof window === "undefined") return {};
     try {
       const raw = window.localStorage.getItem(cacheKey);
-      if (!raw) return;
+      if (!raw) return {};
       const parsed = JSON.parse(raw) as Record<string, FundamentalPoint>;
       if (parsed && typeof parsed === "object") {
-        setFundamentals(parsed);
+        return parsed;
       }
     } catch {
       // ignore cache parse errors
     }
-  }, [cacheKey]);
+    return {};
+  });
+  const [fmpLimited, setFmpLimited] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

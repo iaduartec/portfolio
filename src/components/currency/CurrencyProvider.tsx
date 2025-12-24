@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { type CurrencyCode } from "@/lib/formatters";
 
 type CurrencyContextValue = {
@@ -19,22 +27,24 @@ const DEFAULT_RATE = 1.08;
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const baseCurrency: CurrencyCode = "EUR";
-  const [currency, setCurrencyState] = useState<CurrencyCode>("EUR");
-  const [fxRate, setFxRate] = useState<number>(DEFAULT_RATE);
-
-  useEffect(() => {
+  const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
+    if (typeof window === "undefined") return "EUR";
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "EUR" || stored === "USD") {
-      setCurrencyState(stored);
-    }
+    if (stored === "EUR" || stored === "USD") return stored;
+    return "EUR";
+  });
+  const [fxRate, setFxRate] = useState<number>(() => {
+    if (typeof window === "undefined") return DEFAULT_RATE;
     const storedRate = window.localStorage.getItem(FX_STORAGE_KEY);
-    const storedUpdated = window.localStorage.getItem(FX_TIMESTAMP_KEY);
     if (storedRate) {
       const parsed = Number(storedRate);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        setFxRate(parsed);
-      }
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
     }
+    return DEFAULT_RATE;
+  });
+
+  useEffect(() => {
+    const storedUpdated = window.localStorage.getItem(FX_TIMESTAMP_KEY);
     if (storedUpdated) {
       const updatedAt = Number(storedUpdated);
       if (Number.isFinite(updatedAt) && Date.now() - updatedAt < FX_TTL_MS) {
@@ -53,14 +63,14 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
-  const setCurrency = (next: CurrencyCode) => {
+  const setCurrency = useCallback((next: CurrencyCode) => {
     setCurrencyState(next);
     window.localStorage.setItem(STORAGE_KEY, next);
-  };
+  }, []);
 
   const value = useMemo(
     () => ({ baseCurrency, currency, fxRate, setCurrency }),
-    [baseCurrency, currency, fxRate]
+    [baseCurrency, currency, fxRate, setCurrency]
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;
