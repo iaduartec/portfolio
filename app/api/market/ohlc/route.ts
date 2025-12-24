@@ -17,6 +17,7 @@ const exchangeSuffixMap: Record<string, string> = {
   BME: ".MC",
   MIL: ".MI",
   XETR: ".DE",
+  FRA: ".DE",
   LSE: ".L",
   AMS: ".AS",
   BRU: ".BR",
@@ -45,6 +46,16 @@ const exchangeRegionMap: Record<string, string> = {
   CPH: "Denmark",
   ICE: "Ireland",
   TSE: "Canada",
+};
+
+const exchangeYahooSuffixMap: Record<string, string> = {
+  BME: ".MC",
+  MIL: ".MI",
+  XETR: ".DE",
+  FRA: ".DE",
+  LSE: ".L",
+  SWX: ".SW",
+  SIX: ".SW",
 };
 
 const buildUrl = (params: Record<string, string>) => {
@@ -86,7 +97,77 @@ const findBestMatchSymbol = (
   return starts?.["1. symbol"] ?? matches[0]?.["1. symbol"];
 };
 
-// Generate mock data for demonstration when API key is missing
+const normalizeSymbolForYahoo = (ticker: string) => {
+  const cleaned = ticker.trim().toUpperCase();
+  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
+  if (rawSymbol.includes(".")) return rawSymbol;
+  const suffix = exchangeYahooSuffixMap[exchange] ?? "";
+  return `${rawSymbol}${suffix}`;
+};
+
+const fetchYahooOHLC = async (ticker: string) => {
+  const symbol = normalizeSymbolForYahoo(ticker);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    symbol
+  )}?interval=1d&range=3mo`;
+  
+  try {
+    const res = await fetch(url, { 
+      next: { revalidate: 300 },
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" }
+    });
+    
+    if (!res.ok) return null;
+    
+    const json = await res.json();
+    const result = json?.chart?.result?.[0];
+    if (!result) return null;
+
+    const timestamps = result.timestamp || [];
+    const quote = result.indicators?.quote?.[0] || {};
+    
+    const opens = quote.open || [];
+    const highs = quote.high || [];
+    const lows = quote.low || [];
+    const closes = quote.close || [];
+    const volumes = quote.volume || [];
+
+    const candles = [];
+    const volumesData = [];
+
+    for (let i = 0; i < timestamps.length; i++) {
+      if (!opens[i] || !highs[i] || !lows[i] || !closes[i]) continue;
+      
+      const time = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
+      const open = Number(opens[i]);
+      const high = Number(highs[i]);
+      const low = Number(lows[i]);
+      const close = Number(closes[i]);
+      const volume = Number(volumes[i] || 0);
+
+      candles.push({ time, open, high, low, close });
+      volumesData.push({
+        time,
+        value: volume,
+        color: close >= open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)",
+      });
+    }
+
+    if (candles.length === 0) return null;
+
+    return {
+      symbol: result.meta?.symbol || symbol,
+      candles,
+      volumes: volumesData,
+      source: "yahoo-finance"
+    };
+  } catch (err) {
+    console.warn(`[Yahoo OHLC] Failed for ${symbol}:`, err);
+    return null;
+  }
+};
+
+// Generate mock data for demonstration when API key is missing AND Yahoo fails
 const generateMockData = (symbol: string, days = 100) => {
   const candles = [];
   const volumes = [];
@@ -130,113 +211,98 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing symbol" }, { status: 400 });
   }
 
-  // Fallback to mock data if API key is missing
-  if (!apiKey) {
-    console.warn("Missing ALPHAVANTAGE_API_KEY, returning mock data");
-    const rawSymbol = symbolParam.trim();
-    return NextResponse.json(generateMockData(rawSymbol));
-  }
-
   const rawSymbol = symbolParam.trim();
-  const [exchange, coreSymbol] = rawSymbol.includes(":")
-    ? rawSymbol.split(":").map((part) => part.trim())
-    : ["", rawSymbol];
-  const needsSuffix = exchange && !coreSymbol.includes(".");
-  const suffix = needsSuffix ? exchangeSuffixMap[exchange.toUpperCase()] ?? "" : "";
-  const symbol = `${coreSymbol}${suffix}`.trim();
-  if (!symbol) {
-    return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
+
+  // 1. Try Yahoo Finance First (or if Key is missing)
+  // This is better for UX as it provides real data without keys
+  try {
+    const yahooData = await fetchYahooOHLC(rawSymbol);
+    if (yahooData) {
+      return NextResponse.json(yahooData);
+    }
+  } catch (err) {
+    console.error("Yahoo OHLC fetch failed", err);
   }
 
-  const initial = await fetchSeries(symbol, apiKey);
-  let payload = initial.payload as Record<string, unknown>;
-  let series: AlphaSeries | undefined = payload["Time Series (Daily)"] as AlphaSeries | undefined;
-  let resolvedSymbol = symbol;
+  // 2. Try AlphaVantage if Key exists
+  if (apiKey) {
+    try {
+      const [exchange, coreSymbol] = rawSymbol.includes(":")
+        ? rawSymbol.split(":").map((part) => part.trim())
+        : ["", rawSymbol];
+      const needsSuffix = exchange && !coreSymbol.includes(".");
+      const suffix = needsSuffix ? exchangeSuffixMap[exchange.toUpperCase()] ?? "" : "";
+      const symbol = `${coreSymbol}${suffix}`.trim();
 
-  if (!series && !payload["Note"]) {
-    const searchResponse = await fetch(
-      buildUrl({
-        function: "SYMBOL_SEARCH",
-        keywords: coreSymbol,
-        apikey: apiKey,
-      }),
-      { next: { revalidate: 300 } }
-    );
-    const searchPayload = (await searchResponse.json()) as Record<string, unknown>;
-    const matches = Array.isArray(searchPayload?.bestMatches)
-      ? (searchPayload.bestMatches as Array<Record<string, string>>)
-      : [];
-    const regionHint = exchange ? exchangeRegionMap[exchange.toUpperCase()] : undefined;
-    const matchSymbol = matches.length > 0 ? findBestMatchSymbol(matches, coreSymbol, regionHint) : undefined;
-    if (matchSymbol) {
-      const retry = await fetchSeries(matchSymbol, apiKey);
-      payload = retry.payload as Record<string, unknown>;
-      series = payload["Time Series (Daily)"] as AlphaSeries | undefined;
-      resolvedSymbol = matchSymbol;
+      const initial = await fetchSeries(symbol, apiKey);
+      let payload = initial.payload as Record<string, unknown>;
+      let series: AlphaSeries | undefined = payload["Time Series (Daily)"] as AlphaSeries | undefined;
+      let resolvedSymbol = symbol;
+
+      if (!series && !payload["Note"] && !payload["Information"]) {
+        // ... search logic ...
+        const searchResponse = await fetch(
+          buildUrl({
+            function: "SYMBOL_SEARCH",
+            keywords: coreSymbol,
+            apikey: apiKey,
+          }),
+          { next: { revalidate: 300 } }
+        );
+        const searchPayload = (await searchResponse.json()) as Record<string, unknown>;
+        const matches = Array.isArray(searchPayload?.bestMatches)
+          ? (searchPayload.bestMatches as Array<Record<string, string>>)
+          : [];
+        const regionHint = exchange ? exchangeRegionMap[exchange.toUpperCase()] : undefined;
+        const matchSymbol = matches.length > 0 ? findBestMatchSymbol(matches, coreSymbol, regionHint) : undefined;
+        if (matchSymbol) {
+          const retry = await fetchSeries(matchSymbol, apiKey);
+          payload = retry.payload as Record<string, unknown>;
+          series = payload["Time Series (Daily)"] as AlphaSeries | undefined;
+          resolvedSymbol = matchSymbol;
+        }
+      }
+
+      if (series) {
+        const entries = Object.entries(series)
+          .map(([time, value]) => ({
+            time,
+            open: Number(value["1. open"]),
+            high: Number(value["2. high"]),
+            low: Number(value["3. low"]),
+            close: Number(value["4. close"]),
+            volume: Number(value["5. volume"]),
+          }))
+          .filter((point) => Number.isFinite(point.open))
+          .sort((a, b) => (a.time > b.time ? 1 : -1));
+
+        const candles = entries.map((point) => ({
+          time: point.time,
+          open: point.open,
+          high: point.high,
+          low: point.low,
+          close: point.close,
+        }));
+
+        const volumes = entries.map((point) => ({
+          time: point.time,
+          value: point.volume,
+          color: point.close >= point.open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)",
+        }));
+
+        return NextResponse.json({
+          symbol: resolvedSymbol,
+          candles,
+          volumes,
+          source: "alpha-vantage",
+        });
+      }
+    } catch (err) {
+      console.error("AlphaVantage fetch failed", err);
     }
   }
 
-  if (payload["Note"]) {
-    // If we hit rate limits (Note), we can also fallback to mock data instead of erroring
-    console.warn("AlphaVantage rate limit reached, returning mock data");
-    return NextResponse.json(generateMockData(rawSymbol));
-  }
-
-  if (payload["Information"]) {
-     // Same for other information messages
-    console.warn("AlphaVantage info message received, returning mock data");
-    return NextResponse.json(generateMockData(rawSymbol));
-  }
-
-  if (payload["Error Message"]) {
-    return NextResponse.json(
-      { error: payload["Error Message"], resolvedSymbol },
-      { status: 502 }
-    );
-  }
-
-  if (!series) {
-    return NextResponse.json(
-      {
-        error: "No time series data",
-        resolvedSymbol,
-        searchedSymbol: symbol,
-        payloadKeys: Object.keys(payload),
-      },
-      { status: 502 }
-    );
-  }
-
-  const entries = Object.entries(series)
-    .map(([time, value]) => ({
-      time,
-      open: Number(value["1. open"]),
-      high: Number(value["2. high"]),
-      low: Number(value["3. low"]),
-      close: Number(value["4. close"]),
-      volume: Number(value["5. volume"]),
-    }))
-    .filter((point) => Number.isFinite(point.open))
-    .sort((a, b) => (a.time > b.time ? 1 : -1));
-
-  const candles = entries.map((point) => ({
-    time: point.time,
-    open: point.open,
-    high: point.high,
-    low: point.low,
-    close: point.close,
-  }));
-
-  const volumes = entries.map((point) => ({
-    time: point.time,
-    value: point.volume,
-    color: point.close >= point.open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)",
-  }));
-
-  return NextResponse.json({
-    symbol: resolvedSymbol,
-    candles,
-    volumes,
-    source: "alpha-vantage",
-  });
+  // 3. Fallback to Mock Data only if everything else failed
+  console.warn(`No data found for ${rawSymbol}, returning mock data`);
+  return NextResponse.json(generateMockData(rawSymbol));
 }
