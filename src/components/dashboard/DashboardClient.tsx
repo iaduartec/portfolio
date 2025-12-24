@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Upload, List } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
@@ -54,8 +55,9 @@ export function DashboardClient() {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={() => window.location.href = '/upload'}
-            className="rounded-lg bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
           >
+            <Upload className="h-5 w-5" />
             Analizar Mi Cartera
           </button>
           <button
@@ -63,8 +65,9 @@ export function DashboardClient() {
               const el = document.getElementById('holdings-section');
               el?.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="rounded-lg border border-border bg-surface/50 px-6 py-3 text-base font-semibold text-text transition-all hover:bg-surface-muted"
+            className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-6 py-3 text-base font-semibold text-text transition-all hover:bg-surface-muted"
           >
+            <List className="h-5 w-5" />
             Ver Posiciones
           </button>
         </div>

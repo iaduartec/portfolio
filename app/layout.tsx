@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape";
 import { CurrencyProvider } from "@/components/currency/CurrencyProvider";
 
@@ -28,15 +29,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
-      <body className="min-h-screen bg-background text-text antialiased">
+      <body className="flex min-h-screen flex-col bg-background text-text antialiased">
         <CurrencyProvider>
           <div className="border-b border-border/60 bg-surface">
             <TradingViewTickerTape />
           </div>
           <Header />
-          <main id="main-content">
+          <main id="main-content" className="flex-1">
             {children}
           </main>
+          <Footer />
         </CurrencyProvider>
       </body>
     </html>
