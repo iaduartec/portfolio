@@ -171,6 +171,12 @@ function MessageInput({
       await sendMessage({
         text: userMessage,
         data: {
+          portfolio: {
+            holdings: portfolioContext.holdings,
+            positions: portfolioContext.holdings,
+            summary: portfolioContext.summary,
+            realizedTrades: portfolioContext.realizedTrades,
+          },
           system: context.content,
         },
       });

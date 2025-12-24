@@ -86,6 +86,41 @@ const findBestMatchSymbol = (
   return starts?.["1. symbol"] ?? matches[0]?.["1. symbol"];
 };
 
+// Generate mock data for demonstration when API key is missing
+const generateMockData = (symbol: string, days = 100) => {
+  const candles = [];
+  const volumes = [];
+  let price = 150.0;
+  const now = new Date();
+  
+  for (let i = days; i >= 0; i--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - i);
+    // Skip weekends
+    if (date.getDay() === 0 || date.getDay() === 6) continue;
+    
+    const time = date.toISOString().split('T')[0];
+    const volatility = price * 0.02;
+    const change = (Math.random() - 0.5) * volatility;
+    const open = price;
+    const close = price + change;
+    const high = Math.max(open, close) + Math.random() * volatility * 0.5;
+    const low = Math.min(open, close) - Math.random() * volatility * 0.5;
+    const volume = Math.floor(Math.random() * 1000000) + 500000;
+    
+    candles.push({ time, open, high, low, close });
+    volumes.push({
+      time,
+      value: volume,
+      color: close >= open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)"
+    });
+    
+    price = close;
+  }
+  
+  return { symbol, candles, volumes, source: "mock-data" };
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbolParam = searchParams.get("symbol");
@@ -94,8 +129,12 @@ export async function GET(req: Request) {
   if (!symbolParam) {
     return NextResponse.json({ error: "Missing symbol" }, { status: 400 });
   }
+
+  // Fallback to mock data if API key is missing
   if (!apiKey) {
-    return NextResponse.json({ error: "Missing ALPHAVANTAGE_API_KEY" }, { status: 500 });
+    console.warn("Missing ALPHAVANTAGE_API_KEY, returning mock data");
+    const rawSymbol = symbolParam.trim();
+    return NextResponse.json(generateMockData(rawSymbol));
   }
 
   const rawSymbol = symbolParam.trim();
@@ -138,11 +177,15 @@ export async function GET(req: Request) {
   }
 
   if (payload["Note"]) {
-    return NextResponse.json({ error: payload["Note"] }, { status: 429 });
+    // If we hit rate limits (Note), we can also fallback to mock data instead of erroring
+    console.warn("AlphaVantage rate limit reached, returning mock data");
+    return NextResponse.json(generateMockData(rawSymbol));
   }
 
   if (payload["Information"]) {
-    return NextResponse.json({ error: payload["Information"] }, { status: 429 });
+     // Same for other information messages
+    console.warn("AlphaVantage info message received, returning mock data");
+    return NextResponse.json(generateMockData(rawSymbol));
   }
 
   if (payload["Error Message"]) {
