@@ -15,7 +15,7 @@ type CurrencyContextValue = {
   baseCurrency: CurrencyCode;
   currency: CurrencyCode;
   fxRate: number;
-  setCurrency: (next: CurrencyCode) => void;
+  setCurrency: (_next: CurrencyCode) => void;
 };
 
 const CurrencyContext = createContext<CurrencyContextValue | undefined>(undefined);
@@ -63,9 +63,10 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       .catch(() => {});
   }, []);
 
-  const setCurrency = useCallback((next: CurrencyCode) => {
-    setCurrencyState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
+   
+  const setCurrency = useCallback((_next: CurrencyCode) => {
+    setCurrencyState(_next);
+    window.localStorage.setItem(STORAGE_KEY, _next);
   }, []);
 
   const value = useMemo(

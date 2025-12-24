@@ -20,6 +20,7 @@ export default [
     ],
     rules: {
       "react-hooks/exhaustive-deps": "warn",
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     },
   },
 ];
