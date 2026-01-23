@@ -1,0 +1,2 @@
+cd /home/kiri_/projects/portfolio
+pnpm build && git add app/layout.tsx && git commit -m "Corrección: usar suppressHydrationWarning en body para extensiones del navegador" && git push origin main
