@@ -48,15 +48,17 @@ const exchangeRegionMap: Record<string, string> = {
   TSE: "Canada",
 };
 
-const exchangeYahooSuffixMap: Record<string, string> = {
-  BME: ".MC",
-  MIL: ".MI",
-  XETR: ".DE",
-  FRA: ".DE",
-  LSE: ".L",
-  SWX: ".SW",
-  SIX: ".SW",
+const exchangeAliasMap: Record<string, string> = {
+  BIT: "MIL",
+  EBR: "BRU",
+  EPA: "PAR",
+  ETR: "XETR",
+  LON: "LSE",
+  SIX: "SWX",
 };
+
+const resolveExchange = (exchange: string) =>
+  exchangeAliasMap[exchange.toUpperCase()] ?? exchange.toUpperCase();
 
 const buildUrl = (params: Record<string, string>) => {
   const query = new URLSearchParams(params);
@@ -101,7 +103,8 @@ const normalizeSymbolForYahoo = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   if (rawSymbol.includes(".")) return rawSymbol;
-  const suffix = exchangeYahooSuffixMap[exchange] ?? "";
+  const normalizedExchange = exchange ? resolveExchange(exchange) : "";
+  const suffix = normalizedExchange ? exchangeSuffixMap[normalizedExchange] ?? "" : "";
   return `${rawSymbol}${suffix}`;
 };
 
@@ -227,11 +230,12 @@ export async function GET(req: Request) {
   // 2. Try AlphaVantage if Key exists
   if (apiKey) {
     try {
-      const [exchange, coreSymbol] = rawSymbol.includes(":")
+      const [rawExchange, coreSymbol] = rawSymbol.includes(":")
         ? rawSymbol.split(":").map((part) => part.trim())
         : ["", rawSymbol];
+      const exchange = rawExchange ? resolveExchange(rawExchange) : "";
       const needsSuffix = exchange && !coreSymbol.includes(".");
-      const suffix = needsSuffix ? exchangeSuffixMap[exchange.toUpperCase()] ?? "" : "";
+      const suffix = needsSuffix ? exchangeSuffixMap[exchange] ?? "" : "";
       const symbol = `${coreSymbol}${suffix}`.trim();
 
       const initial = await fetchSeries(symbol, apiKey);
@@ -253,7 +257,7 @@ export async function GET(req: Request) {
         const matches = Array.isArray(searchPayload?.bestMatches)
           ? (searchPayload.bestMatches as Array<Record<string, string>>)
           : [];
-        const regionHint = exchange ? exchangeRegionMap[exchange.toUpperCase()] : undefined;
+        const regionHint = exchange ? exchangeRegionMap[exchange] : undefined;
         const matchSymbol = matches.length > 0 ? findBestMatchSymbol(matches, coreSymbol, regionHint) : undefined;
         if (matchSymbol) {
           const retry = await fetchSeries(matchSymbol, apiKey);
