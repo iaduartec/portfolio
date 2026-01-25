@@ -7,6 +7,39 @@ const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
   REP: "REP.MC",
 };
 
+const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
+  ENL: "MIL:ENEL",
+  "41L": "BME:ROVI",
+  AJ3: "BME:ANA",
+  OZTA: "BME:GRF",
+  VHM: "BME:SCYR",
+  REP: "BME:REP",
+  FSS: "NYSE:FSS",
+  RL: "NYSE:RL",
+  AIZ: "NYSE:AIZ",
+  NVDA: "NASDAQ:NVDA",
+  AAPL: "NASDAQ:AAPL",
+  MU: "NASDAQ:MU",
+  GOOGL: "NASDAQ:GOOGL",
+};
+
+const TRADINGVIEW_SUFFIX_TO_EXCHANGE: Record<string, string> = {
+  MC: "BME",
+  MI: "MIL",
+  DE: "XETR",
+  PA: "PAR",
+  AS: "AMS",
+  BR: "BRU",
+  SW: "SWX",
+  L: "LSE",
+  IR: "ICE",
+  CO: "CPH",
+  HE: "HEL",
+  OL: "OSL",
+  ST: "STO",
+  TO: "TSE",
+};
+
 const EXCHANGE_ALIAS_MAP: Record<string, string> = {
   BIT: "MIL",
   MILAN: "MIL",
@@ -39,4 +72,17 @@ export const resolveYahooSymbol = (
   const exchange = exchangeRaw ? resolveExchange(exchangeRaw) : "";
   const suffix = exchange ? exchangeSuffixMap[exchange] ?? "" : "";
   return `${rawSymbol}${suffix}`;
+};
+
+export const resolveTradingViewSymbol = (ticker: string) => {
+  const cleaned = ticker.trim().toUpperCase();
+  if (!cleaned) return "";
+  if (cleaned.includes(":")) return cleaned;
+  if (cleaned.includes(".")) {
+    const [rawSymbol, suffix] = cleaned.split(".", 2);
+    const exchange = TRADINGVIEW_SUFFIX_TO_EXCHANGE[suffix];
+    if (exchange) return `${exchange}:${rawSymbol}`;
+    return cleaned;
+  }
+  return TRADINGVIEW_TICKER_OVERRIDES[cleaned] ?? cleaned;
 };

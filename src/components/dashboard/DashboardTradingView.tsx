@@ -9,6 +9,7 @@ import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories
 import { TradingViewCompanyProfile } from "@/components/charts/TradingViewCompanyProfile";
 import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
 import { Holding } from "@/types/portfolio";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface DashboardTradingViewProps {
     selectedHolding: Holding | undefined;
@@ -17,6 +18,9 @@ interface DashboardTradingViewProps {
 export function DashboardTradingView({ selectedHolding }: DashboardTradingViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [isVisible, setIsVisible] = useState(false);
+    const tradingViewSymbol = selectedHolding
+        ? resolveTradingViewSymbol(selectedHolding.ticker)
+        : "";
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -47,22 +51,22 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                         {isVisible ? (
                             <>
                                 <section className="md:col-span-2" aria-label="Informacion del simbolo">
-                                    <TradingViewSymbolInfo symbol={selectedHolding.ticker} />
+                                    <TradingViewSymbolInfo symbol={tradingViewSymbol} />
                                 </section>
                                 <section className="md:col-span-2 h-[500px]" aria-label="Grafico avanzado">
-                                    <TradingViewAdvancedChart symbol={selectedHolding.ticker} />
+                                    <TradingViewAdvancedChart symbol={tradingViewSymbol} />
                                 </section>
                                 <section className="md:col-span-2 h-[390px]" aria-label="Perfil de la empresa">
-                                    <TradingViewCompanyProfile symbol={selectedHolding.ticker} />
+                                    <TradingViewCompanyProfile symbol={tradingViewSymbol} />
                                 </section>
                                 <section className="md:col-span-2 h-[775px]" aria-label="Fundamentos financieros">
-                                    <TradingViewFundamentals symbol={selectedHolding.ticker} />
+                                    <TradingViewFundamentals symbol={tradingViewSymbol} />
                                 </section>
                                 <section className="h-[425px]" aria-label="Analisis tecnico">
-                                    <TradingViewTechnicalAnalysis symbol={selectedHolding.ticker} />
+                                    <TradingViewTechnicalAnalysis symbol={tradingViewSymbol} />
                                 </section>
                                 <section className="h-[600px]" aria-label="Noticias destacadas">
-                                    <TradingViewTopStories symbol={selectedHolding.ticker} height="100%" />
+                                    <TradingViewTopStories symbol={tradingViewSymbol} height="100%" />
                                 </section>
                             </>
                         ) : (
