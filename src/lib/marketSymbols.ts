@@ -80,6 +80,8 @@ export const resolveTradingViewSymbol = (ticker: string) => {
   if (cleaned.includes(":")) return cleaned;
   if (cleaned.includes(".")) {
     const [rawSymbol, suffix] = cleaned.split(".", 2);
+    const override = TRADINGVIEW_TICKER_OVERRIDES[rawSymbol];
+    if (override) return override;
     const exchange = TRADINGVIEW_SUFFIX_TO_EXCHANGE[suffix];
     if (exchange) return `${exchange}:${rawSymbol}`;
     return cleaned;
