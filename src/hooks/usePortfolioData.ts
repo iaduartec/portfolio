@@ -33,24 +33,35 @@ export function usePortfolioData() {
       }
 
       try {
-        const response = await fetch("/Mi cartera_2025-11-29.csv");
-        if (!response.ok) return;
+        const defaultFiles = [
+          "/DA0F4AD2-C6CC-4ED7-A1EA-612069957DA4.csv",
+          "/Mi cartera_2025-11-29.csv",
+        ];
 
-        const text = await response.text();
-        Papa.parse<Record<string, string | number>>(text, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: (results: ParseResult<Record<string, string | number>>) => {
-            const rows = Array.isArray(results.data) ? results.data : [];
-            const parsed = rows.map(toTransaction).filter((row): row is Transaction => Boolean(row));
-            if (parsed.length > 0) {
-              persistTransactions(parsed);
-              setTransactions(parsed);
-              console.log("INFO: Loaded default portfolio data.");
-            }
-          },
-        });
+        for (const file of defaultFiles) {
+          const response = await fetch(file);
+          if (!response.ok) continue;
+
+          const text = await response.text();
+          const parsed = await new Promise<Transaction[]>((resolve) => {
+            Papa.parse<Record<string, string | number>>(text, {
+              header: true,
+              dynamicTyping: true,
+              skipEmptyLines: true,
+              complete: (results: ParseResult<Record<string, string | number>>) => {
+                const rows = Array.isArray(results.data) ? results.data : [];
+                resolve(rows.map(toTransaction).filter((row): row is Transaction => Boolean(row)));
+              },
+            });
+          });
+
+          if (parsed.length > 0) {
+            persistTransactions(parsed);
+            setTransactions(parsed);
+            console.log(`INFO: Loaded default portfolio data from ${file}.`);
+            break;
+          }
+        }
       } catch (error) {
         console.error("Failed to load default portfolio", error);
       }

@@ -7,55 +7,15 @@ import {
   convertCurrencyFrom,
   formatCurrency,
   inferCurrencyFromTicker,
-  type CurrencyCode,
 } from "@/lib/formatters";
 import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
-import { Transaction, TransactionType } from "@/types/transactions";
+import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
-
-type ParsedRow = Record<string, string | number>;
-
-const fieldAliases: Record<keyof Transaction, string[]> = {
-  date: ["date", "closing time", "close_time", "datetime", "trade_date"],
-  ticker: ["ticker", "symbol", "asset", "isin"],
-  type: ["type", "side", "action"],
-  quantity: ["quantity", "qty", "shares", "units", "qty shares"],
-  price: ["price", "fill price", "fill_price", "avg_price", "cost"],
-  fee: ["fee", "fees", "commission", "broker fee"],
-  currency: ["currency", "ccy", "currency_code", "moneda"],
-};
-
-const normalizeNumber = (value: unknown): number | null => {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[^\d,.-]/g, "").replace(",", ".");
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
-const pickField = (row: ParsedRow, candidates: string[]) => {
-  const entries = Object.entries(row);
-  for (const [key, value] of entries) {
-    const normalizedKey = key.toLowerCase().trim();
-    if (candidates.includes(normalizedKey)) return value;
-  }
-  return undefined;
-};
-
-const normalizeType = (raw: string): TransactionType => {
-  const upper = raw.toUpperCase();
-  if (upper === "BUY" || upper === "SELL") return upper;
-  if (upper === "DIVIDEND" || upper === "DIV" || upper === "DIVS") return "DIVIDEND";
-  if (upper === "FEE" || upper === "COMMISSION") return "FEE";
-  return "OTHER";
-};
-
-const normalizeCurrency = (raw: unknown): CurrencyCode | undefined => {
-  if (!raw) return undefined;
-  const normalized = String(raw).trim().toUpperCase();
-  if (normalized === "EUR" || normalized === "USD") return normalized as CurrencyCode;
-  return undefined;
-};
+import {
+  normalizeCurrency,
+  toTransaction,
+  type ParsedRow,
+} from "@/hooks/usePortfolioData.utils";
 
 interface CsvDropzoneProps {
   // eslint-disable-next-line no-unused-vars
@@ -71,30 +31,6 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
-
-  const toTransaction = (row: ParsedRow): Transaction | null => {
-    const dateRaw = pickField(row, fieldAliases.date.map((a) => a.toLowerCase()));
-    const tickerRaw = pickField(row, fieldAliases.ticker.map((a) => a.toLowerCase()));
-    const typeRaw = pickField(row, fieldAliases.type.map((a) => a.toLowerCase()));
-    const qtyRaw = pickField(row, fieldAliases.quantity.map((a) => a.toLowerCase()));
-    const priceRaw = pickField(row, fieldAliases.price.map((a) => a.toLowerCase()));
-    const feeRaw = pickField(row, fieldAliases.fee.map((a) => a.toLowerCase()));
-    const currencyRaw = pickField(row, fieldAliases.currency.map((a) => a.toLowerCase()));
-
-    const date = dateRaw ? String(dateRaw).trim() : "";
-    const ticker = tickerRaw ? String(tickerRaw).trim().toUpperCase() : "";
-    const type = typeRaw ? normalizeType(String(typeRaw).trim()) : "OTHER";
-    const quantity = normalizeNumber(qtyRaw) ?? 0;
-    const price = normalizeNumber(priceRaw) ?? 0;
-    const fee = feeRaw !== undefined ? normalizeNumber(feeRaw) ?? undefined : undefined;
-    const currency = normalizeCurrency(currencyRaw);
-
-    if (!date || !ticker) {
-      return null;
-    }
-
-    return { date, ticker, type, quantity, price, fee, currency };
-  };
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
