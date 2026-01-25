@@ -1,5 +1,5 @@
 import { Transaction, TransactionType } from "@/types/transactions";
-import { inferCurrencyFromTicker, CurrencyCode } from "@/lib/formatters";
+import { CurrencyCode } from "@/lib/formatters";
 
 export type ParsedRow = Record<string, string | number>;
 

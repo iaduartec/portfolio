@@ -5,7 +5,7 @@ import { Holding } from "@/types/portfolio";
 interface DashboardHoldingsProps {
     holdings: Holding[];
     activeTicker: string | null;
-    onSelectTicker: (ticker: string | null) => void;
+    onSelectTicker: (_ticker: string | null) => void;
     isLoading: boolean;
 }
 

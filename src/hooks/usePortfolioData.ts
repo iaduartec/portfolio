@@ -7,7 +7,7 @@ import {
   persistTransactions,
   TRANSACTIONS_UPDATED_EVENT,
 } from "@/lib/storage";
-import { Transaction, TransactionType } from "@/types/transactions";
+import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { 
   computeHoldings, 
@@ -15,7 +15,7 @@ import {
   computeRealizedTrades, 
   PriceSnapshot 
 } from "@/lib/portfolio";
-import { normalizeType, pickField, fieldAliases, normalizeNumber, normalizeCurrency, toTransaction } from "@/hooks/usePortfolioData.utils";
+import { toTransaction } from "@/hooks/usePortfolioData.utils";
 
 export function usePortfolioData() {
   const { fxRate, baseCurrency } = useCurrency();

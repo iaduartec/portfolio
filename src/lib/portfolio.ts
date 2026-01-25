@@ -1,4 +1,4 @@
-import { Transaction, TransactionType } from "@/types/transactions";
+import { Transaction } from "@/types/transactions";
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { convertCurrencyFrom, inferCurrencyFromTicker, type CurrencyCode } from "@/lib/formatters";
 

@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
-import { useEffect, useState } from "react";
 
 const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Panel" },
@@ -19,11 +18,6 @@ const navItems: { href: Route; label: string }[] = [
 export function Header() {
   const pathname = usePathname();
   const { currency, setCurrency } = useCurrency();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
@@ -66,7 +60,7 @@ export function Header() {
                   onClick={() => setCurrency(code)}
                   className={cn(
                     "rounded-md px-2 py-1 font-semibold transition",
-                    mounted && currency === code
+                    currency === code
                       ? "bg-surface text-text shadow-panel"
                       : "text-muted hover:text-text"
                   )}

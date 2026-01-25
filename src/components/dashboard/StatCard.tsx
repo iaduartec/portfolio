@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { convertCurrency, formatCurrency, formatPercent, type CurrencyCode } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
-import { useEffect, useState } from "react";
 
 type StatVariant = "currency" | "percent";
 
@@ -33,17 +32,11 @@ export function StatCard({
   const { currency, baseCurrency, fxRate } = useCurrency();
   const effectiveChangeVariant = changeVariant ?? variant;
   const isPositive = (change ?? 0) >= 0;
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   return (
     <div className="rounded-xl border border-border bg-surface p-4 shadow-panel">
       <p className="text-xs uppercase tracking-[0.08em] text-muted">{label}</p>
       <div className="mt-2 flex items-center gap-2">
-        {isLoading || !mounted ? (
+        {isLoading ? (
           <>
             <Skeleton className="h-8 w-24" />
             <Skeleton className="h-5 w-16" />
