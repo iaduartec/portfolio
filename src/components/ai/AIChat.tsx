@@ -35,7 +35,7 @@ export function AIChat() {
         type="button"
         onClick={() => setIsMinimized(false)}
         className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-3 text-sm font-semibold text-text shadow-xl transition hover:bg-surface-muted sm:bottom-6 sm:right-6"
-        aria-label="Abrir chat de OpenAI"
+        aria-label="Abrir chat de Gemini"
       >
         <MessageCircle size={18} />
         Chat IA
@@ -51,14 +51,14 @@ export function AIChat() {
             <Bot size={20} />
           </div>
           <div>
-            <h3 className="text-sm font-semibold">API de OpenAI</h3>
+            <h3 className="text-sm font-semibold">API de Gemini</h3>
           </div>
         </div>
         <button
           type="button"
           onClick={() => setIsMinimized(true)}
           className="rounded-md border border-border bg-surface px-2 py-1 text-xs font-semibold text-text transition hover:bg-surface-muted"
-          aria-label="Minimizar chat de OpenAI"
+          aria-label="Minimizar chat de Gemini"
         >
           <Minus size={14} />
         </button>

@@ -1,31 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateText } from "ai";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const GEMINI_API_KEY2 = process.env.GEMINI_API_KEY2 || "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
+const GEMINI_MODEL = "gemini-1.5-flash-latest";
 
-async function callOpenAI(prompt: string) {
-  if (!OPENAI_API_KEY) {
-    return { ok: false, status: 500, body: { error: "OPENAI_API_KEY falta en el servidor." } };
+async function callGemini(prompt: string) {
+  const keys = [GEMINI_API_KEY, GEMINI_API_KEY2].filter(Boolean);
+  if (keys.length === 0) {
+    return { ok: false, status: 500, body: { error: "GEMINI_API_KEY falta en el servidor." } };
   }
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "Eres un agente de trading y research conciso." },
-        { role: "user", content: prompt },
-      ],
-      max_tokens: 300,
-    }),
-  });
-  const contentType = res.headers.get("content-type") || "";
-  const isJson = contentType.includes("application/json");
-  const rawBody = isJson ? await res.json().catch(() => null) : await res.text().catch(() => "");
-  return { ok: res.ok, status: res.status, body: rawBody };
+  let lastError: unknown;
+  for (const apiKey of keys) {
+    try {
+      const model = createGoogleGenerativeAI({ apiKey })(GEMINI_MODEL);
+      const { text } = await generateText({
+        model,
+        system: "Eres un agente de trading y research conciso.",
+        prompt,
+      });
+      return { ok: true, status: 200, body: { text } };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  const message = lastError instanceof Error ? lastError.message : "Error desconocido";
+  return { ok: false, status: 500, body: { error: `Error en Gemini: ${message}` } };
 }
 
 async function callAnthropic(prompt: string) {
@@ -54,8 +56,8 @@ async function callAnthropic(prompt: string) {
 
 const normalizeError = (msg: string) => {
   const lower = msg.toLowerCase();
-  if (lower.includes("openai_api_key")) {
-    return "OPENAI_API_KEY falta en el servidor. Configura la clave o usa otro proveedor.";
+  if (lower.includes("gemini_api_key")) {
+    return "GEMINI_API_KEY falta en el servidor. Configura la clave o usa otro proveedor.";
   }
   if (lower.includes("anthropic") && lower.includes("api") && lower.includes("key")) {
     return "ANTHROPIC_API_KEY falta en el servidor. Configurala o cambia de proveedor.";
@@ -71,20 +73,20 @@ const toMessage = (body: any) => {
 
 export async function POST(req: NextRequest) {
   try {
-    const { prompt, provider = "openai" } = await req.json();
+    const { prompt, provider = "gemini" } = await req.json();
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json({ error: "Prompt vacío" }, { status: 400 });
     }
-    const selectedProvider = String(provider || "openai").toLowerCase();
+    const selectedProvider = String(provider || "gemini").toLowerCase();
     const response =
       selectedProvider === "anthropic"
         ? await callAnthropic(prompt)
-        : selectedProvider === "openai"
-          ? await callOpenAI(prompt)
+        : selectedProvider === "gemini"
+          ? await callGemini(prompt)
           : {
               ok: false,
               status: 400,
-              body: { error: "Proveedor no soportado. Usa openai o anthropic." },
+              body: { error: "Proveedor no soportado. Usa gemini o anthropic." },
             };
 
     if (!response.ok) {
@@ -96,8 +98,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ reply: "" });
     }
 
-    if (selectedProvider === "openai") {
-      const text = response.body?.choices?.[0]?.message?.content;
+    if (selectedProvider === "gemini") {
+      const text = response.body?.text;
       return NextResponse.json({ reply: typeof text === "string" ? text.trim() : "" });
     }
 
