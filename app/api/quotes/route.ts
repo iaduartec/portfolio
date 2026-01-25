@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveExchange, resolveYahooSymbol } from "@/lib/marketSymbols";
 
 type Quote = {
   ticker: string;
@@ -17,42 +18,37 @@ const exchangeSuffixMap: Record<string, string> = {
   NYSE: ".US",
   AMEX: ".US",
   BME: ".MC",
-  BMEF: ".MC",
-  BOL: ".MC",
   MIL: ".MI",
-  MILAN: ".MI",
-  XETRA: ".DE",
+  XETR: ".DE",
   FRA: ".DE",
   LSE: ".L",
   SWX: ".SW",
-  SIX: ".SW",
 };
 
 const exchangeRegionMap: Record<string, string> = {
   BME: "Spain",
   MIL: "Italy",
-  XETRA: "Germany",
+  XETR: "Germany",
   FRA: "Germany",
   LSE: "United Kingdom",
   SWX: "Switzerland",
-  SIX: "Switzerland",
 };
 
 const exchangeYahooSuffixMap: Record<string, string> = {
   BME: ".MC",
   MIL: ".MI",
-  XETRA: ".DE",
+  XETR: ".DE",
   FRA: ".DE",
   LSE: ".L",
   SWX: ".SW",
-  SIX: ".SW",
 };
 
 const normalizeSymbolForStooq = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   if (rawSymbol.includes(".")) return rawSymbol.toLowerCase();
-  const suffix = exchangeSuffixMap[exchange] ?? ".US";
+  const normalizedExchange = exchange ? resolveExchange(exchange) : "";
+  const suffix = normalizedExchange ? exchangeSuffixMap[normalizedExchange] ?? ".US" : ".US";
   return `${rawSymbol}${suffix}`.toLowerCase();
 };
 
@@ -60,17 +56,13 @@ const normalizeSymbolForAlpha = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   if (rawSymbol.includes(".")) return rawSymbol;
-  const suffix = exchangeSuffixMap[exchange] ?? "";
+  const normalizedExchange = exchange ? resolveExchange(exchange) : "";
+  const suffix = normalizedExchange ? exchangeSuffixMap[normalizedExchange] ?? "" : "";
   return `${rawSymbol}${suffix}`;
 };
 
-const normalizeSymbolForYahoo = (ticker: string) => {
-  const cleaned = ticker.trim().toUpperCase();
-  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
-  if (rawSymbol.includes(".")) return rawSymbol;
-  const suffix = exchangeYahooSuffixMap[exchange] ?? "";
-  return `${rawSymbol}${suffix}`;
-};
+const normalizeSymbolForYahoo = (ticker: string) =>
+  resolveYahooSymbol(ticker, exchangeYahooSuffixMap);
 
 const findBestMatchSymbol = (
   matches: Array<Record<string, string>>,
@@ -183,7 +175,8 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
   try {
     const directQuote = await fetchGlobalQuote(symbol);
     if (directQuote) return directQuote;
-    const regionHint = exchange ? exchangeRegionMap[exchange] : undefined;
+    const normalizedExchange = exchange ? resolveExchange(exchange) : "";
+    const regionHint = normalizedExchange ? exchangeRegionMap[normalizedExchange] : undefined;
     const searchUrl = `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(
       rawSymbol
     )}&apikey=${encodeURIComponent(apiKey)}`;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveExchange, resolveYahooSymbol } from "@/lib/marketSymbols";
 
 const ALPHA_ENDPOINT = "https://www.alphavantage.co/query";
 
@@ -48,18 +49,6 @@ const exchangeRegionMap: Record<string, string> = {
   TSE: "Canada",
 };
 
-const exchangeAliasMap: Record<string, string> = {
-  BIT: "MIL",
-  EBR: "BRU",
-  EPA: "PAR",
-  ETR: "XETR",
-  LON: "LSE",
-  SIX: "SWX",
-};
-
-const resolveExchange = (exchange: string) =>
-  exchangeAliasMap[exchange.toUpperCase()] ?? exchange.toUpperCase();
-
 const buildUrl = (params: Record<string, string>) => {
   const query = new URLSearchParams(params);
   return `${ALPHA_ENDPOINT}?${query.toString()}`;
@@ -100,12 +89,7 @@ const findBestMatchSymbol = (
 };
 
 const normalizeSymbolForYahoo = (ticker: string) => {
-  const cleaned = ticker.trim().toUpperCase();
-  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
-  if (rawSymbol.includes(".")) return rawSymbol;
-  const normalizedExchange = exchange ? resolveExchange(exchange) : "";
-  const suffix = normalizedExchange ? exchangeSuffixMap[normalizedExchange] ?? "" : "";
-  return `${rawSymbol}${suffix}`;
+  return resolveYahooSymbol(ticker, exchangeSuffixMap);
 };
 
 const fetchYahooOHLC = async (ticker: string) => {

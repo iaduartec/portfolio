@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { resolveExchange, resolveYahooSymbol } from "@/lib/marketSymbols";
 
 type MetricPayload = {
   metric?: Record<string, number | string | null>;
@@ -28,7 +29,6 @@ const exchangeSuffixMap: Record<string, string> = {
   FRA: ".DE",
   LSE: ".L",
   SWX: ".SW",
-  SIX: ".SW",
 };
 
 const exchangeYahooSuffixMap: Record<string, string> = {
@@ -38,24 +38,19 @@ const exchangeYahooSuffixMap: Record<string, string> = {
   FRA: ".DE",
   LSE: ".L",
   SWX: ".SW",
-  SIX: ".SW",
 };
 
 const normalizeSymbolForFinnhub = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
   if (rawSymbol.includes(".")) return rawSymbol;
-  const suffix = exchangeSuffixMap[exchange] ?? "";
+  const normalizedExchange = exchange ? resolveExchange(exchange) : "";
+  const suffix = normalizedExchange ? exchangeSuffixMap[normalizedExchange] ?? "" : "";
   return `${rawSymbol}${suffix}`;
 };
 
-const normalizeSymbolForYahoo = (ticker: string) => {
-  const cleaned = ticker.trim().toUpperCase();
-  const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
-  if (rawSymbol.includes(".")) return rawSymbol;
-  const suffix = exchangeYahooSuffixMap[exchange] ?? "";
-  return `${rawSymbol}${suffix}`;
-};
+const normalizeSymbolForYahoo = (ticker: string) =>
+  resolveYahooSymbol(ticker, exchangeYahooSuffixMap);
 
 const getCached = (key: string) => {
   const entry = fundamentalsCache.get(key);
