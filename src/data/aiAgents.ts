@@ -48,12 +48,12 @@ export const agents: Agent[] = [
   {
     id: "cartera",
     name: "Análisis de cartera",
-    summary: "Analiza tus posiciones abiertas con IA (OpenAI).",
+    summary: "Analiza tus posiciones abiertas con IA (Gemini).",
     category: "LLM",
     purpose: "Pedir insight rápido sobre tickers abiertos, riesgo y sesgos.",
     samplePrompt:
       "Analiza estas posiciones abiertas (símbolo, precio medio, precio actual, P&L %) y dame 3 riesgos y 3 acciones concretas.",
-    requirements: ["API key de OpenAI", "Datos de cartera actualizados"],
+    requirements: ["API key de Gemini", "Datos de cartera actualizados"],
     command: "pnpm ai-agent run cartera --prompt \"...\"",
     notes: ["No es recomendación financiera", "Revisa los datos antes de enviar"],
   },

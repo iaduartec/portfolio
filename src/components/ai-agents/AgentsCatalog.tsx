@@ -10,7 +10,7 @@ import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 type RecommendationMap = Record<string, string>;
 
-type Provider = "openai" | "anthropic" | "ollama";
+type Provider = "gemini" | "anthropic" | "ollama";
 
 const formatNumber = (value: number | undefined, digits = 2) =>
   Number.isFinite(value) ? value!.toFixed(digits) : "0";
@@ -55,9 +55,10 @@ Cambio diario: ${dayChange}%`;
 };
 
 const defaultProvider = (): Provider => {
-  if (process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "ollama") return "ollama";
-  if (process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER === "openai") return "openai";
-  return "anthropic";
+  const preferred = process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER;
+  if (preferred === "ollama") return "ollama";
+  if (preferred === "anthropic") return "anthropic";
+  return "gemini";
 };
 
 type ActionTone = "urgent" | "caution" | "positive";
@@ -313,11 +314,11 @@ export function AgentsCatalog() {
                     <input
                       type="radio"
                       name="provider"
-                      value="openai"
-                      checked={provider === "openai"}
-                      onChange={() => setProvider("openai")}
+                      value="gemini"
+                      checked={provider === "gemini"}
+                      onChange={() => setProvider("gemini")}
                     />
-                    OpenAI
+                    Gemini
                   </label>
                   <label className="flex items-center gap-1">
                     <input
