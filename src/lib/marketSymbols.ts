@@ -14,6 +14,7 @@ const EXCHANGE_ALIAS_MAP: Record<string, string> = {
   BOL: "BME",
   ETR: "XETR",
   XETRA: "XETR",
+  TRADEGATE: "XETR",
   EPA: "PAR",
   EBR: "BRU",
   LON: "LSE",

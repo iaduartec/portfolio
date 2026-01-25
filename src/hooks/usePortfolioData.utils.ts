@@ -3,6 +3,15 @@ import { CurrencyCode } from "@/lib/formatters";
 
 export type ParsedRow = Record<string, string | number>;
 
+export const TICKER_SUFFIX_OVERRIDES: Record<string, string> = {
+  "41L": ".MC",
+  AJ3: ".MC",
+  OZTA: ".MC",
+  REP: ".MC",
+  VHM: ".MC",
+  ENL: ".MI",
+};
+
 export const fieldAliases: Record<keyof Transaction, string[]> = {
   date: ["date", "closing time", "close_time", "datetime", "trade_date"],
   ticker: ["ticker", "symbol", "asset", "isin"],
@@ -56,6 +65,14 @@ export const normalizeCurrency = (raw: unknown): CurrencyCode | undefined => {
   return undefined;
 };
 
+export const normalizeTicker = (raw: string): string => {
+  const cleaned = raw.trim().toUpperCase();
+  if (!cleaned) return cleaned;
+  if (cleaned.includes(".") || cleaned.includes(":")) return cleaned;
+  const suffix = TICKER_SUFFIX_OVERRIDES[cleaned];
+  return suffix ? `${cleaned}${suffix}` : cleaned;
+};
+
 export const toTransaction = (row: ParsedRow): Transaction | null => {
   const dateRaw = pickField(
     row,
@@ -87,7 +104,7 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
   );
 
   const date = dateRaw ? String(dateRaw).trim() : "";
-  const ticker = tickerRaw ? String(tickerRaw).trim().toUpperCase() : "";
+  const ticker = tickerRaw ? normalizeTicker(String(tickerRaw)) : "";
   const type = typeRaw ? normalizeType(String(typeRaw).trim()) : "OTHER";
   const quantity = normalizeNumber(qtyRaw) ?? 0;
   const price = normalizeNumber(priceRaw) ?? 0;

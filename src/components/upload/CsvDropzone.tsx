@@ -13,7 +13,9 @@ import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import {
   normalizeCurrency,
+  normalizeTicker,
   toTransaction,
+  TICKER_SUFFIX_OVERRIDES,
   type ParsedRow,
 } from "@/hooks/usePortfolioData.utils";
 
@@ -28,6 +30,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRow[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [ambiguousTickers, setAmbiguousTickers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -51,8 +54,23 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
       complete: (results: ParseResult<ParsedRow>) => {
         const rows = Array.isArray(results.data) ? results.data : [];
         const parsed = rows.map(toTransaction).filter((row): row is Transaction => Boolean(row));
+        const ambiguous = Array.from(
+          new Set(
+            parsed
+              .filter((tx) => tx.ticker)
+              .map((tx) => {
+                const ticker = tx.ticker.trim().toUpperCase();
+                if (!ticker || ticker.includes(".") || ticker.includes(":")) return null;
+                if (TICKER_SUFFIX_OVERRIDES[ticker]) return null;
+                const inferred = tx.currency ?? inferCurrencyFromTicker(ticker);
+                return inferred === "EUR" ? ticker : null;
+              })
+              .filter((ticker): ticker is string => Boolean(ticker))
+          )
+        ).sort();
         setPreview(rows.slice(0, 5));
         setTransactions(parsed);
+        setAmbiguousTickers(ambiguous);
         if (parsed.length === 0) {
           setError(
             "No se pudo leer ninguna transacción válida. Revisa columnas: date/closing time, ticker/symbol, side(type)=BUY|SELL|DIVIDEND|FEE, qty, price, fee (opcional)."
@@ -77,15 +95,35 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
 
   const handleSave = () => {
     if (!transactions.length) return;
-    const saved = persistTransactions(transactions);
+    if (ambiguousTickers.length > 0) {
+      const sample = ambiguousTickers.slice(0, 6).join(", ");
+      const message = `Detectamos tickers en EUR sin sufijo de mercado (ej: ${sample}). Si continúas se guardarán con TRADEGATE. ¿Quieres guardar igualmente?`;
+      if (!window.confirm(message)) {
+        return;
+      }
+    }
+    const normalized = transactions.map((tx) => {
+      const ticker = tx.ticker.trim().toUpperCase();
+      if (
+        tx.currency === "EUR" &&
+        ticker &&
+        !ticker.includes(".") &&
+        !ticker.includes(":") &&
+        !TICKER_SUFFIX_OVERRIDES[ticker]
+      ) {
+        return { ...tx, ticker: normalizeTicker(`TRADEGATE:${ticker}`) };
+      }
+      return tx;
+    });
+    const saved = persistTransactions(normalized);
     if (!saved) {
       setError("No se pudieron guardar en localStorage.");
       return;
     }
     const sessionId = new Date().toISOString();
     window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
-    onSave?.(transactions);
-    setSuccess(`Guardadas ${transactions.length} transacciones en local (sesión ${sessionId}).`);
+    onSave?.(normalized);
+    setSuccess(`Guardadas ${normalized.length} transacciones en local (sesión ${sessionId}).`);
   };
 
   return (
@@ -125,6 +163,15 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         )}
         {error && <p className="text-xs text-danger">{error}</p>}
         {success && <p className="text-xs text-success">{success}</p>}
+        {ambiguousTickers.length > 0 && (
+          <p className="text-xs text-warning">
+            Revisa tickers EUR sin sufijo de mercado (se usará TRADEGATE):{" "}
+            <span className="font-semibold text-text">
+              {ambiguousTickers.slice(0, 8).join(", ")}
+              {ambiguousTickers.length > 8 ? "…" : ""}
+            </span>
+          </p>
+        )}
       </div>
 
       {preview.length > 0 && (
@@ -165,22 +212,30 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
                     ) ?? inferCurrencyFromTicker(rowTicker);
                   return (
                     <tr key={idx} className="hover:bg-surface-muted/40">
-                      {Object.entries(row).map(([key, value]) => (
-                        <td key={key} className="px-3 py-2">
-                          {typeof value === "number" && key !== "quantity"
-                            ? formatCurrency(
-                                convertCurrencyFrom(
-                                  value,
-                                  rowCurrency,
-                                  currency,
-                                  fxRate,
-                                  baseCurrency
-                                ),
-                                currency
-                              )
-                            : String(value ?? "")}
-                        </td>
-                      ))}
+                      {Object.entries(row).map(([key, value]) => {
+                        const normalizedKey = key.toLowerCase().trim();
+                        const isQuantity =
+                          normalizedKey === "quantity" ||
+                          normalizedKey === "qty" ||
+                          normalizedKey === "cantidad";
+                        const isRate = normalizedKey.includes("rate");
+                        return (
+                          <td key={key} className="px-3 py-2">
+                            {typeof value === "number" && !isQuantity && !isRate
+                              ? formatCurrency(
+                                  convertCurrencyFrom(
+                                    value,
+                                    rowCurrency,
+                                    currency,
+                                    fxRate,
+                                    baseCurrency
+                                  ),
+                                  currency
+                                )
+                              : String(value ?? "")}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
