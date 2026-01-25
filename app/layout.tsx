@@ -62,8 +62,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className={manrope.variable}>
-      <body className="flex min-h-screen flex-col bg-background text-text antialiased">
+    <html lang="es" className={manrope.variable} suppressHydrationWarning>
+      <body
+        className="flex min-h-screen flex-col bg-background text-text antialiased"
+        suppressHydrationWarning
+      >
         <CurrencyProvider>
           <div className="border-b border-border/60 bg-surface">
             <TradingViewTickerTape />
