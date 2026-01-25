@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface TradingViewWidgetProps {
   symbol: string;
@@ -9,6 +10,7 @@ interface TradingViewWidgetProps {
 
 export function TradingViewWidget({ symbol, height = 420 }: TradingViewWidgetProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resolvedSymbol = resolveTradingViewSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -23,12 +25,12 @@ export function TradingViewWidget({ symbol, height = 420 }: TradingViewWidgetPro
     const copyright = document.createElement("div");
     copyright.className = "tradingview-widget-copyright";
     const link = document.createElement("a");
-    link.href = `https://www.tradingview.com/symbols/${symbol.replace(":", "-")}/`;
+    link.href = `https://www.tradingview.com/symbols/${resolvedSymbol.replace(":", "-")}/`;
     link.target = "_blank";
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = `${symbol} chart`;
+    span.textContent = `${resolvedSymbol} chart`;
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
@@ -53,7 +55,7 @@ export function TradingViewWidget({ symbol, height = 420 }: TradingViewWidgetPro
       locale: "es",
       save_image: true,
       style: "1",
-      symbol,
+      symbol: resolvedSymbol,
       theme: "dark",
       timezone: "Etc/UTC",
       backgroundColor: "#131722",
@@ -72,7 +74,7 @@ export function TradingViewWidget({ symbol, height = 420 }: TradingViewWidgetPro
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol]);
+  }, [resolvedSymbol]);
 
   return (
     <div

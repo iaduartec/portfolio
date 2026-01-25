@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface TradingViewTechnicalAnalysisProps {
   symbol: string;
@@ -18,6 +19,7 @@ export function TradingViewTechnicalAnalysis({
   isTransparent = false,
 }: TradingViewTechnicalAnalysisProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resolvedSymbol = resolveTradingViewSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -30,12 +32,12 @@ export function TradingViewTechnicalAnalysis({
     const copyright = document.createElement("div");
     copyright.className = "tradingview-widget-copyright";
     const link = document.createElement("a");
-    link.href = `https://www.tradingview.com/symbols/${symbol.replace(":", "-")}/technicals/`;
+    link.href = `https://www.tradingview.com/symbols/${resolvedSymbol.replace(":", "-")}/technicals/`;
     link.target = "_blank";
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = `${symbol} stock analysis`;
+    span.textContent = `${resolvedSymbol} stock analysis`;
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
@@ -52,7 +54,7 @@ export function TradingViewTechnicalAnalysis({
       width,
       isTransparent,
       height,
-      symbol,
+      symbol: resolvedSymbol,
       showIntervalTabs: true,
       displayMode: "single",
       locale: "es",
@@ -66,7 +68,7 @@ export function TradingViewTechnicalAnalysis({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol, width, height, interval, isTransparent]);
+  }, [resolvedSymbol, width, height, interval, isTransparent]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }

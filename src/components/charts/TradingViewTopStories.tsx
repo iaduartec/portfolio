@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface TradingViewTopStoriesProps {
   symbol?: string;
@@ -18,6 +19,7 @@ export function TradingViewTopStories({
   isTransparent = false,
 }: TradingViewTopStoriesProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resolvedSymbol = symbol ? resolveTradingViewSymbol(symbol) : undefined;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -49,7 +51,7 @@ export function TradingViewTopStories({
     script.async = true;
     script.innerHTML = JSON.stringify({
       feedMode,
-      symbol,
+      symbol: resolvedSymbol,
       colorTheme: "dark",
       isTransparent,
       displayMode: "regular",
@@ -65,7 +67,7 @@ export function TradingViewTopStories({
     return () => {
       container.innerHTML = "";
     };
-  }, [width, height, feedMode, isTransparent, symbol]);
+  }, [width, height, feedMode, isTransparent, resolvedSymbol]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }

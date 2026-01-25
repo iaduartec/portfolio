@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface TradingViewMiniChartProps {
   symbol: string;
 }
 
 export function TradingViewMiniChart({ symbol }: TradingViewMiniChartProps) {
+  const resolvedSymbol = resolveTradingViewSymbol(symbol);
   useEffect(() => {
     const existing = document.querySelector(
       'script[src="https://widgets.tradingview-widget.com/w/en/tv-mini-chart.js"]'
@@ -20,7 +22,7 @@ export function TradingViewMiniChart({ symbol }: TradingViewMiniChartProps) {
 
   return (
     <div className="w-full">
-      <tv-mini-chart symbol={symbol} theme="dark" />
+      <tv-mini-chart symbol={resolvedSymbol} theme="dark" />
     </div>
   );
 }

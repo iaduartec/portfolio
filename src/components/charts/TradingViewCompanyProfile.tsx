@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface TradingViewCompanyProfileProps {
   symbol: string;
@@ -16,6 +17,7 @@ export function TradingViewCompanyProfile({
   isTransparent = false,
 }: TradingViewCompanyProfileProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resolvedSymbol = resolveTradingViewSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -28,12 +30,12 @@ export function TradingViewCompanyProfile({
     const copyright = document.createElement("div");
     copyright.className = "tradingview-widget-copyright";
     const link = document.createElement("a");
-    link.href = `https://www.tradingview.com/symbols/${symbol.replace(":", "-")}/`;
+    link.href = `https://www.tradingview.com/symbols/${resolvedSymbol.replace(":", "-")}/`;
     link.target = "_blank";
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = `${symbol} performance`;
+    span.textContent = `${resolvedSymbol} performance`;
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
@@ -46,7 +48,7 @@ export function TradingViewCompanyProfile({
     script.type = "text/javascript";
     script.async = true;
     script.innerHTML = JSON.stringify({
-      symbol,
+      symbol: resolvedSymbol,
       width,
       height,
       colorTheme: "dark",
@@ -61,7 +63,7 @@ export function TradingViewCompanyProfile({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol, width, height, isTransparent]);
+  }, [resolvedSymbol, width, height, isTransparent]);
 
   return <div ref={containerRef} className="tradingview-widget-container" />;
 }

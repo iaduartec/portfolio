@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
 
 interface TradingViewAdvancedChartProps {
   symbol: string;
@@ -12,6 +13,7 @@ export function TradingViewAdvancedChart({
   height = "100%",
 }: TradingViewAdvancedChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const resolvedSymbol = resolveTradingViewSymbol(symbol);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -26,12 +28,12 @@ export function TradingViewAdvancedChart({
     const copyright = document.createElement("div");
     copyright.className = "tradingview-widget-copyright";
     const link = document.createElement("a");
-    link.href = `https://www.tradingview.com/symbols/${symbol.replace(":", "-")}/`;
+    link.href = `https://www.tradingview.com/symbols/${resolvedSymbol.replace(":", "-")}/`;
     link.target = "_blank";
     link.rel = "noopener nofollow";
     const span = document.createElement("span");
     span.className = "blue-text";
-    span.textContent = `${symbol} stock chart`;
+    span.textContent = `${resolvedSymbol} stock chart`;
     link.appendChild(span);
     const tail = document.createElement("span");
     tail.className = "trademark";
@@ -56,7 +58,7 @@ export function TradingViewAdvancedChart({
       locale: "es",
       save_image: true,
       style: "1",
-      symbol,
+      symbol: resolvedSymbol,
       theme: "dark",
       timezone: "Etc/UTC",
       backgroundColor: "#131722",
@@ -75,7 +77,7 @@ export function TradingViewAdvancedChart({
     return () => {
       container.innerHTML = "";
     };
-  }, [symbol]);
+  }, [resolvedSymbol]);
 
   return (
     <div
