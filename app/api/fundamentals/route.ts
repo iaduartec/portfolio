@@ -18,6 +18,8 @@ type FundamentalPoint = {
 
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const fundamentalsCache = new Map<string, { data: FundamentalPoint; expiresAt: number }>();
+const YAHOO_NEGATIVE_TTL_MS = 1000 * 60 * 15;
+const yahooNegativeCache = new Map<string, number>();
 
 const exchangeSuffixMap: Record<string, string> = {
   NASDAQ: "",
@@ -210,6 +212,24 @@ const computeRsi = (closes: number[], period = 14) => {
   return 100 - 100 / (1 + rs);
 };
 
+const shouldSkipYahoo = (ticker: string) => {
+  const key = ticker.toUpperCase();
+  const until = yahooNegativeCache.get(key);
+  if (!until) return false;
+  if (Date.now() > until) {
+    yahooNegativeCache.delete(key);
+    return false;
+  }
+  return true;
+};
+
+const markYahooMiss = (ticker: string) => {
+  const key = ticker.toUpperCase();
+  if (!yahooNegativeCache.has(key)) {
+    yahooNegativeCache.set(key, Date.now() + YAHOO_NEGATIVE_TTL_MS);
+  }
+};
+
 const fetchFmpStableFundamentals = async (
   ticker: string,
   symbol: string,
@@ -238,72 +258,88 @@ const fetchFmpStableFundamentals = async (
   return { data: hasAny ? point : null, limited };
 };
 
+const YAHOO_BASE_URLS = [
+  "https://query1.finance.yahoo.com",
+  "https://query2.finance.yahoo.com",
+];
+
+const fetchYahooJson = async (path: string, headers: Record<string, string>) => {
+  let lastError: unknown;
+  for (const baseUrl of YAHOO_BASE_URLS) {
+    try {
+      const res = await fetch(`${baseUrl}${path}`, { next: { revalidate: 3600 }, headers });
+      if (!res.ok) continue;
+      const json = await res.json();
+      return { json, baseUrl };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  return { json: null, baseUrl: null, error: lastError };
+};
+
 const fetchYahooFundamentals = async (
   ticker: string,
   symbol: string
 ): Promise<FundamentalPoint | null> => {
-  const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" };
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    Accept: "application/json",
+    "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+  };
   
   // 1. Try Quote API (v7) - lightweight and reliable for basic stats
-  const quoteUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(
-    symbol
-  )}`;
+  const quotePath = `/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
 
   try {
-    const quoteRes = await fetch(quoteUrl, { next: { revalidate: 3600 }, headers });
-    if (quoteRes.ok) {
-      const quoteJson = await quoteRes.json();
-      const item = quoteJson?.quoteResponse?.result?.[0];
-      if (item) {
-        console.log(`[Yahoo v7] Found data for ${ticker} (${symbol})`);
-        return {
-          ticker,
-          symbol,
-          pe: toNumber(item.trailingPE),
-          ps: toNumber(item.priceToSalesTrailing12Months),
-          pb: toNumber(item.priceToBook),
-          beta: toNumber(item.beta),
-          // eps: toNumber(item.epsTrailingTwelveMonths),
-        };
-      }
+    const { json: quoteJson } = await fetchYahooJson(quotePath, headers);
+    const item = quoteJson?.quoteResponse?.result?.[0];
+    if (item) {
+      console.log(`[Yahoo v7] Found data for ${ticker} (${symbol})`);
+      return {
+        ticker,
+        symbol,
+        pe: toNumber(item.trailingPE),
+        ps: toNumber(item.priceToSalesTrailing12Months),
+        pb: toNumber(item.priceToBook),
+        beta: toNumber(item.beta),
+        // eps: toNumber(item.epsTrailingTwelveMonths),
+      };
     }
   } catch (err) {
     console.warn(`[Yahoo v7] Failed for ${ticker}:`, err);
   }
 
   // 2. Fallback to Summary API (v10) - deeper data but sometimes rate-limited
-  const summaryUrl = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
+  const summaryPath = `/v10/finance/quoteSummary/${encodeURIComponent(
     symbol
   )}?modules=summaryDetail,defaultKeyStatistics,financialData`;
   
   try {
-    const res = await fetch(summaryUrl, { next: { revalidate: 3600 }, headers });
-    if (res.ok) {
-      const json = await res.json();
-      const result = json?.quoteSummary?.result?.[0];
-      if (result) {
-        console.log(`[Yahoo v10] Found summary for ${ticker} (${symbol})`);
-        const summaryDetail = result.summaryDetail ?? {};
-        const keyStats = result.defaultKeyStatistics ?? {};
-        const financialData = result.financialData ?? {};
-        return {
-          ticker,
-          symbol,
-          pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
-          ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
-          pb: toNumber(keyStats.priceToBook?.raw),
-          evEbitda: toNumber(
-            keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw
-          ),
-          beta: toNumber(keyStats.beta?.raw),
-        };
-      }
+    const { json } = await fetchYahooJson(summaryPath, headers);
+    const result = json?.quoteSummary?.result?.[0];
+    if (result) {
+      console.log(`[Yahoo v10] Found summary for ${ticker} (${symbol})`);
+      const summaryDetail = result.summaryDetail ?? {};
+      const keyStats = result.defaultKeyStatistics ?? {};
+      const financialData = result.financialData ?? {};
+      return {
+        ticker,
+        symbol,
+        pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
+        ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
+        pb: toNumber(keyStats.priceToBook?.raw),
+        evEbitda: toNumber(
+          keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw
+        ),
+        beta: toNumber(keyStats.beta?.raw),
+      };
     }
   } catch (err) {
     console.warn(`[Yahoo v10] Failed for ${ticker}:`, err);
   }
 
-  console.log(`[Yahoo] No data found for ${ticker} (${symbol})`);
   return null;
 };
 
@@ -386,12 +422,17 @@ export async function GET(req: Request) {
         // Add a small delay to be polite to Yahoo's public API and avoid rate limits
         if (tickers.length > 1) await delay(250);
 
-        const yahooSymbol = normalizeSymbolForYahoo(ticker);
-        const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
-        if (yahooData) {
-          setCached(ticker, yahooData);
-          results.push(yahooData);
-          dataFound = true;
+        if (!shouldSkipYahoo(ticker)) {
+          const yahooSymbol = normalizeSymbolForYahoo(ticker);
+          const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
+          if (yahooData) {
+            setCached(ticker, yahooData);
+            results.push(yahooData);
+            dataFound = true;
+          } else {
+            console.log(`[Yahoo] No data found for ${ticker} (${yahooSymbol})`);
+            markYahooMiss(ticker);
+          }
         }
       }
 

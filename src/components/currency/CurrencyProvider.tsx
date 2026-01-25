@@ -27,23 +27,21 @@ const DEFAULT_RATE = 1.08;
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
   const baseCurrency: CurrencyCode = "EUR";
-  const [currency, setCurrencyState] = useState<CurrencyCode>(() => {
-    if (typeof window === "undefined") return "EUR";
+  const [currency, setCurrencyState] = useState<CurrencyCode>(baseCurrency);
+  const [fxRate, setFxRate] = useState<number>(DEFAULT_RATE);
+
+  useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "EUR" || stored === "USD") return stored;
-    return "EUR";
-  });
-  const [fxRate, setFxRate] = useState<number>(() => {
-    if (typeof window === "undefined") return DEFAULT_RATE;
+    if (stored === "EUR" || stored === "USD") {
+      setCurrencyState(stored);
+    }
     const storedRate = window.localStorage.getItem(FX_STORAGE_KEY);
     if (storedRate) {
       const parsed = Number(storedRate);
-      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+      if (Number.isFinite(parsed) && parsed > 0) {
+        setFxRate(parsed);
+      }
     }
-    return DEFAULT_RATE;
-  });
-
-  useEffect(() => {
     const storedUpdated = window.localStorage.getItem(FX_TIMESTAMP_KEY);
     if (storedUpdated) {
       const updatedAt = Number(storedUpdated);
