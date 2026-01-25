@@ -8,6 +8,17 @@ export type PriceSnapshot = {
   dayChangePercent?: number;
 };
 
+type PositionLot = {
+  quantity: number;
+  costPerShare: number;
+};
+
+const sumLots = (lots: PositionLot[]) =>
+  lots.reduce((total, lot) => total + lot.quantity, 0);
+
+const sumLotCost = (lots: PositionLot[]) =>
+  lots.reduce((total, lot) => total + lot.quantity * lot.costPerShare, 0);
+
 export const computeHoldings = (
   transactions: Transaction[],
   priceMap: Record<string, PriceSnapshot>,
@@ -17,7 +28,7 @@ export const computeHoldings = (
   const quantityEpsilon = 1e-6;
   const positions = new Map<
     string,
-    { quantity: number; cost: number; lastPrice: number; currency: CurrencyCode }
+    { lots: PositionLot[]; lastPriceRaw: number; currency: CurrencyCode }
   >();
   
   const ordered = [...transactions].sort((a, b) => {
@@ -30,70 +41,76 @@ export const computeHoldings = (
   });
 
   ordered.forEach((tx) => {
+    if (!tx.ticker) return;
+    const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
     const entry = positions.get(tx.ticker) ?? {
-      quantity: 0,
-      cost: 0,
-      lastPrice: 0,
-      currency: tx.currency ?? inferCurrencyFromTicker(tx.ticker),
+      lots: [],
+      lastPriceRaw: 0,
+      currency,
     };
     const fee = tx.fee ?? 0;
-    const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-    if (!entry.currency) {
-      entry.currency = currency;
+    if (!entry.currency) entry.currency = currency;
+    if (Number.isFinite(tx.price) && tx.price > 0) {
+      entry.lastPriceRaw = tx.price;
     }
     const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
     const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
 
     if (tx.type === "BUY") {
-      entry.cost += tx.quantity * priceBase + feeBase;
-      entry.quantity += tx.quantity;
-      entry.lastPrice = priceBase;
+      const totalCost = tx.quantity * priceBase + feeBase;
+      const costPerShare = tx.quantity > 0 ? totalCost / tx.quantity : priceBase;
+      entry.lots.push({ quantity: tx.quantity, costPerShare });
     } else if (tx.type === "SELL") {
-      const avgCost = entry.quantity > 0 ? entry.cost / entry.quantity : 0;
-      const qtySold = Math.min(entry.quantity, tx.quantity);
-      entry.quantity = Math.max(0, entry.quantity - tx.quantity);
-      entry.cost = Math.max(0, entry.cost - avgCost * qtySold);
-      entry.lastPrice = priceBase;
-    } else if (tx.type === "FEE") {
-      entry.cost += feeBase;
-    } else {
-      entry.lastPrice = entry.lastPrice || priceBase || entry.lastPrice;
+      let remaining = tx.quantity;
+      while (remaining > quantityEpsilon && entry.lots.length > 0) {
+        const lot = entry.lots[0];
+        const sold = Math.min(lot.quantity, remaining);
+        lot.quantity -= sold;
+        remaining -= sold;
+        if (lot.quantity <= quantityEpsilon) entry.lots.shift();
+      }
+    } else if (tx.type === "FEE" && feeBase > 0) {
+      const totalQty = sumLots(entry.lots);
+      if (totalQty > quantityEpsilon) {
+        const feePerShare = feeBase / totalQty;
+        entry.lots = entry.lots.map((lot) => ({
+          ...lot,
+          costPerShare: lot.costPerShare + feePerShare,
+        }));
+      }
     }
 
     positions.set(tx.ticker, entry);
   });
 
-  positions.forEach((entry) => {
-    if (Math.abs(entry.quantity) < quantityEpsilon) {
-      entry.quantity = 0;
-      entry.cost = 0;
-    }
-  });
-
   return Array.from(positions.entries())
     .map(([ticker, data]) => {
       const tickerKey = ticker.toUpperCase();
-      const averageBuyPrice = data.quantity > 0 ? data.cost / data.quantity : 0;
+      const totalQuantity = sumLots(data.lots);
+      if (totalQuantity <= quantityEpsilon) return null;
+      const totalCost = sumLotCost(data.lots);
+      const averageBuyPrice = totalCost / totalQuantity;
       const override = priceMap[tickerKey];
       const currency = data.currency ?? inferCurrencyFromTicker(tickerKey);
-      const currentPriceRaw = override?.price ?? (data.lastPrice || averageBuyPrice);
-      const currentPrice = convertCurrencyFrom(
-        currentPriceRaw,
-        currency,
-        baseCurrency,
-        fxRate,
-        baseCurrency
-      );
-      const marketValue = data.quantity * currentPrice;
-      const pnlValue = marketValue - data.cost;
-      const pnlPercent = data.cost > 0 ? (pnlValue / data.cost) * 100 : 0;
+      const fallbackRaw = Number.isFinite(data.lastPriceRaw) && data.lastPriceRaw > 0
+        ? data.lastPriceRaw
+        : undefined;
+      const currentPriceRaw = Number.isFinite(override?.price)
+        ? override?.price
+        : fallbackRaw;
+      const currentPriceBase = Number.isFinite(currentPriceRaw)
+        ? convertCurrencyFrom(currentPriceRaw!, currency, baseCurrency, fxRate, baseCurrency)
+        : averageBuyPrice;
+      const marketValue = totalQuantity * currentPriceBase;
+      const pnlValue = marketValue - totalCost;
+      const pnlPercent = totalCost > 0 ? (pnlValue / totalCost) * 100 : 0;
 
       return {
         ticker,
         currency,
-        totalQuantity: data.quantity,
+        totalQuantity,
         averageBuyPrice,
-        currentPrice,
+        currentPrice: currentPriceBase,
         dayChange:
           override?.dayChange !== undefined
             ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency)
@@ -104,7 +121,7 @@ export const computeHoldings = (
         pnlPercent,
       };
     })
-    .filter((holding) => holding.totalQuantity > quantityEpsilon);
+    .filter((holding): holding is Holding => Boolean(holding));
 };
 
 export const computeSummary = (holdings: Holding[]): PortfolioSummary => {
@@ -123,7 +140,7 @@ export const computeRealizedTrades = (
   fxRate: number,
   baseCurrency: CurrencyCode
 ): RealizedTrade[] => {
-  const positions = new Map<string, { quantity: number; averageCost: number }>();
+  const positions = new Map<string, { lots: PositionLot[]; currency: CurrencyCode }>();
   const ordered = [...transactions].sort((a, b) => {
     const timeA = Date.parse(a.date);
     const timeB = Date.parse(b.date);
@@ -136,34 +153,44 @@ export const computeRealizedTrades = (
   const realized: RealizedTrade[] = [];
 
   ordered.forEach((tx, idx) => {
-    const entry = positions.get(tx.ticker) ?? { quantity: 0, averageCost: 0 };
-    const fee = tx.fee ?? 0;
+    if (!tx.ticker) return;
     const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+    const entry = positions.get(tx.ticker) ?? { lots: [], currency };
+    const fee = tx.fee ?? 0;
+    if (!entry.currency) entry.currency = currency;
     const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
     const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
 
     if (tx.type === "BUY") {
-      const totalCost = entry.averageCost * entry.quantity + tx.quantity * priceBase + feeBase;
-      entry.quantity += tx.quantity;
-      entry.averageCost = entry.quantity > 0 ? totalCost / entry.quantity : 0;
+      const totalCost = tx.quantity * priceBase + feeBase;
+      const costPerShare = tx.quantity > 0 ? totalCost / tx.quantity : priceBase;
+      entry.lots.push({ quantity: tx.quantity, costPerShare });
     } else if (tx.type === "SELL") {
-      const qtySold = Math.min(entry.quantity, tx.quantity);
-      if (qtySold > 0) {
-        const pnlValue = (priceBase - entry.averageCost) * qtySold - feeBase;
+      let remaining = tx.quantity;
+      let soldQuantity = 0;
+      let soldCost = 0;
+      while (remaining > 0 && entry.lots.length > 0) {
+        const lot = entry.lots[0];
+        const sold = Math.min(lot.quantity, remaining);
+        lot.quantity -= sold;
+        remaining -= sold;
+        soldQuantity += sold;
+        soldCost += sold * lot.costPerShare;
+        if (lot.quantity <= 0) entry.lots.shift();
+      }
+      if (soldQuantity > 0) {
+        const pnlValue = soldQuantity * priceBase - soldCost - feeBase;
+        const entryPrice = soldQuantity > 0 ? soldCost / soldQuantity : 0;
         realized.push({
           id: `${tx.ticker}-${tx.date}-${idx}`,
           ticker: tx.ticker,
           currency,
           date: tx.date,
-          quantity: qtySold,
-          entryPrice: entry.averageCost,
+          quantity: soldQuantity,
+          entryPrice,
           exitPrice: priceBase,
           pnlValue,
         });
-        entry.quantity = Math.max(0, entry.quantity - qtySold);
-        if (entry.quantity === 0) {
-          entry.averageCost = 0;
-        }
       }
     }
 

@@ -50,60 +50,52 @@ export function PortfolioClient() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-4">
-        <div className="flex flex-col gap-4">
+      <div className="grid gap-4">
+        <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
           <Card title="Rendimiento de la cartera" subtitle="Evolución del valor (mock hasta tener histórico)">
             <PortfolioPerformanceChart data={performanceSeries} />
           </Card>
-
-          <section className="grid gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-3">
-              <Card title="Participaciones" subtitle="Solo posiciones abiertas">
-                {holdings.length ? (
-                  <HoldingsTable holdings={holdings} />
-                ) : (
-                  <p className="text-sm text-muted">No hay posiciones abiertas todavia.</p>
-                )}
-              </Card>
-            </div>
-            <div className="grid gap-4 lg:col-span-3 lg:grid-cols-[minmax(240px,320px)_1fr]">
-              <Card title="Distribucion" subtitle="Peso por ticker (top 6)" className="max-w-sm">
-                {allocation.length > 0 ? (
-                  <>
-                    <AllocationChart data={allocation} />
-                    <div className="mt-3 grid gap-1.5 text-xs">
-                      {allocation.map((item, index) => (
-                        <div key={item.label} className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length] }}
-                            />
-                            <span className="truncate text-text" title={item.label}>
-                              {item.label}
-                            </span>
-                          </div>
-                          <span className="text-muted">{formatPercent(item.percent)}</span>
-                        </div>
-                      ))}
+          <Card title="Distribucion" subtitle="Peso por ticker (top 6)">
+            {allocation.length > 0 ? (
+              <>
+                <AllocationChart data={allocation} />
+                <div className="mt-3 grid gap-1.5 text-xs">
+                  {allocation.map((item, index) => (
+                    <div key={item.label} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length] }}
+                        />
+                        <span className="truncate text-text" title={item.label}>
+                          {item.label}
+                        </span>
+                      </div>
+                      <span className="text-muted">{formatPercent(item.percent)}</span>
                     </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted">Sin allocation todavia.</p>
-                )}
-              </Card>
-              <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado" className="w-full">
-                <RealizedTradesTable trades={realizedTrades} />
-              </Card>
-            </div>
-          </section>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted">Sin allocation todavia.</p>
+            )}
+          </Card>
         </div>
-        <div>
-          <div className="sticky top-4">
-            <AIChat />
-          </div>
+
+        <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
+          <Card title="Participaciones" subtitle="Solo posiciones abiertas">
+            {holdings.length ? (
+              <HoldingsTable holdings={holdings} />
+            ) : (
+              <p className="text-sm text-muted">No hay posiciones abiertas todavia.</p>
+            )}
+          </Card>
+          <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado">
+            <RealizedTradesTable trades={realizedTrades} />
+          </Card>
         </div>
       </div>
+      <AIChat />
     </>
   );
 }
