@@ -5,7 +5,7 @@ import { generateText } from "ai";
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_API_KEY2 = process.env.GEMINI_API_KEY2 || "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
-const GEMINI_MODEL = "gemini-1.5-flash-latest";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 async function callGemini(prompt: string) {
   const keys = [GEMINI_API_KEY, GEMINI_API_KEY2].filter(Boolean);

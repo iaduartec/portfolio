@@ -3,7 +3,7 @@ import { streamText, convertToModelMessages } from 'ai';
 
 export const maxDuration = 30;
 
-const GEMINI_MODEL = 'gemini-1.5-flash-latest';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const getGeminiModels = () => {
   const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY2].filter(Boolean) as string[];
