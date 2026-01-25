@@ -14,6 +14,7 @@ export const computeHoldings = (
   fxRate: number,
   baseCurrency: CurrencyCode
 ): Holding[] => {
+  const quantityEpsilon = 1e-6;
   const positions = new Map<
     string,
     { quantity: number; cost: number; lastPrice: number; currency: CurrencyCode }
@@ -62,6 +63,13 @@ export const computeHoldings = (
     positions.set(tx.ticker, entry);
   });
 
+  positions.forEach((entry) => {
+    if (Math.abs(entry.quantity) < quantityEpsilon) {
+      entry.quantity = 0;
+      entry.cost = 0;
+    }
+  });
+
   return Array.from(positions.entries())
     .map(([ticker, data]) => {
       const tickerKey = ticker.toUpperCase();
@@ -96,7 +104,7 @@ export const computeHoldings = (
         pnlPercent,
       };
     })
-    .filter((holding) => holding.totalQuantity > 0);
+    .filter((holding) => holding.totalQuantity > quantityEpsilon);
 };
 
 export const computeSummary = (holdings: Holding[]): PortfolioSummary => {

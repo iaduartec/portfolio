@@ -19,7 +19,19 @@ type FundamentalPoint = {
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
 const fundamentalsCache = new Map<string, { data: FundamentalPoint; expiresAt: number }>();
 const YAHOO_NEGATIVE_TTL_MS = 1000 * 60 * 15;
-const yahooNegativeCache = new Map<string, number>();
+const YAHOO_DISABLED_TTL_MS = 1000 * 60 * 10;
+const LOG_YAHOO_MISS = process.env.LOG_YAHOO_MISS === "true";
+
+type YahooCacheStore = {
+  __yahooNegativeCache?: Map<string, number>;
+  __yahooDisabledUntil?: number;
+};
+
+const yahooStore = globalThis as YahooCacheStore;
+const yahooNegativeCache = yahooStore.__yahooNegativeCache ?? new Map<string, number>();
+if (!yahooStore.__yahooNegativeCache) {
+  yahooStore.__yahooNegativeCache = yahooNegativeCache;
+}
 
 const exchangeSuffixMap: Record<string, string> = {
   NASDAQ: "",
@@ -230,6 +242,20 @@ const markYahooMiss = (ticker: string) => {
   }
 };
 
+const isYahooDisabled = () => {
+  const until = yahooStore.__yahooDisabledUntil;
+  if (!until) return false;
+  if (Date.now() > until) {
+    yahooStore.__yahooDisabledUntil = undefined;
+    return false;
+  }
+  return true;
+};
+
+const disableYahooTemporarily = () => {
+  yahooStore.__yahooDisabledUntil = Date.now() + YAHOO_DISABLED_TTL_MS;
+};
+
 const fetchFmpStableFundamentals = async (
   ticker: string,
   symbol: string,
@@ -268,7 +294,13 @@ const fetchYahooJson = async (path: string, headers: Record<string, string>) => 
   for (const baseUrl of YAHOO_BASE_URLS) {
     try {
       const res = await fetch(`${baseUrl}${path}`, { next: { revalidate: 3600 }, headers });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        if ([401, 403, 429, 999].includes(res.status)) {
+          disableYahooTemporarily();
+          break;
+        }
+        continue;
+      }
       const json = await res.json();
       return { json, baseUrl };
     } catch (err) {
@@ -282,6 +314,9 @@ const fetchYahooFundamentals = async (
   ticker: string,
   symbol: string
 ): Promise<FundamentalPoint | null> => {
+  if (isYahooDisabled()) {
+    return null;
+  }
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
@@ -430,7 +465,9 @@ export async function GET(req: Request) {
             results.push(yahooData);
             dataFound = true;
           } else {
-            console.log(`[Yahoo] No data found for ${ticker} (${yahooSymbol})`);
+            if (LOG_YAHOO_MISS && !isYahooDisabled()) {
+              console.log(`[Yahoo] No data found for ${ticker} (${yahooSymbol})`);
+            }
             markYahooMiss(ticker);
           }
         }
