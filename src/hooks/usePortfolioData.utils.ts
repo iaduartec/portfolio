@@ -33,7 +33,22 @@ export const fieldAliases: Record<keyof Transaction, string[]> = {
 export const normalizeNumber = (value: unknown): number | null => {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
   if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[^\d,.-]/g, "").replace(",", ".");
+  const stripped = value.replace(/[^\d,.-]/g, "");
+  if (!stripped) return null;
+  const hasComma = stripped.includes(",");
+  const hasDot = stripped.includes(".");
+  let cleaned = stripped;
+  if (hasComma && hasDot) {
+    const lastComma = stripped.lastIndexOf(",");
+    const lastDot = stripped.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      cleaned = stripped.replace(/\./g, "").replace(",", ".");
+    } else {
+      cleaned = stripped.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    cleaned = stripped.replace(",", ".");
+  }
   const parsed = Number(cleaned);
   return Number.isFinite(parsed) ? parsed : null;
 };
@@ -43,6 +58,15 @@ export const pickField = (row: ParsedRow, candidates: string[]) => {
   for (const [key, value] of entries) {
     const normalizedKey = key.toLowerCase().trim();
     if (candidates.includes(normalizedKey)) return value;
+  }
+  return undefined;
+};
+
+const pickFieldEntry = (row: ParsedRow, candidates: string[]) => {
+  const entries = Object.entries(row);
+  for (const [key, value] of entries) {
+    const normalizedKey = key.toLowerCase().trim();
+    if (candidates.includes(normalizedKey)) return { key: normalizedKey, value };
   }
   return undefined;
 };
@@ -90,7 +114,7 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
     row,
     fieldAliases.quantity.map((a) => a.toLowerCase()),
   );
-  const priceRaw = pickField(
+  const priceEntry = pickFieldEntry(
     row,
     fieldAliases.price.map((a) => a.toLowerCase()),
   );
@@ -107,7 +131,13 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
   const ticker = tickerRaw ? normalizeTicker(String(tickerRaw)) : "";
   const type = typeRaw ? normalizeType(String(typeRaw).trim()) : "OTHER";
   const quantity = normalizeNumber(qtyRaw) ?? 0;
-  const price = normalizeNumber(priceRaw) ?? 0;
+  let price = normalizeNumber(priceEntry?.value) ?? 0;
+  if (priceEntry?.key === "total amount") {
+    const qty = Math.abs(quantity);
+    if (Number.isFinite(qty) && qty > 0) {
+      price = price / qty;
+    }
+  }
   const fee =
     feeRaw !== undefined ? (normalizeNumber(feeRaw) ?? undefined) : undefined;
   const currency = normalizeCurrency(currencyRaw);

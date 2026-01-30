@@ -1,7 +1,18 @@
 export type CurrencyCode = "EUR" | "USD";
 
 const currencyFormatterCache = new Map<CurrencyCode, Intl.NumberFormat>();
-const EUR_EXCHANGES = new Set(["BME", "MIL", "XETR", "FRA", "PAR", "AMS", "BRU"]);
+const EUR_EXCHANGES = new Set([
+  "BME",
+  "MIL",
+  "XETR",
+  "FRA",
+  "PAR",
+  "AMS",
+  "BRU",
+  "TRADEGATE",
+  "STU",
+  "SWB",
+]);
 const EUR_SUFFIXES = [".MC", ".MI", ".DE", ".PA", ".AS", ".BR"];
 
 const getCurrencyFormatter = (currency: CurrencyCode) => {

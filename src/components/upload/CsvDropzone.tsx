@@ -27,10 +27,23 @@ interface CsvDropzoneProps {
 export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const { currency, baseCurrency, fxRate } = useCurrency();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const marketOptions = [
+    { value: "XETR", label: "Xetra (XETR · Alemania)" },
+    { value: "FRA", label: "Frankfurt (FRA · Alemania)" },
+    { value: "STU", label: "Stuttgart (STU · Alemania)" },
+    { value: "BME", label: "BME Madrid (BME · España)" },
+    { value: "MIL", label: "Borsa Italiana (MIL · Italia)" },
+    { value: "PAR", label: "Euronext Paris (PAR · Francia)" },
+    { value: "AMS", label: "Euronext Amsterdam (AMS · Países Bajos)" },
+    { value: "BRU", label: "Euronext Brussels (BRU · Bélgica)" },
+    { value: "SWX", label: "SIX Swiss (SWX · Suiza)" },
+    { value: "LSE", label: "London Stock Exchange (LSE · Reino Unido)" },
+  ];
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedRow[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [ambiguousTickers, setAmbiguousTickers] = useState<string[]>([]);
+  const [marketSelections, setMarketSelections] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -71,6 +84,14 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         setPreview(rows.slice(0, 5));
         setTransactions(parsed);
         setAmbiguousTickers(ambiguous);
+        setMarketSelections((prev) => {
+          if (ambiguous.length === 0) return {};
+          const next: Record<string, string> = {};
+          ambiguous.forEach((ticker) => {
+            if (prev[ticker]) next[ticker] = prev[ticker];
+          });
+          return next;
+        });
         if (parsed.length === 0) {
           setError(
             "No se pudo leer ninguna transacción válida. Revisa columnas: date/closing time, ticker/symbol, side(type)=BUY|SELL|DIVIDEND|FEE, qty, price, fee (opcional)."
@@ -96,22 +117,23 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const handleSave = () => {
     if (!transactions.length) return;
     if (ambiguousTickers.length > 0) {
-      const sample = ambiguousTickers.slice(0, 6).join(", ");
-      const message = `Detectamos tickers en EUR sin sufijo de mercado (ej: ${sample}). Si continúas se guardarán con TRADEGATE. ¿Quieres guardar igualmente?`;
-      if (!window.confirm(message)) {
+      const unresolved = ambiguousTickers.filter((ticker) => !marketSelections[ticker]);
+      if (unresolved.length > 0) {
+        const sample = unresolved.slice(0, 6).join(", ");
+        setError(`Selecciona un mercado para: ${sample}${unresolved.length > 6 ? "…" : ""}.`);
         return;
       }
     }
     const normalized = transactions.map((tx) => {
       const ticker = tx.ticker.trim().toUpperCase();
       if (
-        tx.currency === "EUR" &&
         ticker &&
         !ticker.includes(".") &&
         !ticker.includes(":") &&
-        !TICKER_SUFFIX_OVERRIDES[ticker]
+        !TICKER_SUFFIX_OVERRIDES[ticker] &&
+        marketSelections[ticker]
       ) {
-        return { ...tx, ticker: normalizeTicker(`TRADEGATE:${ticker}`) };
+        return { ...tx, ticker: normalizeTicker(`${marketSelections[ticker]}:${ticker}`) };
       }
       return tx;
     });
@@ -165,7 +187,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         {success && <p className="text-xs text-success">{success}</p>}
         {ambiguousTickers.length > 0 && (
           <p className="text-xs text-warning">
-            Revisa tickers EUR sin sufijo de mercado (se usará TRADEGATE):{" "}
+            Revisa tickers sin mercado definido (debes seleccionar uno para guardar):{" "}
             <span className="font-semibold text-text">
               {ambiguousTickers.slice(0, 8).join(", ")}
               {ambiguousTickers.length > 8 ? "…" : ""}
@@ -173,6 +195,40 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
           </p>
         )}
       </div>
+      {ambiguousTickers.length > 0 && (
+        <div className="mt-4 rounded-lg border border-border/70 bg-surface-muted/30 p-4">
+          <p className="text-xs uppercase tracking-[0.08em] text-muted">
+            Selecciona mercado por ticker
+          </p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {ambiguousTickers.map((ticker) => (
+              <label
+                key={ticker}
+                className="flex items-center justify-between gap-3 rounded-md border border-border/60 bg-surface px-3 py-2 text-sm"
+              >
+                <span className="font-semibold text-text">{ticker}</span>
+                <select
+                  value={marketSelections[ticker] ?? ""}
+                  onChange={(event) =>
+                    setMarketSelections((prev) => ({
+                      ...prev,
+                      [ticker]: event.target.value,
+                    }))
+                  }
+                  className="min-w-[220px] rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
+                >
+                  <option value="">Selecciona mercado</option>
+                  {marketOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       {preview.length > 0 && (
         <div className="mt-6 space-y-2 text-sm">

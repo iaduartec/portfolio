@@ -5,6 +5,7 @@ const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
   OZTA: "GRF.MC",
   VHM: "SCYR.MC",
   REP: "REP.MC",
+  "7LB": "7LB.SG",
 };
 
 const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
@@ -14,6 +15,7 @@ const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
   OZTA: "BME:GRF",
   VHM: "BME:SCYR",
   REP: "BME:REP",
+  "7LB": "SWB:7LB",
   FSS: "NYSE:FSS",
   RL: "NYSE:RL",
   AIZ: "NYSE:AIZ",
@@ -30,6 +32,7 @@ const TRADINGVIEW_SUFFIX_TO_EXCHANGE: Record<string, string> = {
   PA: "PAR",
   AS: "AMS",
   BR: "BRU",
+  SG: "SWB",
   SW: "SWX",
   L: "LSE",
   IR: "ICE",
@@ -52,6 +55,17 @@ const EXCHANGE_ALIAS_MAP: Record<string, string> = {
   EBR: "BRU",
   LON: "LSE",
   SIX: "SWX",
+  STU: "STU",
+  XSTU: "STU",
+  STUTTGART: "STU",
+  SWB: "STU",
+};
+
+const TRADINGVIEW_EXCHANGE_ALIAS: Record<string, string> = {
+  STU: "SWB",
+  XSTU: "SWB",
+  STUTTGART: "SWB",
+  TRADEGATE: "XETR",
 };
 
 export const resolveExchange = (exchange: string) => {
@@ -68,6 +82,8 @@ export const resolveYahooSymbol = (
   const override = YAHOO_TICKER_OVERRIDES[cleaned];
   if (override) return override;
   const [exchangeRaw, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
+  const rawOverride = YAHOO_TICKER_OVERRIDES[rawSymbol];
+  if (rawOverride) return rawOverride;
   if (rawSymbol.includes(".")) return rawSymbol;
   const exchange = exchangeRaw ? resolveExchange(exchangeRaw) : "";
   const suffix = exchange ? exchangeSuffixMap[exchange] ?? "" : "";
@@ -77,7 +93,11 @@ export const resolveYahooSymbol = (
 export const resolveTradingViewSymbol = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   if (!cleaned) return "";
-  if (cleaned.includes(":")) return cleaned;
+  if (cleaned.includes(":")) {
+    const [exchange, rawSymbol] = cleaned.split(":", 2);
+    const normalizedExchange = TRADINGVIEW_EXCHANGE_ALIAS[exchange] ?? exchange;
+    return `${normalizedExchange}:${rawSymbol}`;
+  }
   if (cleaned.includes(".")) {
     const [rawSymbol, suffix] = cleaned.split(".", 2);
     const override = TRADINGVIEW_TICKER_OVERRIDES[rawSymbol];

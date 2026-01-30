@@ -21,6 +21,7 @@ const exchangeSuffixMap: Record<string, string> = {
   MIL: ".MI",
   XETR: ".DE",
   FRA: ".DE",
+  STU: ".SG",
   LSE: ".L",
   SWX: ".SW",
 };
@@ -30,6 +31,7 @@ const exchangeRegionMap: Record<string, string> = {
   MIL: "Italy",
   XETR: "Germany",
   FRA: "Germany",
+  STU: "Germany",
   LSE: "United Kingdom",
   SWX: "Switzerland",
 };
@@ -39,6 +41,7 @@ const exchangeYahooSuffixMap: Record<string, string> = {
   MIL: ".MI",
   XETR: ".DE",
   FRA: ".DE",
+  STU: ".SG",
   LSE: ".L",
   SWX: ".SW",
 };
