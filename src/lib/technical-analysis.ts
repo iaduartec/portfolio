@@ -456,7 +456,7 @@ export const detectHeadAndShoulders = (
       if (baseline > 0 && breakVolume < baseline * breakoutVolumeBoost) continue;
     }
 
-    const pattern = {
+    const pattern: Pattern = {
       kind: "head-shoulders",
       name: isTriggered ? "HCH (Confirmado)" : "Hombro Cabeza Hombro",
       description: `Reversión bajista. ${isTriggered ? "Neckline rota." : "Esperar ruptura de neckline."} Objetivo: ${projection.toFixed(2)}`,
@@ -593,7 +593,7 @@ export const detectHeadAndShoulders = (
       if (baseline > 0 && breakVolume < baseline * breakoutVolumeBoost) continue;
     }
 
-    const pattern = {
+    const pattern: Pattern = {
       kind: "inverse-head-shoulders",
       name: isTriggered ? "HCH Invertido (Confirmado)" : "HCH Invertido",
       description: `Reversión alcista. ${isTriggered ? "Neckline rota." : "Esperar ruptura de neckline."} Objetivo: ${projection.toFixed(2)}`,
