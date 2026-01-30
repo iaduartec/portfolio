@@ -96,3 +96,62 @@ a {
   --tv-widget-tooltip-text-color: #d1d4dc;
   --tv-widget-tooltip-background-color: #0f141f;
 }
+
+.ai-analysis-output h1,
+.ai-analysis-output h2,
+.ai-analysis-output h3 {
+  color: #f0f3f8;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin: 0.8rem 0 0.4rem;
+}
+
+.ai-analysis-output h1 {
+  font-size: 1.05rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.4rem;
+  margin-top: 0;
+}
+
+.ai-analysis-output h2 {
+  font-size: 0.98rem;
+  background: rgba(41, 98, 255, 0.12);
+  border: 1px solid rgba(41, 98, 255, 0.2);
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.6rem;
+}
+
+.ai-analysis-output h3 {
+  font-size: 0.95rem;
+}
+
+.ai-analysis-output p {
+  margin: 0.35rem 0;
+}
+
+.ai-analysis-output ul,
+.ai-analysis-output ol {
+  margin: 0.5rem 0 0.6rem 1.15rem;
+  padding: 0;
+}
+
+.ai-analysis-output li {
+  margin: 0.15rem 0;
+}
+
+.ai-analysis-output strong {
+  color: #e6ebf2;
+}
+
+.ai-analysis-output hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0.8rem 0;
+}
+
+.ai-analysis-output code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.4rem;
+  font-size: 0.85em;
+}

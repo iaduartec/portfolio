@@ -71,8 +71,25 @@ export function AITechnicalAnalysis() {
             Datos actuales:
             ${JSON.stringify(validContexts, null, 2)}
 
-            Basa tus recomendaciones en la combinación de patrones, RSI y tendencia. 
-            Responde en español de forma profesional y estructurada.
+            Responde en español y SOLO en Markdown, sin cartas ni introducciones largas.
+            Formato requerido:
+            # Resumen
+            - 3 a 5 bullets claros sobre el estado general.
+
+            # Recomendaciones por activo
+            ## {TICKER}
+            - Precio actual: {valor}
+            - Tendencia: {alcista/bajista/lateral}
+            - Patrones: {lista}
+            - RSI: {valor}
+            - MACD: {valor}
+            - Recomendación: {Salida/Ampliar/Reducir/Mantener}
+            - Precio Objetivo (PT): {valor o rango}
+            - Stop Loss (SL): {valor}
+            - Confianza: {alta/media/baja}
+
+            Si no hay señal clara, indica "Mantener" y explica en una línea.
+            Mantén cada sección concisa (máx. 6-8 líneas).
         `;
 
             await sendMessage({ text: prompt });
@@ -107,7 +124,7 @@ export function AITechnicalAnalysis() {
                 </div>
 
                 {latestText && (
-                    <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-5 text-sm text-text leading-relaxed">
+                    <div className="ai-analysis-output rounded-lg border border-border/60 bg-surface-muted/40 p-5 text-sm text-text leading-relaxed">
                         <MemoizedMarkdown id="portfolio-ai-analysis" content={latestText} />
                     </div>
                 )}

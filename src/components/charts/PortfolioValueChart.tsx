@@ -32,6 +32,7 @@ export function PortfolioValueChart({ ticker, name }: PortfolioValueChartProps) 
         stopLoss?: string;
     } | null>(null);
     const [isAiLoading, setIsAiLoading] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
 
     useEffect(() => {
         let ignore = false;
@@ -58,15 +59,22 @@ export function PortfolioValueChart({ ticker, name }: PortfolioValueChartProps) 
     const handleAiAudit = async () => {
         if (liveSeries.candles.length === 0) return;
         setIsAiLoading(true);
+        setAiError(null);
         try {
             const res = await fetch("/api/market/analysis", {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ candles: liveSeries.candles, symbol: ticker }),
             });
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.error || "No se pudo completar la auditoría IA.");
+            }
             setAiResult(data);
         } catch (err) {
             console.error("AI Audit failed:", err);
+            setAiResult(null);
+            setAiError(err instanceof Error ? err.message : "Error inesperado.");
         } finally {
             setIsAiLoading(false);
         }
@@ -291,7 +299,11 @@ export function PortfolioValueChart({ ticker, name }: PortfolioValueChartProps) 
                         </button>
                     </div>
 
-                    {aiResult ? (
+                    {aiError ? (
+                        <div className="h-[100px] flex flex-col items-center justify-center rounded border border-danger/40 bg-danger/5 px-4">
+                            <p className="text-[10px] text-danger text-center">{aiError}</p>
+                        </div>
+                    ) : aiResult ? (
                         <div className="space-y-4">
                             <p className="text-[11px] leading-relaxed text-text/80 bg-surface/50 p-3 rounded border border-border/50 italic">
                                 &quot;{aiResult.summary}&quot;

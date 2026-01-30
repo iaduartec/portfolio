@@ -1,8 +1,21 @@
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+
+const GEMINI_MODEL = "gemini-2.5-flash";
+
+const getGeminiModels = () => {
+  const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY2].filter(Boolean) as string[];
+  return keys.map((apiKey) => createGoogleGenerativeAI({ apiKey })(GEMINI_MODEL));
+};
+
+const buildErrorResponse = (message: string) =>
+  new Response(JSON.stringify({ error: message }), {
+    status: 500,
+    headers: { "Content-Type": "application/json" },
+  });
 
 const AnalysisSchema = z.object({
   patterns: z.array(z.object({
@@ -26,16 +39,27 @@ export async function POST(req: Request) {
     const { candles, symbol } = await req.json();
 
     if (!candles || !Array.isArray(candles)) {
-      return new Response("Invalid candles data", { status: 400 });
+      return new Response(JSON.stringify({ error: "Invalid candles data" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // Limit data to last 100 candles for the AI to focus
     const recentData = candles.slice(-100);
 
-    const { object } = await generateObject({
-      model: google("gemini-1.5-pro-latest"),
-      schema: AnalysisSchema,
-      prompt: `
+    const models = getGeminiModels();
+    if (models.length === 0) {
+      return buildErrorResponse("GEMINI_API_KEY falta en el servidor.");
+    }
+
+    let lastError: unknown;
+    for (const model of models) {
+      try {
+        const { object } = await generateObject({
+          model,
+          schema: AnalysisSchema,
+          prompt: `
         Analyze the following OHLC market data for ${symbol || "the asset"}.
         Identify the most significant technical patterns, support/resistance levels, and trendlines.
         Return only high-confidence patterns that a professional trader would see.
@@ -49,11 +73,24 @@ export async function POST(req: Request) {
         For each pattern, provide the exact time and price coordinates for its key points (e.g., for a Double Top, provide the two peaks and the valley between them).
         Return everything in Spanish.
       `,
-    });
+        });
 
-    return Response.json(object);
+        return Response.json(object);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    const detail = lastError instanceof Error ? lastError.message : "Error desconocido";
+    return buildErrorResponse(`Error en Gemini: ${detail}`);
   } catch (error) {
     console.error("AI Analysis Error:", error);
-    return new Response("Error during AI analysis", { status: 500 });
+    return new Response(
+      JSON.stringify({
+        error: "Error during AI analysis",
+        details: error instanceof Error ? error.message : String(error),
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }
