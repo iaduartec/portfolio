@@ -200,7 +200,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
         setFundamentals((prev) => mergeFundamentals(prev, next));
         setFmpLimited(Boolean(payload?.meta?.fmpLimited));
       })
-      .catch(() => {});
+      .catch(() => { });
     return () => controller.abort();
   }, [holdings]);
 
@@ -281,7 +281,14 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     onClick={() => onSelect?.(holding.ticker)}
                   >
                     <td className="whitespace-nowrap px-4 py-3 font-semibold text-text">
-                      {holding.ticker}
+                      <div className="flex flex-col">
+                        <span className="text-base text-text">
+                          {holding.name || holding.ticker}
+                        </span>
+                        {holding.name && (
+                          <span className="text-xs text-muted font-normal">{holding.ticker}</span>
+                        )}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
                       <div className="flex flex-col items-end gap-0.5">

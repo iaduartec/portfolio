@@ -34,19 +34,37 @@ export type Pattern = {
   kind:
     | "double-top"
     | "double-bottom"
+    | "triple-top"
+    | "triple-bottom"
     | "head-shoulders"
+    | "inverse-head-shoulders"
     | "ascending-triangle"
     | "descending-triangle"
     | "symmetrical-triangle"
+    | "rising-wedge"
+    | "falling-wedge"
+    | "bullish-flag"
+    | "bearish-flag"
+    | "bullish-pennant"
+    | "bearish-pennant"
+    | "rectangle"
+    | "cup-handle"
     | "rising-channel"
     | "falling-channel"
     | "bullish-engulfing"
-    | "bearish-engulfing";
+    | "bearish-engulfing"
+    | "doji"
+    | "hammer"
+    | "hanging-man"
+    | "shooting-star"
+    | "inverted-hammer";
   name: string;
   description: string;
   confidence: number;
   lines: PatternLine[];
   markers: SeriesMarker<Time>[];
+  projection?: number; // Price target
+  stopLoss?: number;   // Invalidation level
 };
 
 export type AnalysisResult = {
@@ -75,54 +93,14 @@ export type IndicatorSummary = {
   ichimokuSpanB?: number;
 };
 
-export const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): AnalysisResult => {
-  if (candles.length === 0) {
-    return { candles: [], volumes: [], patterns: [], support: [] };
-  }
-  const swings = findSwings(candles, 3);
-  const patterns: Pattern[] = [];
-
-  const doubleTop = detectDoubleTop(candles, swings);
-  if (doubleTop) patterns.push(doubleTop);
-
-  const doubleBottom = detectDoubleBottom(candles, swings);
-  if (doubleBottom) patterns.push(doubleBottom);
-
-  const headShoulders = detectHeadAndShoulders(candles, swings);
-  if (headShoulders) patterns.push(headShoulders);
-
-  const ascendingTriangle = detectAscendingTriangle(candles, swings);
-  if (ascendingTriangle) patterns.push(ascendingTriangle);
-
-  const descendingTriangle = detectDescendingTriangle(candles, swings);
-  if (descendingTriangle) patterns.push(descendingTriangle);
-
-  const symmetricalTriangle = detectSymmetricalTriangle(candles, swings);
-  if (symmetricalTriangle) patterns.push(symmetricalTriangle);
-
-  const risingChannel = detectChannel(candles, swings, "rising");
-  if (risingChannel) patterns.push(risingChannel);
-
-  const fallingChannel = detectChannel(candles, swings, "falling");
-  if (fallingChannel) patterns.push(fallingChannel);
-
-  const bullishEngulfing = detectEngulfing(candles, "bullish");
-  if (bullishEngulfing) patterns.push(bullishEngulfing);
-
-  const bearishEngulfing = detectEngulfing(candles, "bearish");
-  if (bearishEngulfing) patterns.push(bearishEngulfing);
-
-  const supportLines = buildSupportResistance(candles, swings);
-
-  return { candles, volumes, patterns, support: supportLines };
-};
+// (buildAnalysis moved to end of file to fix hoisting issues)
 
 export const normalizeLineWidth = (value?: number): LineWidth => {
   if (value === 1 || value === 2 || value === 3 || value === 4) return value;
   return 2;
 };
 
-export const findSwings = (candles: CandlePoint[], window: number): SwingPoint[] => {
+export const findSwings = (candles: CandlePoint[], window: number = 8): SwingPoint[] => {
   const swings: SwingPoint[] = [];
   for (let i = window; i < candles.length - window; i += 1) {
     const current = candles[i];
@@ -138,53 +116,107 @@ export const findSwings = (candles: CandlePoint[], window: number): SwingPoint[]
   return swings;
 };
 
-export const detectDoubleTop = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+// Helper: Check trend before a pattern
+const checkTrend = (candles: CandlePoint[], endIndex: number, duration: number, direction: "up" | "down"): boolean => {
+  const startIndex = Math.max(0, endIndex - duration);
+  if (endIndex - startIndex < duration / 2) return false; // Not enough data
+
+  const startPrice = candles[startIndex].close;
+  const endPrice = candles[endIndex].close;
+
+  if (direction === "up") return endPrice > startPrice * 1.05; // At least 5% gain
+  return endPrice < startPrice * 0.95; // At least 5% drop
+};
+
+export const detectDoubleTop = (candles: CandlePoint[], swings: SwingPoint[], _volumes?: VolumePoint[]): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
+
+  // Requisitos: tendencia previa, 2 máximos similares, valle intermedio claro
+  // Formación típica: 15-120 velas
   for (let i = 0; i < highs.length - 1; i += 1) {
     for (let j = i + 1; j < highs.length; j += 1) {
       const left = highs[i];
       const right = highs[j];
-      const gap = right.index - left.index;
-      if (gap < 8 || gap > 35) continue;
+
+      // Formación debe tener entre 15-120 velas
+      const formationLength = right.index - left.index;
+      if (formationLength < 15 || formationLength > 120) continue;
+
       const avg = (left.price + right.price) / 2;
       const diff = Math.abs(left.price - right.price) / avg;
-      if (diff > 0.015) continue;
-      const valley = candles
-        .slice(left.index, right.index)
-        .reduce((min, point) => Math.min(min, point.low), Number.POSITIVE_INFINITY);
-      if ((avg - valley) / avg < 0.03) continue;
-      const markers: SeriesMarker<Time>[] = [
-        { time: left.time, position: "aboveBar", color: "#f6c343", shape: "circle", text: "DT 1" },
-        { time: right.time, position: "aboveBar", color: "#f6c343", shape: "circle", text: "DT 2" },
-      ];
+
+      // Los dos máximos deben ser similares (máx 2% diferencia)
+      if (diff > 0.02) continue;
+
+      // Encontrar el valle intermedio (punto más bajo entre los dos picos)
+      const valleyData = candles.slice(left.index, right.index + 1).reduce(
+        (acc, c, idx) => (c.low < acc.price ? { price: c.low, idx: left.index + idx } : acc),
+        { price: Number.POSITIVE_INFINITY, idx: left.index }
+      );
+      const valley = valleyData.price;
+      const valleyTime = candles[valleyData.idx].time;
+
+      // Valle intermedio debe ser significativo (retroceso mínimo 3%)
+      const height = avg - valley;
+      const retracement = height / avg;
+      if (retracement < 0.03) continue;
+
+      // REQUISITO: Tendencia previa alcista clara
+      if (!checkTrend(candles, left.index, Math.min(40, left.index), "up")) continue;
+
+      // INVALIDACIÓN: No debe haber un máximo mayor entre los dos picos
+      const highestIntermediate = Math.max(...candles.slice(left.index + 1, right.index).map(c => c.high));
+      const patternMax = Math.max(left.price, right.price);
+      if (highestIntermediate > patternMax * 1.005) continue;
+
+      // INVALIDACIÓN: Si precio hizo nuevos máximos después del patrón
+      const postPatternCandles = candles.slice(right.index);
+      if (postPatternCandles.length > 3) {
+        const postPatternHigh = Math.max(...postPatternCandles.map(c => c.high));
+        if (postPatternHigh > patternMax * 1.01) continue;
+      }
+
+      const lastPrice = candles[candles.length - 1].close;
+      // Gatillo: cierre rompiendo el valle (neckline)
+      const isTriggered = lastPrice < valley;
+      // Proyección: altura del patrón proyectada desde la ruptura
+      const projection = valley - height;
+      // Stop: por encima del 2º techo
+      const stopLoss = right.price * 1.01;
+
       return {
         kind: "double-top",
-        name: "Doble techo",
-        description: "Dos maximos similares con retroceso intermedio.",
-        confidence: Number((1 - diff).toFixed(2)),
-        markers,
+        name: isTriggered ? "Doble Techo (Confirmado)" : "Doble Techo",
+        description: `Reversión bajista. ${isTriggered ? "Valle roto." : "Esperar ruptura del valle."} Objetivo: ${projection.toFixed(2)}`,
+        confidence: isTriggered ? 0.92 : 0.80,
+        markers: [
+          { time: left.time, position: "aboveBar", color: "#f6c343", shape: "circle", text: "DT 1" },
+          { time: right.time, position: "aboveBar", color: "#f6c343", shape: "circle", text: "DT 2" },
+        ],
+        projection: Number(projection.toFixed(2)),
+        stopLoss: Number(stopLoss.toFixed(2)),
         lines: [
           {
             id: "double-top-peak",
-            name: "Zona de techo",
+            name: "Resistencia (Techos)",
             points: [
               { time: left.time, value: left.price },
               { time: right.time, value: right.price },
             ],
             color: "rgba(246,195,67,0.95)",
             style: LineStyle.Solid,
-            width: 2,
+            width: 3,
           },
           {
-            id: "double-top-valley",
-            name: "Soporte intermedio",
+            id: "double-top-neckline",
+            name: "Valle (Neckline)",
             points: [
-              { time: left.time, value: valley },
-              { time: right.time, value: valley },
+              { time: valleyTime, value: valley },
+              { time: candles[candles.length - 1].time, value: isTriggered ? projection : valley },
             ],
-            color: "rgba(246,195,67,0.55)",
+            color: isTriggered ? "rgba(246,70,93,0.9)" : "rgba(246,109,109,0.6)",
             style: LineStyle.Dashed,
-            width: 1,
+            width: 2,
           },
         ],
       };
@@ -193,53 +225,95 @@ export const detectDoubleTop = (candles: CandlePoint[], swings: SwingPoint[]): P
   return null;
 };
 
-export const detectDoubleBottom = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+export const detectDoubleBottom = (candles: CandlePoint[], swings: SwingPoint[], _volumes?: VolumePoint[]): Pattern | null => {
   const lows = swings.filter((swing) => swing.type === "low");
+
+  // Requisitos: tendencia previa bajista, 2 mínimos similares, pico intermedio claro
+  // Formación típica: 15-120 velas
   for (let i = 0; i < lows.length - 1; i += 1) {
     for (let j = i + 1; j < lows.length; j += 1) {
       const left = lows[i];
       const right = lows[j];
-      const gap = right.index - left.index;
-      if (gap < 8 || gap > 35) continue;
+
+      // Formación debe tener entre 15-120 velas
+      const formationLength = right.index - left.index;
+      if (formationLength < 15 || formationLength > 120) continue;
+
       const avg = (left.price + right.price) / 2;
       const diff = Math.abs(left.price - right.price) / avg;
-      if (diff > 0.015) continue;
-      const peak = candles
-        .slice(left.index, right.index)
-        .reduce((max, point) => Math.max(max, point.high), Number.NEGATIVE_INFINITY);
-      if ((peak - avg) / avg < 0.03) continue;
-      const markers: SeriesMarker<Time>[] = [
-        { time: left.time, position: "belowBar", color: "#43c6f6", shape: "circle", text: "DB 1" },
-        { time: right.time, position: "belowBar", color: "#43c6f6", shape: "circle", text: "DB 2" },
-      ];
+
+      // Los dos mínimos deben ser similares (máx 2% diferencia)
+      if (diff > 0.02) continue;
+
+      // Encontrar el pico intermedio (punto más alto entre los dos suelos)
+      const peakData = candles.slice(left.index, right.index + 1).reduce(
+        (acc, c, idx) => (c.high > acc.price ? { price: c.high, idx: left.index + idx } : acc),
+        { price: Number.NEGATIVE_INFINITY, idx: left.index }
+      );
+      const peak = peakData.price;
+      const peakTime = candles[peakData.idx].time;
+
+      // Pico intermedio debe ser significativo (retroceso mínimo 3%)
+      const height = peak - avg;
+      const retracement = height / avg;
+      if (retracement < 0.03) continue;
+
+      // REQUISITO: Tendencia previa bajista clara
+      if (!checkTrend(candles, left.index, Math.min(40, left.index), "down")) continue;
+
+      // INVALIDACIÓN: No debe haber un mínimo menor entre los dos suelos
+      const lowestIntermediate = Math.min(...candles.slice(left.index + 1, right.index).map(c => c.low));
+      const patternMin = Math.min(left.price, right.price);
+      if (lowestIntermediate < patternMin * 0.995) continue;
+
+      // INVALIDACIÓN: Si precio hizo nuevos mínimos después del patrón
+      const postPatternCandles = candles.slice(right.index);
+      if (postPatternCandles.length > 3) {
+        const postPatternLow = Math.min(...postPatternCandles.map(c => c.low));
+        if (postPatternLow < patternMin * 0.99) continue;
+      }
+
+      const lastPrice = candles[candles.length - 1].close;
+      // Gatillo: cierre rompiendo el pico (neckline)
+      const isTriggered = lastPrice > peak;
+      // Proyección: altura del patrón proyectada desde la ruptura
+      const projection = peak + height;
+      // Stop: por debajo del 2º suelo
+      const stopLoss = right.price * 0.99;
+
       return {
         kind: "double-bottom",
-        name: "Doble suelo",
-        description: "Dos minimos similares con rebote intermedio.",
-        confidence: Number((1 - diff).toFixed(2)),
-        markers,
+        name: isTriggered ? "Doble Suelo (Confirmado)" : "Doble Suelo",
+        description: `Reversión alcista. ${isTriggered ? "Pico roto." : "Esperar ruptura del pico."} Objetivo: ${projection.toFixed(2)}`,
+        confidence: isTriggered ? 0.92 : 0.80,
+        markers: [
+          { time: left.time, position: "belowBar", color: "#43c6f6", shape: "circle", text: "DB 1" },
+          { time: right.time, position: "belowBar", color: "#43c6f6", shape: "circle", text: "DB 2" },
+        ],
+        projection: Number(projection.toFixed(2)),
+        stopLoss: Number(stopLoss.toFixed(2)),
         lines: [
           {
             id: "double-bottom-floor",
-            name: "Zona de suelo",
+            name: "Soporte (Suelos)",
             points: [
               { time: left.time, value: left.price },
               { time: right.time, value: right.price },
             ],
             color: "rgba(67,198,246,0.95)",
             style: LineStyle.Solid,
-            width: 2,
+            width: 3,
           },
           {
-            id: "double-bottom-peak",
-            name: "Resistencia intermedia",
+            id: "double-bottom-neckline",
+            name: "Pico (Neckline)",
             points: [
-              { time: left.time, value: peak },
-              { time: right.time, value: peak },
+              { time: peakTime, value: peak },
+              { time: candles[candles.length - 1].time, value: isTriggered ? projection : peak },
             ],
-            color: "rgba(67,198,246,0.55)",
+            color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(0,192,116,0.6)",
             style: LineStyle.Dashed,
-            width: 1,
+            width: 2,
           },
         ],
       };
@@ -250,48 +324,97 @@ export const detectDoubleBottom = (candles: CandlePoint[], swings: SwingPoint[])
 
 export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
+  const lows = swings.filter((swing) => swing.type === "low");
+
+  // 1. Standard Head & Shoulders (Bearish)
+  // Requisitos: tendencia previa alcista, 3 picos (cabeza mayor), neckline definida, formación 20-150 velas
   for (let i = 0; i < highs.length - 2; i += 1) {
     const left = highs[i];
     const head = highs[i + 1];
     const right = highs[i + 2];
-    if (head.index - left.index < 6 || right.index - head.index < 6) continue;
+
+    // Formación debe tener entre 20-150 velas
+    const formationLength = right.index - left.index;
+    if (formationLength < 20 || formationLength > 150) continue;
+
+    // Separación mínima entre puntos (al menos 5 velas entre cada uno)
+    if (head.index - left.index < 5 || right.index - head.index < 5) continue;
+
+    // Simetría de hombros (máx 5% diferencia)
     const shoulderAvg = (left.price + right.price) / 2;
-    if (Math.abs(left.price - right.price) / shoulderAvg > 0.02) continue;
-    if (head.price < shoulderAvg * 1.03) continue;
-    const low1 = candles
+    if (Math.abs(left.price - right.price) / shoulderAvg > 0.05) continue;
+
+    // Cabeza debe ser claramente más alta que los hombros (al menos 2%)
+    if (head.price < shoulderAvg * 1.02) continue;
+
+    // REQUISITO: Tendencia previa alcista clara
+    if (!checkTrend(candles, left.index, Math.min(40, left.index), "up")) continue;
+
+    // Encontrar valles entre hombros y cabeza para la neckline
+    const valley1Idx = candles
       .slice(left.index, head.index)
-      .reduce((min, point) => Math.min(min, point.low), Number.POSITIVE_INFINITY);
-    const low2 = candles
+      .reduce((minIdx, c, idx) => (c.low < candles[left.index + minIdx].low ? idx : minIdx), 0);
+    const valley2Idx = candles
       .slice(head.index, right.index)
-      .reduce((min, point) => Math.min(min, point.low), Number.POSITIVE_INFINITY);
-    const necklineDrop = Math.min(low1, low2);
-    if ((shoulderAvg - necklineDrop) / shoulderAvg < 0.02) continue;
-    const markers: SeriesMarker<Time>[] = [
-      { time: left.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "H1" },
-      { time: head.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "H2" },
-      { time: right.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "H3" },
-    ];
+      .reduce((minIdx, c, idx) => (c.low < candles[head.index + minIdx].low ? idx : minIdx), 0);
+
+    const valley1Price = candles[left.index + valley1Idx].low;
+    const valley2Price = candles[head.index + valley2Idx].low;
+    const valley1Time = candles[left.index + valley1Idx].time;
+    const valley2Time = candles[head.index + valley2Idx].time;
+
+    // Neckline: línea que conecta los dos valles
+    const necklineSlope = (valley2Price - valley1Price) / (head.index + valley2Idx - left.index - valley1Idx);
+
+
+    const height = head.price - Math.max(valley1Price, valley2Price);
+    if (height <= 0) continue;
+
+    // Altura mínima significativa (al menos 3% del precio)
+    if (height / head.price < 0.03) continue;
+
+    const lastPrice = candles[candles.length - 1].close;
+    const currentNeckline = valley1Price + necklineSlope * (candles.length - 1 - left.index - valley1Idx);
+
+    // Gatillo: cierre rompiendo neckline
+    const isTriggered = lastPrice < currentNeckline;
+    const projection = currentNeckline - height;
+
+    // Stop conservador: sobre el hombro derecho tras pullback
+    const stopLoss = right.price * 1.01;
+
+    // INVALIDACIÓN: Si precio hizo nuevos máximos después del patrón
+    const postPatternHigh = Math.max(...candles.slice(right.index).map(c => c.high));
+    if (postPatternHigh > head.price * 1.01) continue;
+
     return {
       kind: "head-shoulders",
-      name: "Hombro Cabeza Hombro",
-      description: "Tres picos con el central dominante y neckline definido.",
-      confidence: Number(((head.price - shoulderAvg) / shoulderAvg).toFixed(2)),
-      markers,
+      name: isTriggered ? "HCH (Confirmado)" : "Hombro Cabeza Hombro",
+      description: `Reversión bajista. ${isTriggered ? "Neckline rota." : "Esperar ruptura de neckline."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.92 : 0.78,
+      markers: [
+        { time: left.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "H" },
+        { time: head.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "C" },
+        { time: right.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "H" },
+      ],
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
       lines: [
         {
           id: "hs-neckline",
           name: "Neckline",
           points: [
-            { time: left.time, value: low1 },
-            { time: right.time, value: low2 },
+            { time: valley1Time, value: valley1Price },
+            { time: valley2Time, value: valley2Price },
+            { time: candles[candles.length - 1].time, value: isTriggered ? projection : currentNeckline },
           ],
-          color: "rgba(246,109,109,0.7)",
+          color: isTriggered ? "rgba(246,70,93,0.9)" : "rgba(246,109,109,0.7)",
           style: LineStyle.Dashed,
-          width: 2,
+          width: 3,
         },
         {
           id: "hs-shoulders",
-          name: "Linea de hombros",
+          name: "Estructura HCH",
           points: [
             { time: left.time, value: left.price },
             { time: head.time, value: head.price },
@@ -299,40 +422,170 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
           ],
           color: "rgba(246,109,109,0.9)",
           style: LineStyle.Solid,
-          width: 2,
+          width: 3,
         },
       ],
     };
   }
+
+  // 2. Inverse Head & Shoulders (Bullish)
+  // Requisitos: tendencia previa bajista, 3 valles (cabeza menor), neckline definida, formación 20-150 velas
+  for (let i = 0; i < lows.length - 2; i += 1) {
+    const left = lows[i];
+    const head = lows[i + 1];
+    const right = lows[i + 2];
+
+    // Formación debe tener entre 20-150 velas
+    const formationLength = right.index - left.index;
+    if (formationLength < 20 || formationLength > 150) continue;
+
+    // Separación mínima
+    if (head.index - left.index < 5 || right.index - head.index < 5) continue;
+
+    // Simetría de hombros
+    const shoulderAvg = (left.price + right.price) / 2;
+    if (Math.abs(left.price - right.price) / shoulderAvg > 0.05) continue;
+
+    // Cabeza debe ser claramente más baja (al menos 2%)
+    if (head.price > shoulderAvg * 0.98) continue;
+
+    // REQUISITO: Tendencia previa bajista clara
+    if (!checkTrend(candles, left.index, Math.min(40, left.index), "down")) continue;
+
+    // Encontrar picos entre hombros y cabeza para la neckline
+    const peak1Idx = candles
+      .slice(left.index, head.index)
+      .reduce((maxIdx, c, idx) => (c.high > candles[left.index + maxIdx].high ? idx : maxIdx), 0);
+    const peak2Idx = candles
+      .slice(head.index, right.index)
+      .reduce((maxIdx, c, idx) => (c.high > candles[head.index + maxIdx].high ? idx : maxIdx), 0);
+
+    const peak1Price = candles[left.index + peak1Idx].high;
+    const peak2Price = candles[head.index + peak2Idx].high;
+    const peak1Time = candles[left.index + peak1Idx].time;
+    const peak2Time = candles[head.index + peak2Idx].time;
+
+    const necklineSlope = (peak2Price - peak1Price) / (head.index + peak2Idx - left.index - peak1Idx);
+    const height = Math.min(peak1Price, peak2Price) - head.price;
+
+    if (height <= 0) continue;
+    if (height / head.price < 0.03) continue;
+
+    const lastPrice = candles[candles.length - 1].close;
+    const currentNeckline = peak1Price + necklineSlope * (candles.length - 1 - left.index - peak1Idx);
+
+    // Gatillo: cierre rompiendo neckline al alza
+    const isTriggered = lastPrice > currentNeckline;
+    const projection = currentNeckline + height;
+
+    // Stop agresivo: bajo el hombro derecho
+    const stopLoss = right.price * 0.99;
+
+    // INVALIDACIÓN: Si precio hizo nuevos mínimos después del patrón
+    const postPatternLow = Math.min(...candles.slice(right.index).map(c => c.low));
+    if (postPatternLow < head.price * 0.99) continue;
+
+    return {
+      kind: "inverse-head-shoulders",
+      name: isTriggered ? "HCH Invertido (Confirmado)" : "HCH Invertido",
+      description: `Reversión alcista. ${isTriggered ? "Neckline rota." : "Esperar ruptura de neckline."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.92 : 0.78,
+      markers: [
+        { time: left.time, position: "belowBar", color: "#00c074", shape: "circle", text: "h" },
+        { time: head.time, position: "belowBar", color: "#00c074", shape: "circle", text: "c" },
+        { time: right.time, position: "belowBar", color: "#00c074", shape: "circle", text: "h" },
+      ],
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      lines: [
+        {
+          id: "inv-hs-neckline",
+          name: "Neckline",
+          points: [
+            { time: peak1Time, value: peak1Price },
+            { time: peak2Time, value: peak2Price },
+            { time: candles[candles.length - 1].time, value: isTriggered ? projection : currentNeckline },
+          ],
+          color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(0,192,116,0.7)",
+          style: LineStyle.Dashed,
+          width: 3,
+        },
+        {
+          id: "inv-hs-structure",
+          name: "Estructura HCH Inv",
+          points: [
+            { time: left.time, value: left.price },
+            { time: head.time, value: head.price },
+            { time: right.time, value: right.price },
+          ],
+          color: "rgba(0,192,116,0.9)",
+          style: LineStyle.Solid,
+          width: 3,
+        },
+      ],
+    };
+  }
+
   return null;
 };
 
 export const detectAscendingTriangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
   const lows = swings.filter((swing) => swing.type === "low");
-  const tailStart = Math.max(0, candles.length - 40);
+  
+  // Requisitos: 4-6 toques (o al menos 3), formación 20-100+ velas
+  const tailStart = Math.max(0, candles.length - 100);
+  
   const recentHighs = highs.filter((point) => point.index >= tailStart);
   const recentLows = lows.filter((point) => point.index >= tailStart);
-  if (recentHighs.length < 3 || recentLows.length < 2) return null;
-  const lastHighs = recentHighs.slice(-3);
+  if (recentHighs.length < 3 || recentLows.length < 3) return null;
+  
+  // Verificar duración de formación (mínimo 20 velas)
+  const formationLength = Math.max(...recentHighs.map(h => h.index)) - Math.min(...recentLows.map(l => l.index));
+  if (formationLength < 20) return null;
+
+  const lastHighs = recentHighs.slice(-4); // Usar más puntos si disponibles
+  const lastLows = recentLows.slice(-4);
+  
+  // Máximos deben ser muy planos (resistencia horizontal)
   const highValues = lastHighs.map((point) => point.price);
   const highAvg = highValues.reduce((sum, value) => sum + value, 0) / highValues.length;
   const highSpread = (Math.max(...highValues) - Math.min(...highValues)) / highAvg;
-  if (highSpread > 0.012) return null;
-  const lastLows = recentLows.slice(-2);
-  if (lastLows[1].price <= lastLows[0].price) return null;
+  
+  // REQUISITO: Resistencia realmente plana (máx 1.5% de dispersión)
+  if (highSpread > 0.015) return null;
+  
+  // Mínimos deben ser ascendentes (compresión)
+  const sortedLows = [...lastLows].sort((a, b) => a.index - b.index);
+  for (let i = 1; i < sortedLows.length; i++) {
+    if (sortedLows[i].price < sortedLows[i - 1].price * 0.995) return null; // Permitir pequeña variación
+  }
+  
+  // Verificar que hay compresión real
+  const startGap = highAvg - sortedLows[0].price;
+  const endGap = highAvg - sortedLows[sortedLows.length - 1].price;
+  if (endGap >= startGap * 0.7) return null; // Debe haber al menos 30% de compresión
+
+  const lastPrice = candles[candles.length - 1].close;
+  const isTriggered = lastPrice > highAvg;
+  const triangleHeight = highAvg - sortedLows[0].price;
+  const projection = highAvg + triangleHeight;
+  const stopLoss = sortedLows[sortedLows.length - 1].price * 0.99;
+
   return {
     kind: "ascending-triangle",
-    name: "Triangulo ascendente",
-    description: "Maximos planos y minimos ascendentes.",
-    confidence: Number((1 - highSpread).toFixed(2)),
+    name: isTriggered ? "Triángulo Ascendente (Confirmado)" : "Triángulo Ascendente",
+    description: `Patrón alcista. ${isTriggered ? "Resistencia rota." : "Esperar ruptura de resistencia."} Objetivo: ${projection.toFixed(2)}`,
+    confidence: isTriggered ? 0.90 : 0.78,
+    projection: Number(projection.toFixed(2)),
+    stopLoss: Number(stopLoss.toFixed(2)),
     markers: [
       {
         time: lastHighs[lastHighs.length - 1].time,
         position: "aboveBar",
         color: "#7aa7ff",
         shape: "circle",
-        text: "TA",
+        text: "TriA",
       },
     ],
     lines: [
@@ -342,52 +595,85 @@ export const detectAscendingTriangle = (candles: CandlePoint[], swings: SwingPoi
         points: [
           { time: lastHighs[0].time, value: highAvg },
           { time: lastHighs[lastHighs.length - 1].time, value: highAvg },
+          { time: candles[candles.length - 1].time, value: isTriggered ? projection : highAvg }
         ],
-        color: "rgba(122,167,255,0.85)",
+        color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(122,167,255,0.9)",
         style: LineStyle.Solid,
-        width: 2,
+        width: 3,
       },
       {
         id: "triangle-rising",
         name: "Soporte ascendente",
         points: [
-          { time: lastLows[0].time, value: lastLows[0].price },
-          { time: lastLows[1].time, value: lastLows[1].price },
+          { time: sortedLows[0].time, value: sortedLows[0].price },
+          { time: sortedLows[sortedLows.length - 1].time, value: sortedLows[sortedLows.length - 1].price },
         ],
-        color: "rgba(122,167,255,0.6)",
+        color: "rgba(122,167,255,0.7)",
         style: LineStyle.Dashed,
-        width: 2,
+        width: 3,
       },
     ],
   };
 };
 
+
 export const detectDescendingTriangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
   const lows = swings.filter((swing) => swing.type === "low");
-  const tailStart = Math.max(0, candles.length - 40);
+  
+  // Requisitos: 4-6 toques (o al menos 3), formación 20-100+ velas
+  const tailStart = Math.max(0, candles.length - 100);
+  
   const recentHighs = highs.filter((point) => point.index >= tailStart);
   const recentLows = lows.filter((point) => point.index >= tailStart);
-  if (recentHighs.length < 2 || recentLows.length < 3) return null;
-  const lastLows = recentLows.slice(-3);
+  if (recentHighs.length < 3 || recentLows.length < 3) return null;
+  
+  // Verificar duración de formación (mínimo 20 velas)
+  const formationLength = Math.max(...recentLows.map(l => l.index)) - Math.min(...recentHighs.map(h => h.index));
+  if (formationLength < 20) return null;
+
+  const lastLows = recentLows.slice(-4);
+  const lastHighs = recentHighs.slice(-4);
+  
+  // Mínimos deben ser muy planos (soporte horizontal)
   const lowValues = lastLows.map((point) => point.price);
   const lowAvg = lowValues.reduce((sum, value) => sum + value, 0) / lowValues.length;
   const lowSpread = (Math.max(...lowValues) - Math.min(...lowValues)) / lowAvg;
-  if (lowSpread > 0.012) return null;
-  const lastHighs = recentHighs.slice(-2);
-  if (lastHighs[1].price >= lastHighs[0].price) return null;
+  
+  // REQUISITO: Soporte realmente plano (máx 1.5% de dispersión)
+  if (lowSpread > 0.015) return null;
+  
+  // Máximos deben ser descendentes (compresión)
+  const sortedHighs = [...lastHighs].sort((a, b) => a.index - b.index);
+  for (let i = 1; i < sortedHighs.length; i++) {
+    if (sortedHighs[i].price > sortedHighs[i - 1].price * 1.005) return null;
+  }
+  
+  // Verificar que hay compresión real
+  const startGap = sortedHighs[0].price - lowAvg;
+  const endGap = sortedHighs[sortedHighs.length - 1].price - lowAvg;
+  if (endGap >= startGap * 0.7) return null;
+
+  const lastPrice = candles[candles.length - 1].close;
+  const isTriggered = lastPrice < lowAvg;
+  const triangleHeight = sortedHighs[0].price - lowAvg;
+  const projection = lowAvg - triangleHeight;
+  const stopLoss = sortedHighs[sortedHighs.length - 1].price * 1.01;
+
   return {
     kind: "descending-triangle",
-    name: "Triangulo descendente",
-    description: "Minimos planos y maximos descendentes.",
-    confidence: Number((1 - lowSpread).toFixed(2)),
+    name: isTriggered ? "Triángulo Descendente (Confirmado)" : "Triángulo Descendente",
+    description: `Patrón bajista. ${isTriggered ? "Soporte roto." : "Esperar ruptura del soporte."} Objetivo: ${projection.toFixed(2)}`,
+    confidence: isTriggered ? 0.90 : 0.78,
+    projection: Number(projection.toFixed(2)),
+    stopLoss: Number(stopLoss.toFixed(2)),
     markers: [
       {
         time: lastLows[lastLows.length - 1].time,
         position: "belowBar",
         color: "#ff9f6b",
         shape: "circle",
-        text: "TD",
+        text: "TriD",
       },
     ],
     lines: [
@@ -397,84 +683,128 @@ export const detectDescendingTriangle = (candles: CandlePoint[], swings: SwingPo
         points: [
           { time: lastLows[0].time, value: lowAvg },
           { time: lastLows[lastLows.length - 1].time, value: lowAvg },
+          { time: candles[candles.length - 1].time, value: isTriggered ? projection : lowAvg }
         ],
-        color: "rgba(255,159,107,0.85)",
+        color: isTriggered ? "rgba(246,70,93,0.9)" : "rgba(255,159,107,0.9)",
         style: LineStyle.Solid,
-        width: 2,
+        width: 3,
       },
       {
         id: "triangle-falling",
         name: "Resistencia descendente",
         points: [
-          { time: lastHighs[0].time, value: lastHighs[0].price },
-          { time: lastHighs[1].time, value: lastHighs[1].price },
+          { time: sortedHighs[0].time, value: sortedHighs[0].price },
+          { time: sortedHighs[sortedHighs.length - 1].time, value: sortedHighs[sortedHighs.length - 1].price },
         ],
-        color: "rgba(255,159,107,0.6)",
+        color: "rgba(255,159,107,0.7)",
         style: LineStyle.Dashed,
-        width: 2,
+        width: 3,
       },
     ],
   };
 };
 
+
 export const detectSymmetricalTriangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
   const lows = swings.filter((swing) => swing.type === "low");
-  const tailStart = Math.max(0, candles.length - 45);
-  const recentHighs = highs.filter((point) => point.index >= tailStart).slice(-3);
-  const recentLows = lows.filter((point) => point.index >= tailStart).slice(-3);
-  if (recentHighs.length < 2 || recentLows.length < 2) return null;
-  const highSlope =
-    (recentHighs[recentHighs.length - 1].price - recentHighs[0].price) /
-    (recentHighs[recentHighs.length - 1].index - recentHighs[0].index);
-  const lowSlope =
-    (recentLows[recentLows.length - 1].price - recentLows[0].price) /
-    (recentLows[recentLows.length - 1].index - recentLows[0].index);
+  
+  // Requisitos: formación 20-100+ velas, máximos descendentes y mínimos ascendentes
+  const tailStart = Math.max(0, candles.length - 100);
+  
+  const recentHighs = highs.filter((point) => point.index >= tailStart).slice(-4);
+  const recentLows = lows.filter((point) => point.index >= tailStart).slice(-4);
+  if (recentHighs.length < 3 || recentLows.length < 3) return null;
+  
+  // Verificar duración de formación
+  const formationLength = Math.max(recentHighs[recentHighs.length - 1].index, recentLows[recentLows.length - 1].index) 
+                        - Math.min(recentHighs[0].index, recentLows[0].index);
+  if (formationLength < 20) return null;
+  
+  const sortedHighs = [...recentHighs].sort((a, b) => a.index - b.index);
+  const sortedLows = [...recentLows].sort((a, b) => a.index - b.index);
+
+  const highSlope = (sortedHighs[sortedHighs.length - 1].price - sortedHighs[0].price) / 
+                    (sortedHighs[sortedHighs.length - 1].index - sortedHighs[0].index);
+  const lowSlope = (sortedLows[sortedLows.length - 1].price - sortedLows[0].price) / 
+                   (sortedLows[sortedLows.length - 1].index - sortedLows[0].index);
+  
+  // REQUISITO: Máximos descendentes (pendiente negativa) y mínimos ascendentes (pendiente positiva)
   if (!(highSlope < 0 && lowSlope > 0)) return null;
-  const startGap = recentHighs[0].price - recentLows[0].price;
-  const endGap =
-    recentHighs[recentHighs.length - 1].price - recentLows[recentLows.length - 1].price;
-  if (endGap >= startGap * 0.85) return null;
+  
+  const startGap = sortedHighs[0].price - sortedLows[0].price;
+  const endGap = sortedHighs[sortedHighs.length - 1].price - sortedLows[sortedLows.length - 1].price;
+  
+  // REQUISITO: Compresión significativa (al menos 30%)
+  if (endGap >= startGap * 0.7) return null;
+
+  // Calcular punto de convergencia (apex)
+  const apexPrice = (sortedHighs[sortedHighs.length - 1].price + sortedLows[sortedLows.length - 1].price) / 2;
+  const lastPrice = candles[candles.length - 1].close;
+  const triangleHeight = startGap;
+  
+  // Determinar dirección de ruptura
+  const isBreakoutUp = lastPrice > sortedHighs[sortedHighs.length - 1].price;
+  const isBreakoutDown = lastPrice < sortedLows[sortedLows.length - 1].price;
+  const isTriggered = isBreakoutUp || isBreakoutDown;
+  
+  const projection = isBreakoutUp 
+    ? sortedHighs[sortedHighs.length - 1].price + triangleHeight
+    : isBreakoutDown 
+      ? sortedLows[sortedLows.length - 1].price - triangleHeight
+      : apexPrice;
+      
+  const stopLoss = isBreakoutUp 
+    ? sortedLows[sortedLows.length - 1].price * 0.99
+    : isBreakoutDown
+      ? sortedHighs[sortedHighs.length - 1].price * 1.01
+      : apexPrice;
+
   return {
     kind: "symmetrical-triangle",
-    name: "Triangulo simetrico",
-    description: "Maximos descendentes y minimos ascendentes con compresion.",
-    confidence: Number((1 - endGap / startGap).toFixed(2)),
+    name: isTriggered 
+      ? `Triángulo Simétrico (${isBreakoutUp ? "Ruptura ↑" : "Ruptura ↓"})` 
+      : "Triángulo Simétrico",
+    description: `Patrón de indecisión. ${isTriggered ? (isBreakoutUp ? "Ruptura alcista." : "Ruptura bajista.") : "Esperar ruptura."} Objetivo: ${projection.toFixed(2)}`,
+    confidence: isTriggered ? 0.85 : 0.70,
+    projection: Number(projection.toFixed(2)),
+    stopLoss: Number(stopLoss.toFixed(2)),
     markers: [
       {
-        time: recentHighs[recentHighs.length - 1].time,
+        time: sortedHighs[sortedHighs.length - 1].time,
         position: "aboveBar",
-        color: "#9a7dff",
+        color: isBreakoutUp ? "#00c074" : isBreakoutDown ? "#f66d6d" : "#9a7dff",
         shape: "circle",
-        text: "TS",
+        text: "TriS",
       },
     ],
     lines: [
       {
         id: "triangle-upper",
-        name: "Resistencia",
+        name: "Resistencia descendente",
         points: [
-          { time: recentHighs[0].time, value: recentHighs[0].price },
-          { time: recentHighs[recentHighs.length - 1].time, value: recentHighs[recentHighs.length - 1].price },
+          { time: sortedHighs[0].time, value: sortedHighs[0].price },
+          { time: sortedHighs[sortedHighs.length - 1].time, value: sortedHighs[sortedHighs.length - 1].price },
         ],
-        color: "rgba(154,125,255,0.7)",
+        color: isBreakoutUp ? "rgba(0,192,116,0.9)" : "rgba(154,125,255,0.8)",
         style: LineStyle.Solid,
-        width: 2,
+        width: 3,
       },
       {
         id: "triangle-lower",
-        name: "Soporte",
+        name: "Soporte ascendente",
         points: [
-          { time: recentLows[0].time, value: recentLows[0].price },
-          { time: recentLows[recentLows.length - 1].time, value: recentLows[recentLows.length - 1].price },
+          { time: sortedLows[0].time, value: sortedLows[0].price },
+          { time: sortedLows[sortedLows.length - 1].time, value: sortedLows[sortedLows.length - 1].price },
         ],
-        color: "rgba(154,125,255,0.6)",
-        style: LineStyle.Dashed,
-        width: 2,
+        color: isBreakoutDown ? "rgba(246,70,93,0.9)" : "rgba(154,125,255,0.7)",
+        style: LineStyle.Solid,
+        width: 3,
       },
     ],
   };
 };
+
 
 export const detectChannel = (
   candles: CandlePoint[],
@@ -483,29 +813,70 @@ export const detectChannel = (
 ): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
   const lows = swings.filter((swing) => swing.type === "low");
-  const tailStart = Math.max(0, candles.length - 50);
-  const recentHighs = highs.filter((point) => point.index >= tailStart).slice(-2);
-  const recentLows = lows.filter((point) => point.index >= tailStart).slice(-2);
-  if (recentHighs.length < 2 || recentLows.length < 2) return null;
-  const highSlope =
-    (recentHighs[1].price - recentHighs[0].price) / (recentHighs[1].index - recentHighs[0].index);
-  const lowSlope =
-    (recentLows[1].price - recentLows[0].price) / (recentLows[1].index - recentLows[0].index);
+  
+  // Requisitos: formación 20-150 velas, al menos 3 toques por lado si es posible
+  const tailStart = Math.max(0, candles.length - 150);
+  const recentHighs = highs.filter((point) => point.index >= tailStart).slice(-4);
+  const recentLows = lows.filter((point) => point.index >= tailStart).slice(-4);
+  
+  if (recentHighs.length < 3 || recentLows.length < 3) return null;
+  
+  // Duración mínima
+  const formationLength = Math.max(recentHighs[recentHighs.length - 1].index, recentLows[recentLows.length - 1].index) 
+                        - Math.min(recentHighs[0].index, recentLows[0].index);
+  if (formationLength < 20) return null;
+
+  const getSlope = (points: SwingPoint[]) => (points[points.length - 1].price - points[0].price) / (points[points.length - 1].index - points[0].index);
+  
+  const highSlope = getSlope(recentHighs);
+  const lowSlope = getSlope(recentLows);
+  
+  // Validar dirección de los slopes
   if (direction === "rising" && !(highSlope > 0 && lowSlope > 0)) return null;
   if (direction === "falling" && !(highSlope < 0 && lowSlope < 0)) return null;
-  const slopeGap = Math.abs(highSlope - lowSlope) / Math.max(Math.abs(highSlope), Math.abs(lowSlope));
-  if (!Number.isFinite(slopeGap) || slopeGap > 0.35) return null;
-  const name = direction === "rising" ? "Canal ascendente" : "Canal descendente";
-  const color = direction === "rising" ? "rgba(0,190,130,0.7)" : "rgba(246,70,93,0.7)";
+  
+  // REQUISITO: Paralelismo estricto (máx 20% de diferencia relativa)
+  const avgSlope = (Math.abs(highSlope) + Math.abs(lowSlope)) / 2;
+  const slopeDiff = Math.abs(highSlope - lowSlope) / avgSlope;
+  if (slopeDiff > 0.2) return null;
+
+  // REQUISITO: Tendencia previa
+  if (direction === "rising" && !checkTrend(candles, recentHighs[0].index, Math.min(40, recentHighs[0].index), "up")) return null;
+  if (direction === "falling" && !checkTrend(candles, recentLows[0].index, Math.min(40, recentLows[0].index), "down")) return null;
+
+  const lastPrice = candles[candles.length - 1].close;
+  const channelHeight = recentHighs[recentHighs.length - 1].price - recentLows[recentLows.length - 1].price;
+  
+  // Determinar rupturas confirmadas
+  const isTriggeredUp = direction === "falling" && lastPrice > recentHighs[recentHighs.length - 1].price;
+  const isTriggeredDown = direction === "rising" && lastPrice < recentLows[recentLows.length - 1].price;
+  
+  const projection = isTriggeredUp 
+    ? lastPrice + channelHeight 
+    : isTriggeredDown 
+      ? lastPrice - channelHeight 
+      : direction === "rising" ? lastPrice + channelHeight : lastPrice - channelHeight;
+
+  const stopLoss = isTriggeredUp 
+    ? recentHighs[recentHighs.length - 1].price * 0.99
+    : isTriggeredDown 
+      ? recentLows[recentLows.length - 1].price * 1.01
+      : direction === "rising" ? recentLows[recentLows.length - 1].price : recentHighs[recentHighs.length - 1].price;
+
+  const name = direction === "rising" ? "Canal Ascendente" : "Canal Descendente";
+  const color = direction === "rising" ? "#00c074" : "#f66d6d";
+  
   return {
     kind: direction === "rising" ? "rising-channel" : "falling-channel",
-    name,
-    description: "Dos bandas paralelas que guian el movimiento del precio.",
-    confidence: Number((1 - slopeGap).toFixed(2)),
+    name: (isTriggeredUp || isTriggeredDown) ? `${name} (Ruptura)` : name,
+    description: `Dos bandas paralelas. ${isTriggeredUp || isTriggeredDown ? "Ruptura confirmada." : "Precio respetando el canal."} Objetivo: ${projection.toFixed(2)}`,
+    confidence: (isTriggeredUp || isTriggeredDown) ? 0.90 : 0.75,
+    projection: Number(projection.toFixed(2)),
+    stopLoss: Number(stopLoss.toFixed(2)),
     markers: [
       {
-        time: recentHighs[1].time,
-        position: "aboveBar",
+        time: recentHighs[recentHighs.length - 1].time,
+        position: direction === "rising" ? "belowBar" : "aboveBar",
         color,
         shape: "circle",
         text: direction === "rising" ? "CA" : "CD",
@@ -517,22 +888,24 @@ export const detectChannel = (
         name: "Banda superior",
         points: [
           { time: recentHighs[0].time, value: recentHighs[0].price },
-          { time: recentHighs[1].time, value: recentHighs[1].price },
+          { time: recentHighs[recentHighs.length - 1].time, value: recentHighs[recentHighs.length - 1].price },
+          ...(isTriggeredUp ? [{ time: candles[candles.length - 1].time, value: lastPrice }] : [])
         ],
         color,
         style: LineStyle.Solid,
-        width: 2,
+        width: 3,
       },
       {
         id: `${direction}-channel-bottom`,
         name: "Banda inferior",
         points: [
           { time: recentLows[0].time, value: recentLows[0].price },
-          { time: recentLows[1].time, value: recentLows[1].price },
+          { time: recentLows[recentLows.length - 1].time, value: recentLows[recentLows.length - 1].price },
+          ...(isTriggeredDown ? [{ time: candles[candles.length - 1].time, value: lastPrice }] : [])
         ],
         color,
-        style: LineStyle.Dashed,
-        width: 2,
+        style: direction === "rising" ? LineStyle.Dashed : LineStyle.Solid,
+        width: 3,
       },
     ],
   };
@@ -542,20 +915,30 @@ export const detectEngulfing = (
   candles: CandlePoint[],
   direction: "bullish" | "bearish"
 ): Pattern | null => {
-  if (candles.length < 2) return null;
+  if (candles.length < 5) return null; // Need more context
+  
   const prev = candles[candles.length - 2];
   const curr = candles[candles.length - 1];
+  
   const prevBody = Math.abs(prev.close - prev.open);
   const currBody = Math.abs(curr.close - curr.open);
-  if (prevBody === 0 || currBody === 0) return null;
+  
+  // Body significance (at least 0.5% move)
+  if (currBody / curr.open < 0.005) return null;
+  
   if (direction === "bullish") {
+    // Bullish Engulfing: previous is down, current is up, current body swallows previous body
     if (!(prev.close < prev.open && curr.close > curr.open)) return null;
     if (!(curr.open <= prev.close && curr.close >= prev.open)) return null;
+    
+    // Trend check: previous should be in a decline
+    const trend = candles.slice(-5, -2).every(c => c.close <= c.open || c.close < (candles[candles.indexOf(c)-1]?.close ?? c.close));
+    
     return {
       kind: "bullish-engulfing",
       name: "Engulfing alcista",
-      description: "Vela verde que envuelve el cuerpo de la previa.",
-      confidence: Number(Math.min(1, currBody / prevBody).toFixed(2)),
+      description: "Vela verde que envuelve el cuerpo de la previa en zona de soporte.",
+      confidence: Number((Math.min(1, currBody / prevBody) * (trend ? 1 : 0.7)).toFixed(2)),
       markers: [
         {
           time: curr.time,
@@ -568,12 +951,15 @@ export const detectEngulfing = (
       lines: [],
     };
   }
+  
+  // Bearish Engulfing
   if (!(prev.close > prev.open && curr.close < curr.open)) return null;
   if (!(curr.open >= prev.close && curr.close <= prev.open)) return null;
+  
   return {
     kind: "bearish-engulfing",
     name: "Engulfing bajista",
-    description: "Vela roja que envuelve el cuerpo de la previa.",
+    description: "Vela roja que envuelve el cuerpo de la previa en zona de techo.",
     confidence: Number(Math.min(1, currBody / prevBody).toFixed(2)),
     markers: [
       {
@@ -588,19 +974,464 @@ export const detectEngulfing = (
   };
 };
 
+export const detectWedge = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const highs = swings.filter((s) => s.type === "high");
+  const lows = swings.filter((s) => s.type === "low");
+  
+  if (highs.length < 3 || lows.length < 3) return null;
+
+  // Requisitos: líneas convergentes, formación 20-120 velas
+  const recentHighs = highs.slice(-3);
+  const recentLows = lows.slice(-3);
+
+  // Formación debe tener entre 20-120 velas
+  const formationLength = Math.max(recentHighs[2].index, recentLows[2].index) - Math.min(recentHighs[0].index, recentLows[0].index);
+  if (formationLength < 20 || formationLength > 120) return null;
+
+  const getSlope = (p1: SwingPoint, p2: SwingPoint) => (p2.price - p1.price) / (p2.index - p1.index);
+  
+  const highSlope = getSlope(recentHighs[0], recentHighs[2]);
+  const lowSlope = getSlope(recentLows[0], recentLows[2]);
+
+  // Verificar convergencia (las líneas deben acercarse)
+  const startGap = Math.abs(recentHighs[0].price - recentLows[0].price);
+  const endGap = Math.abs(recentHighs[2].price - recentLows[2].price);
+  if (endGap >= startGap * 0.8) return null; // Requiere compresión de al menos 20%
+
+  const lastPrice = candles[candles.length - 1].close;
+
+  // === Rising Wedge (Cuña Ascendente) ===
+  // Ambas líneas suben pero convergen, señal bajista
+  if (highSlope > 0 && lowSlope > 0) {
+    // La pendiente inferior debe ser mayor para que converjan
+    if (lowSlope <= highSlope) return null;
+    
+    // REQUISITO: Tendencia previa alcista o parte de una corrección
+    if (!checkTrend(candles, recentHighs[0].index, Math.min(30, recentHighs[0].index), "up")) return null;
+
+    const breakdownLevel = recentLows[2].price;
+    const isTriggered = lastPrice < breakdownLevel;
+    const wedgeHeight = recentHighs[2].price - recentLows[2].price;
+    const projection = breakdownLevel - wedgeHeight;
+    const stopLoss = recentHighs[2].price * 1.01;
+
+    return {
+      kind: "rising-wedge",
+      name: isTriggered ? "Cuña Ascendente (Confirmada)" : "Cuña Ascendente",
+      description: `Reversión bajista. ${isTriggered ? "Soporte roto." : "Esperar ruptura del soporte."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.88 : 0.75,
+      markers: [{ time: recentHighs[2].time, position: "aboveBar", color: "#f66d6d", shape: "arrowDown", text: "CuñaA" }],
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      lines: [
+        { id: "wedge-top", name: "Resistencia", points: [{ time: recentHighs[0].time, value: recentHighs[0].price }, { time: recentHighs[2].time, value: recentHighs[2].price }], color: "rgba(246,109,109,0.9)", style: LineStyle.Solid, width: 3 },
+        { id: "wedge-bot", name: "Soporte", points: [{ time: recentLows[0].time, value: recentLows[0].price }, { time: recentLows[2].time, value: recentLows[2].price }], color: isTriggered ? "rgba(246,70,93,0.9)" : "rgba(246,109,109,0.7)", style: LineStyle.Solid, width: 3 }
+      ]
+    };
+  }
+  
+  // === Falling Wedge (Cuña Descendente) ===
+  // Ambas líneas bajan pero convergen, señal alcista
+  if (highSlope < 0 && lowSlope < 0) {
+    // La pendiente superior debe ser menos negativa para que converjan
+    if (highSlope <= lowSlope) return null;
+    
+    // REQUISITO: Tendencia previa bajista o parte de una corrección
+    if (!checkTrend(candles, recentLows[0].index, Math.min(30, recentLows[0].index), "down")) return null;
+
+    const breakoutLevel = recentHighs[2].price;
+    const isTriggered = lastPrice > breakoutLevel;
+    const wedgeHeight = recentHighs[2].price - recentLows[2].price;
+    const projection = breakoutLevel + wedgeHeight;
+    const stopLoss = recentLows[2].price * 0.99;
+
+    return {
+      kind: "falling-wedge",
+      name: isTriggered ? "Cuña Descendente (Confirmada)" : "Cuña Descendente",
+      description: `Reversión alcista. ${isTriggered ? "Resistencia rota." : "Esperar ruptura de resistencia."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.88 : 0.75,
+      markers: [{ time: recentLows[2].time, position: "belowBar", color: "#00c074", shape: "arrowUp", text: "CuñaD" }],
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      lines: [
+        { id: "wedge-top", name: "Resistencia", points: [{ time: recentHighs[0].time, value: recentHighs[0].price }, { time: recentHighs[2].time, value: recentHighs[2].price }], color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(0,192,116,0.7)", style: LineStyle.Solid, width: 3 },
+        { id: "wedge-bot", name: "Soporte", points: [{ time: recentLows[0].time, value: recentLows[0].price }, { time: recentLows[2].time, value: recentLows[2].price }], color: "rgba(0,192,116,0.9)", style: LineStyle.Solid, width: 3 }
+      ]
+    };
+  }
+
+  return null;
+};
+
+
+export const detectTripleTop = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const highs = swings.filter((s) => s.type === "high");
+
+  // Requisitos: como doble, pero 3 intentos fallidos; nivel muy respetado
+  // Formación típica: 30-200 velas
+  for (let i = 0; i < highs.length - 2; i++) {
+    const p1 = highs[i];
+    const p2 = highs[i + 1];
+    const p3 = highs[i + 2];
+
+    // Formación debe tener entre 30-200 velas
+    const formationLength = p3.index - p1.index;
+    if (formationLength < 30 || formationLength > 200) continue;
+
+    // Los tres picos deben ser muy similares (máx 1.5% diferencia del promedio)
+    const avg = (p1.price + p2.price + p3.price) / 3;
+    if (Math.abs(p1.price - avg) / avg > 0.015) continue;
+    if (Math.abs(p2.price - avg) / avg > 0.015) continue;
+    if (Math.abs(p3.price - avg) / avg > 0.015) continue;
+
+    // Separación mínima entre picos
+    if (p2.index - p1.index < 8 || p3.index - p2.index < 8) continue;
+
+    // REQUISITO: Tendencia previa alcista
+    if (!checkTrend(candles, p1.index, Math.min(40, p1.index), "up")) continue;
+
+    // Encontrar valles intermedios y el nivel de soporte
+    const valley1 = Math.min(...candles.slice(p1.index, p2.index).map(c => c.low));
+    const valley2 = Math.min(...candles.slice(p2.index, p3.index).map(c => c.low));
+    const support = Math.min(valley1, valley2);
+
+    const height = avg - support;
+    if (height / avg < 0.03) continue; // Mínimo 3% de profundidad
+
+    // INVALIDACIÓN: Si precio hizo nuevos máximos después
+    const postPatternCandles = candles.slice(p3.index);
+    if (postPatternCandles.length > 3) {
+      const postPatternHigh = Math.max(...postPatternCandles.map(c => c.high));
+      if (postPatternHigh > avg * 1.01) continue;
+    }
+
+    const lastPrice = candles[candles.length - 1].close;
+    // Gatillo: ruptura del soporte con cierre
+    const isTriggered = lastPrice < support;
+    const projection = support - height;
+    const stopLoss = Math.max(p1.price, p2.price, p3.price) * 1.01;
+
+    return {
+      kind: "triple-top",
+      name: isTriggered ? "Triple Techo (Confirmado)" : "Triple Techo",
+      description: `Reversión bajista fuerte. ${isTriggered ? "Soporte roto." : "Esperar ruptura del soporte."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.93 : 0.82,
+      markers: [
+        { time: p1.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "1" },
+        { time: p2.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "2" },
+        { time: p3.time, position: "aboveBar", color: "#f66d6d", shape: "circle", text: "3" },
+      ],
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      lines: [
+        { id: "tt-res", name: "Resistencia (Triple)", points: [{ time: p1.time, value: avg }, { time: p3.time, value: avg }], color: "#f66d6d", width: 3 },
+        { id: "tt-sup", name: "Soporte", points: [{ time: p1.time, value: support }, { time: p3.time, value: support }, { time: candles[candles.length - 1].time, value: isTriggered ? projection : support }], color: isTriggered ? "rgba(246,70,93,0.9)" : "rgba(246,109,109,0.6)", style: LineStyle.Dashed, width: 2 },
+      ]
+    };
+  }
+  return null;
+};
+
+export const detectTripleBottom = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const lows = swings.filter((s) => s.type === "low");
+
+  // Requisitos: como doble, pero 3 intentos fallidos; nivel muy respetado
+  // Formación típica: 30-200 velas
+  for (let i = 0; i < lows.length - 2; i++) {
+    const p1 = lows[i];
+    const p2 = lows[i + 1];
+    const p3 = lows[i + 2];
+
+    // Formación debe tener entre 30-200 velas
+    const formationLength = p3.index - p1.index;
+    if (formationLength < 30 || formationLength > 200) continue;
+
+    // Los tres valles deben ser muy similares
+    const avg = (p1.price + p2.price + p3.price) / 3;
+    if (Math.abs(p1.price - avg) / avg > 0.015) continue;
+    if (Math.abs(p2.price - avg) / avg > 0.015) continue;
+    if (Math.abs(p3.price - avg) / avg > 0.015) continue;
+
+    // Separación mínima entre valles
+    if (p2.index - p1.index < 8 || p3.index - p2.index < 8) continue;
+
+    // REQUISITO: Tendencia previa bajista
+    if (!checkTrend(candles, p1.index, Math.min(40, p1.index), "down")) continue;
+
+    // Encontrar picos intermedios y el nivel de resistencia
+    const peak1 = Math.max(...candles.slice(p1.index, p2.index).map(c => c.high));
+    const peak2 = Math.max(...candles.slice(p2.index, p3.index).map(c => c.high));
+    const resist = Math.max(peak1, peak2);
+
+    const height = resist - avg;
+    if (height / avg < 0.03) continue;
+
+    // INVALIDACIÓN: Si precio hizo nuevos mínimos después
+    const postPatternCandles = candles.slice(p3.index);
+    if (postPatternCandles.length > 3) {
+      const postPatternLow = Math.min(...postPatternCandles.map(c => c.low));
+      if (postPatternLow < avg * 0.99) continue;
+    }
+
+    const lastPrice = candles[candles.length - 1].close;
+    // Gatillo: ruptura de la resistencia con cierre
+    const isTriggered = lastPrice > resist;
+    const projection = resist + height;
+    const stopLoss = Math.min(p1.price, p2.price, p3.price) * 0.99;
+
+    return {
+      kind: "triple-bottom",
+      name: isTriggered ? "Triple Suelo (Confirmado)" : "Triple Suelo",
+      description: `Reversión alcista fuerte. ${isTriggered ? "Resistencia rota." : "Esperar ruptura de resistencia."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.93 : 0.82,
+      markers: [
+        { time: p1.time, position: "belowBar", color: "#00c074", shape: "circle", text: "1" },
+        { time: p2.time, position: "belowBar", color: "#00c074", shape: "circle", text: "2" },
+        { time: p3.time, position: "belowBar", color: "#00c074", shape: "circle", text: "3" },
+      ],
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      lines: [
+        { id: "tb-sup", name: "Soporte (Triple)", points: [{ time: p1.time, value: avg }, { time: p3.time, value: avg }], color: "#00c074", width: 3 },
+        { id: "tb-res", name: "Resistencia", points: [{ time: p1.time, value: resist }, { time: p3.time, value: resist }, { time: candles[candles.length - 1].time, value: isTriggered ? projection : resist }], color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(0,192,116,0.6)", style: LineStyle.Dashed, width: 2 },
+      ]
+    };
+  }
+  return null;
+};
+
+export const detectRectangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const highs = swings.filter((s) => s.type === "high");
+  const lows = swings.filter((s) => s.type === "low");
+  
+  if (highs.length < 3 || lows.length < 3) return null;
+
+  // Requisitos: 2-3+ toques por lado, formación 20-300 velas
+  const tailStart = Math.max(0, candles.length - 100);
+  const recentHighs = highs.filter((s) => s.index >= tailStart).slice(-6);
+  const recentLows = lows.filter((s) => s.index >= tailStart).slice(-6);
+  
+  if (recentHighs.length < 2 || recentLows.length < 2) return null;
+
+  // Calcular límites del rectángulo
+  const recentCandles = candles.slice(tailStart);
+  const maxPrice = Math.max(...recentHighs.map(h => h.price));
+  const minPrice = Math.min(...recentLows.map(l => l.price));
+  
+  if (minPrice === 0) return null;
+  
+  // Verificar duración de formación
+  const formationLength = recentCandles.length;
+  if (formationLength < 20) return null;
+  
+  // REQUISITO: Rango confinado (máx 12% de diferencia)
+  const range = (maxPrice - minPrice) / minPrice;
+  if (range > 0.12 || range < 0.02) return null; // Ni muy ancho ni muy estrecho
+
+  // Contar toques reales a los límites (dentro de 1% del nivel)
+  const resistanceTouches = recentHighs.filter(h => h.price >= maxPrice * 0.99).length;
+  const supportTouches = recentLows.filter(l => l.price <= minPrice * 1.01).length;
+
+  // REQUISITO: Mínimo 2 toques por lado
+  if (resistanceTouches < 2 || supportTouches < 2) return null;
+
+  const lastPrice = candles[candles.length - 1].close;
+  const rectangleHeight = maxPrice - minPrice;
+  
+  // Determinar ruptura
+  const isBreakoutUp = lastPrice > maxPrice;
+  const isBreakoutDown = lastPrice < minPrice;
+  const isTriggered = isBreakoutUp || isBreakoutDown;
+  
+  const projection = isBreakoutUp 
+    ? maxPrice + rectangleHeight 
+    : isBreakoutDown 
+      ? minPrice - rectangleHeight 
+      : (maxPrice + minPrice) / 2;
+      
+  const stopLoss = isBreakoutUp 
+    ? minPrice * 0.99 
+    : isBreakoutDown 
+      ? maxPrice * 1.01 
+      : minPrice;
+
+  return {
+    kind: "rectangle",
+    name: isTriggered 
+      ? `Rectángulo (${isBreakoutUp ? "Ruptura ↑" : "Ruptura ↓"})` 
+      : "Rectángulo (Rango)",
+    description: `Consolidación lateral. ${isTriggered ? (isBreakoutUp ? "Ruptura alcista confirmada." : "Ruptura bajista confirmada.") : "Esperar ruptura."} Objetivo: ${projection.toFixed(2)}`,
+    confidence: isTriggered ? 0.85 : 0.70,
+    projection: Number(projection.toFixed(2)),
+    stopLoss: Number(stopLoss.toFixed(2)),
+    markers: isTriggered ? [{
+      time: candles[candles.length - 1].time,
+      position: isBreakoutUp ? "aboveBar" : "belowBar",
+      color: isBreakoutUp ? "#00c074" : "#f66d6d",
+      shape: isBreakoutUp ? "arrowUp" : "arrowDown",
+      text: "Rect"
+    }] : [],
+    lines: [
+      { 
+        id: "rect-top", 
+        name: "Resistencia", 
+        points: [
+          { time: recentCandles[0].time, value: maxPrice }, 
+          { time: recentCandles[recentCandles.length - 1].time, value: maxPrice },
+          ...(isBreakoutUp ? [{ time: candles[candles.length - 1].time, value: projection }] : [])
+        ], 
+        color: isBreakoutUp ? "rgba(0,192,116,0.9)" : "rgba(122,167,255,0.8)", 
+        width: 3, 
+        style: LineStyle.Solid 
+      },
+      { 
+        id: "rect-bot", 
+        name: "Soporte", 
+        points: [
+          { time: recentCandles[0].time, value: minPrice }, 
+          { time: recentCandles[recentCandles.length - 1].time, value: minPrice },
+          ...(isBreakoutDown ? [{ time: candles[candles.length - 1].time, value: projection }] : [])
+        ], 
+        color: isBreakoutDown ? "rgba(246,70,93,0.9)" : "rgba(122,167,255,0.7)", 
+        width: 3, 
+        style: LineStyle.Solid 
+      }
+    ]
+  };
+};
+
+
+export const detectFlag = (candles: CandlePoint[], swings: SwingPoint[], _volumes: VolumePoint[] = []): Pattern | null => {
+  // Requisitos: mástil fuerte (movimiento impulsivo) + canal corto inclinado contra tendencia
+  // Formación bandera: 5-30 velas de consolidación
+  const totalCandles = candles.length;
+  if (totalCandles < 25) return null;
+
+  // Buscar el mástil (movimiento impulsivo en las últimas 10-20 velas)
+  const poleStartIdx = Math.max(0, totalCandles - 25);
+  const poleEndIdx = Math.max(0, totalCandles - 10);
+  
+  if (poleEndIdx <= poleStartIdx) return null;
+
+  const poleStart = candles[poleStartIdx];
+  const poleEnd = candles[poleEndIdx];
+  
+  const movePercent = (poleEnd.close - poleStart.open) / poleStart.open;
+  
+  // === Bandera Alcista ===
+  // Requisitos: mástil alcista fuerte (>7%), consolidación bajista/lateral corta
+  if (movePercent > 0.07) {
+    // REQUISITO: Tendencia previa alcista
+    if (!checkTrend(candles, poleStartIdx, Math.min(30, poleStartIdx), "up")) return null;
+
+    const consolidation = candles.slice(poleEndIdx);
+    if (consolidation.length < 5 || consolidation.length > 30) return null;
+    
+    const conMax = Math.max(...consolidation.map(c => c.high));
+    const conMin = Math.min(...consolidation.map(c => c.low));
+    
+    // La consolidación debe ser más estrecha que el mástil
+    const conRange = conMax - conMin;
+    const poleHeight = poleEnd.close - poleStart.open;
+    if (conRange > poleHeight * 0.5) return null;
+    
+    // Retroceso máx 50% del mástil
+    const retracement = poleEnd.close - conMin;
+    if (retracement > poleHeight * 0.5) return null;
+
+    // La consolidación debe inclinarse ligeramente hacia abajo o ser lateral
+    const conFirstClose = consolidation[0].close;
+    const conLastClose = consolidation[consolidation.length - 1].close;
+    if (conLastClose > conFirstClose * 1.03) return null; // No puede subir mucho
+
+    const lastPrice = candles[candles.length - 1].close;
+    const isTriggered = lastPrice > conMax;
+    const projection = conMax + poleHeight;
+    const stopLoss = conMin * 0.99;
+
+    return {
+      kind: "bullish-flag",
+      name: isTriggered ? "Bandera Alcista (Confirmada)" : "Bandera Alcista",
+      description: `Continuación alcista. ${isTriggered ? "Techo de bandera roto." : "Esperar ruptura del canal."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.88 : 0.75,
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      markers: [{ time: poleEnd.time, position: "aboveBar", color: "#00c074", shape: "circle", text: "Flag" }],
+      lines: [
+        { id: "flag-pole", name: "Mástil", points: [{ time: poleStart.time, value: poleStart.open }, { time: poleEnd.time, value: poleEnd.close }], color: "#00c074", width: 3 },
+        { id: "flag-channel-top", name: "Canal superior", points: [{ time: consolidation[0].time, value: conMax }, { time: consolidation[consolidation.length - 1].time, value: isTriggered ? projection : conMax }], color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(0,192,116,0.6)", style: LineStyle.Dashed, width: 2 },
+        { id: "flag-channel-bot", name: "Canal inferior", points: [{ time: consolidation[0].time, value: conMin }, { time: consolidation[consolidation.length - 1].time, value: conMin }], color: "rgba(0,192,116,0.5)", style: LineStyle.Dashed, width: 2 }
+      ]
+    };
+  }
+
+  // === Bandera Bajista ===
+  // Requisitos: mástil bajista fuerte (>7%), consolidación alcista/lateral corta
+  if (movePercent < -0.07) {
+    // REQUISITO: Tendencia previa bajista
+    if (!checkTrend(candles, poleStartIdx, Math.min(30, poleStartIdx), "down")) return null;
+
+    const consolidation = candles.slice(poleEndIdx);
+    if (consolidation.length < 5 || consolidation.length > 30) return null;
+    
+    const conMax = Math.max(...consolidation.map(c => c.high));
+    const conMin = Math.min(...consolidation.map(c => c.low));
+    
+    const conRange = conMax - conMin;
+    const poleHeight = poleStart.open - poleEnd.close;
+    if (conRange > poleHeight * 0.5) return null;
+    
+    // Retroceso máx 50% del mástil
+    const retracement = conMax - poleEnd.close;
+    if (retracement > poleHeight * 0.5) return null;
+
+    // La consolidación debe inclinarse ligeramente hacia arriba o ser lateral
+    const conFirstClose = consolidation[0].close;
+    const conLastClose = consolidation[consolidation.length - 1].close;
+    if (conLastClose < conFirstClose * 0.97) return null; // No puede bajar mucho
+
+    const lastPrice = candles[candles.length - 1].close;
+    const isTriggered = lastPrice < conMin;
+    const projection = conMin - poleHeight;
+    const stopLoss = conMax * 1.01;
+
+    return {
+      kind: "bearish-flag",
+      name: isTriggered ? "Bandera Bajista (Confirmada)" : "Bandera Bajista",
+      description: `Continuación bajista. ${isTriggered ? "Suelo de bandera roto." : "Esperar ruptura del canal."} Objetivo: ${projection.toFixed(2)}`,
+      confidence: isTriggered ? 0.88 : 0.75,
+      projection: Number(projection.toFixed(2)),
+      stopLoss: Number(stopLoss.toFixed(2)),
+      markers: [{ time: poleEnd.time, position: "belowBar", color: "#f66d6d", shape: "circle", text: "Flag" }],
+      lines: [
+        { id: "flag-pole", name: "Mástil", points: [{ time: poleStart.time, value: poleStart.open }, { time: poleEnd.time, value: poleEnd.close }], color: "#f66d6d", width: 3 },
+        { id: "flag-channel-top", name: "Canal superior", points: [{ time: consolidation[0].time, value: conMax }, { time: consolidation[consolidation.length - 1].time, value: conMax }], color: "rgba(246,109,109,0.5)", style: LineStyle.Dashed, width: 2 },
+        { id: "flag-channel-bot", name: "Canal inferior", points: [{ time: consolidation[0].time, value: conMin }, { time: consolidation[consolidation.length - 1].time, value: isTriggered ? projection : conMin }], color: isTriggered ? "rgba(246,70,93,0.9)" : "rgba(246,109,109,0.6)", style: LineStyle.Dashed, width: 2 }
+      ]
+    };
+  }
+
+  return null;
+};
+
+
 export const buildSupportResistance = (candles: CandlePoint[], swings: SwingPoint[]): PatternLine[] => {
-  const highs = swings.filter((swing) => swing.type === "high").slice(-5);
-  const lows = swings.filter((swing) => swing.type === "low").slice(-5);
+  // Use more swings for calculation
+  const highs = swings.filter((swing) => swing.type === "high").slice(-10);
+  const lows = swings.filter((swing) => swing.type === "low").slice(-10);
+  
   if (highs.length === 0 || lows.length === 0) return [];
-  const resistance =
-    highs.reduce((sum, point) => sum + point.price, 0) / highs.length;
+  
+  const resistance = highs.reduce((sum, point) => sum + point.price, 0) / highs.length;
   const support = lows.reduce((sum, point) => sum + point.price, 0) / lows.length;
+  
   const firstTime = candles[0].time;
   const lastTime = candles[candles.length - 1].time;
+  
   return [
     {
       id: "resistance",
-      name: "Resistencia IA",
+      name: "Resistencia sugerida",
       points: [
         { time: firstTime, value: resistance },
         { time: lastTime, value: resistance },
@@ -611,7 +1442,7 @@ export const buildSupportResistance = (candles: CandlePoint[], swings: SwingPoin
     },
     {
       id: "support",
-      name: "Soporte IA",
+      name: "Soporte sugerido",
       points: [
         { time: firstTime, value: support },
         { time: lastTime, value: support },
@@ -1029,4 +1860,249 @@ export const confidenceLabel = (value: number) => {
   if (value >= 0.9) return "Alta";
   if (value >= 0.75) return "Media";
   return "Baja";
+};
+
+export const detectCupAndHandle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+  const highs = swings.filter(s => s.type === "high");
+  if (highs.length < 2) return null;
+  
+  // Requisitos: Copa redondeada + asa con retroceso menor
+  // Formación típica: 30-150 velas para la copa, 5-25 para el asa
+  const rightRim = highs[highs.length - 1];
+  const leftRim = highs[highs.length - 2];
+  
+  // REQUISITO: Formación de la copa (mínimo 30 velas)
+  const cupLength = rightRim.index - leftRim.index;
+  if (cupLength < 30 || cupLength > 150) return null;
+  
+  // REQUISITO: Bordes de la copa similares (máx 5% de diferencia)
+  const rimAvg = (rightRim.price + leftRim.price) / 2;
+  if (Math.abs(rightRim.price - leftRim.price) / rimAvg > 0.05) return null;
+  
+  // Encontrar el fondo de la copa
+  const cupSlice = candles.slice(leftRim.index, rightRim.index);
+  let bottomIndex = 0;
+  let bottomPrice = Infinity;
+  cupSlice.forEach((c, i) => {
+    if (c.low < bottomPrice) {
+      bottomPrice = c.low;
+      bottomIndex = i;
+    }
+  });
+  
+  const depth = rimAvg - bottomPrice;
+  
+  // REQUISITO: Profundidad de la copa entre 10-35%
+  const depthPercent = depth / rimAvg;
+  if (depthPercent < 0.10 || depthPercent > 0.35) return null;
+  
+  // REQUISITO: Fondo redondeado (el punto más bajo debe estar cerca del centro)
+  const cupMiddle = cupSlice.length / 2;
+  if (Math.abs(bottomIndex - cupMiddle) > cupSlice.length * 0.35) return null;
+
+  // Verificar el asa
+  const afterRight = candles.slice(rightRim.index);
+  if (afterRight.length < 5) return null;
+  
+  const handleLow = afterRight.reduce((min, c) => Math.min(min, c.low), Infinity);
+  const handlePullback = rightRim.price - handleLow;
+  
+  // REQUISITO: Retroceso del asa máx 38% de la profundidad de la copa
+  if (handlePullback > depth * 0.38) return null;
+  
+  // REQUISITO: Asa no debe ser demasiado larga
+  if (afterRight.length > 25) return null;
+
+  // REQUISITO: Tendencia previa alcista
+  if (!checkTrend(candles, leftRim.index, Math.min(40, leftRim.index), "up")) return null;
+
+  const lastPrice = candles[candles.length - 1].close;
+  const isTriggered = lastPrice > rimAvg;
+  const projection = rimAvg + depth;
+  const stopLoss = handleLow * 0.99;
+
+  return {
+    kind: "cup-handle",
+    name: isTriggered ? "Copa y Asa (Confirmada)" : "Copa y Asa",
+    description: `Patrón de continuación alcista. ${isTriggered ? "Ruptura del borde confirmada." : "Esperar ruptura del borde."} Objetivo: ${projection.toFixed(2)}`,
+    confidence: isTriggered ? 0.88 : 0.75,
+    projection: Number(projection.toFixed(2)),
+    stopLoss: Number(stopLoss.toFixed(2)),
+    markers: [{ time: rightRim.time, position: "aboveBar", color: "#00c074", shape: "circle", text: "C&H" }],
+    lines: [
+      { id: "cup-rim", name: "Resistencia (Neckline)", points: [{ time: leftRim.time, value: rimAvg }, { time: rightRim.time, value: rimAvg }, { time: candles[candles.length - 1].time, value: isTriggered ? projection : rimAvg }], color: isTriggered ? "rgba(0,192,116,0.9)" : "rgba(0,192,116,0.7)", width: 3, style: LineStyle.Dashed },
+      { id: "cup-bottom", name: "Fondo de copa", points: [{ time: candles[leftRim.index + bottomIndex].time, value: bottomPrice }], color: "rgba(0,192,116,0.5)", width: 2, style: LineStyle.Dotted }
+    ]
+  };
+};
+
+
+export const detectCandlestickPatterns = (candles: CandlePoint[]): Pattern[] => {
+  const patterns: Pattern[] = [];
+  if (candles.length < 10) return patterns;
+  
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+  const prev2 = candles[candles.length - 3];
+  if (!last || !prev) return patterns;
+  
+  const body = Math.abs(last.close - last.open);
+  const range = last.high - last.low;
+  const upperWick = last.high - Math.max(last.open, last.close);
+  const lowerWick = Math.min(last.open, last.close) - last.low;
+  
+  // Verificar tendencia reciente (últimas 5-10 velas)
+  const recentCandles = candles.slice(-10);
+  const recentHigh = Math.max(...recentCandles.map(c => c.high));
+  const recentLow = Math.min(...recentCandles.map(c => c.low));
+  
+  const isNearSupport = last.low <= recentLow * 1.02;
+  const isNearResistance = last.high >= recentHigh * 0.98;
+  
+  // Tendencia de las últimas velas
+  const downtrend = prev.close < prev.open && (prev2 ? prev2.close < prev2.open : true);
+  const uptrend = prev.close > prev.open && (prev2 ? prev2.close > prev2.open : true);
+  
+  // === Doji ===
+  // Solo significativo en zonas de soporte/resistencia o después de tendencia fuerte
+  if (body <= range * 0.1 && range > 0) {
+    const hasContext = isNearSupport || isNearResistance || downtrend || uptrend;
+    if (hasContext) {
+      const direction = isNearSupport && downtrend ? "alcista" : isNearResistance && uptrend ? "bajista" : "neutral";
+      patterns.push({
+        kind: "doji",
+        name: "Doji",
+        description: `Indecisión de mercado. Posible señal ${direction}.`,
+        confidence: 0.55,
+        markers: [{ time: last.time, position: "aboveBar", color: "#a0a0a0", shape: "square", text: "Doji" }],
+        lines: []
+      });
+    }
+  }
+  
+  // === Martillo (Hammer) ===
+  // Requisitos: mecha inferior 2x+ cuerpo, contexto bajista, cerca de soporte
+  if (lowerWick > 2 * body && upperWick < body * 0.5) {
+    if (downtrend && isNearSupport) {
+      patterns.push({
+        kind: "hammer",
+        name: "Martillo",
+        description: "Posible reversión alcista. Requiere confirmación con cierre alcista.",
+        confidence: 0.70,
+        markers: [{ time: last.time, position: "belowBar", color: "#00c074", shape: "arrowUp", text: "Martillo" }],
+        lines: []
+      });
+    }
+  }
+  
+  // === Hombre Colgado (Hanging Man) ===
+  // Requisitos: mecha inferior 2x+ cuerpo, contexto alcista, cerca de resistencia
+  if (lowerWick > 2 * body && upperWick < body * 0.5) {
+    if (uptrend && isNearResistance) {
+      patterns.push({
+        kind: "hanging-man",
+        name: "Hombre Colgado",
+        description: "Posible reversión bajista. Requiere confirmación con cierre bajista.",
+        confidence: 0.65,
+        markers: [{ time: last.time, position: "aboveBar", color: "#f66d6d", shape: "arrowDown", text: "HM" }],
+        lines: []
+      });
+    }
+  }
+  
+  // === Estrella Fugaz (Shooting Star) ===
+  // Requisitos: mecha superior 2x+ cuerpo, cerca de resistencia
+  if (upperWick > 2 * body && lowerWick < body * 0.5) {
+    if (uptrend && isNearResistance) {
+      patterns.push({
+        kind: "shooting-star",
+        name: "Estrella Fugaz",
+        description: "Posible reversión bajista. Requiere confirmación.",
+        confidence: 0.68,
+        markers: [{ time: last.time, position: "aboveBar", color: "#f66d6d", shape: "arrowDown", text: "Star" }],
+        lines: []
+      });
+    }
+  }
+  
+  // === Martillo Invertido (Inverted Hammer) ===
+  if (upperWick > 2 * body && lowerWick < body * 0.5) {
+    if (downtrend && isNearSupport) {
+      patterns.push({
+        kind: "inverted-hammer",
+        name: "Martillo Invertido",
+        description: "Posible reversión alcista. Requiere confirmación con cierre alcista.",
+        confidence: 0.62,
+        markers: [{ time: last.time, position: "belowBar", color: "#00c074", shape: "arrowUp", text: "InvH" }],
+        lines: []
+      });
+    }
+  }
+  
+  return patterns;
+};
+
+
+export const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): AnalysisResult => {
+  if (candles.length === 0) {
+    return { candles: [], volumes: [], patterns: [], support: [] };
+  }
+  
+  const swings = findSwings(candles, 8);
+  const patterns: Pattern[] = [];
+
+  const doubleTop = detectDoubleTop(candles, swings, volumes);
+  if (doubleTop) patterns.push(doubleTop);
+
+  const doubleBottom = detectDoubleBottom(candles, swings, volumes);
+  if (doubleBottom) patterns.push(doubleBottom);
+
+  const headShoulders = detectHeadAndShoulders(candles, swings);
+  if (headShoulders) patterns.push(headShoulders);
+
+  const ascendingTriangle = detectAscendingTriangle(candles, swings);
+  if (ascendingTriangle) patterns.push(ascendingTriangle);
+
+  const descendingTriangle = detectDescendingTriangle(candles, swings);
+  if (descendingTriangle) patterns.push(descendingTriangle);
+
+  const symmetricalTriangle = detectSymmetricalTriangle(candles, swings);
+  if (symmetricalTriangle) patterns.push(symmetricalTriangle);
+
+  const risingChannel = detectChannel(candles, swings, "rising");
+  if (risingChannel) patterns.push(risingChannel);
+
+  const fallingChannel = detectChannel(candles, swings, "falling");
+  if (fallingChannel) patterns.push(fallingChannel);
+
+  const bullishEngulfing = detectEngulfing(candles, "bullish");
+  if (bullishEngulfing) patterns.push(bullishEngulfing);
+
+  const bearishEngulfing = detectEngulfing(candles, "bearish");
+  if (bearishEngulfing) patterns.push(bearishEngulfing);
+
+  const wedge = detectWedge(candles, swings);
+  if (wedge) patterns.push(wedge);
+
+  const tripleTop = detectTripleTop(candles, swings);
+  if (tripleTop) patterns.push(tripleTop);
+
+  const tripleBottom = detectTripleBottom(candles, swings);
+  if (tripleBottom) patterns.push(tripleBottom);
+
+  const rectangle = detectRectangle(candles, swings);
+  if (rectangle) patterns.push(rectangle);
+
+  const flag = detectFlag(candles, swings, volumes);
+  if (flag) patterns.push(flag);
+
+  const cup = detectCupAndHandle(candles, swings);
+  if (cup) patterns.push(cup);
+
+  const candlestick = detectCandlestickPatterns(candles);
+  patterns.push(...candlestick);
+
+  const supportLines = buildSupportResistance(candles, swings);
+
+  return { candles, volumes, patterns, support: supportLines };
 };

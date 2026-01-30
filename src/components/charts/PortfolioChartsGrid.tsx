@@ -21,10 +21,17 @@ export function PortfolioChartsGrid() {
     }
 
     return (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {tickers.map((ticker) => (
-                <PortfolioValueChart key={ticker} ticker={ticker} />
-            ))}
+        <div className="grid grid-cols-1 gap-8">
+            {tickers.map((ticker) => {
+                const holding = holdings.find(h => h.ticker.toUpperCase() === ticker);
+                return (
+                    <PortfolioValueChart
+                        key={ticker}
+                        ticker={ticker}
+                        name={holding?.name}
+                    />
+                );
+            })}
         </div>
     );
 }

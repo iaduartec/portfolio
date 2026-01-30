@@ -8,6 +8,7 @@ export interface PricePoint {
 
 export interface Holding {
   ticker: string;
+  name?: string;
   currency: CurrencyCode;
   totalQuantity: number;
   averageBuyPrice: number;

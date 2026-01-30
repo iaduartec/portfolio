@@ -5,8 +5,8 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border/60 bg-surface/50 backdrop-blur-sm mt-auto">
-      <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+    <footer className="w-full border-t border-border/60 bg-surface/50 backdrop-blur-sm mt-auto">
+      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid gap-8 md:grid-cols-4 lg:gap-12">
           <div className="md:col-span-2">
             <Link href="/" className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight">
@@ -16,7 +16,7 @@ export function Footer() {
               Plataforma avanzada de análisis de portafolio potenciada por inteligencia artificial y datos de mercado en tiempo real.
             </p>
           </div>
-          
+
           <div>
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text">Plataforma</h3>
             <ul className="space-y-2 text-sm text-muted">

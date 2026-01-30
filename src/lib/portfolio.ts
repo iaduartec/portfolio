@@ -3,6 +3,7 @@ import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { convertCurrencyFrom, inferCurrencyFromTicker, type CurrencyCode } from "@/lib/formatters";
 
 export type PriceSnapshot = {
+  name?: string;
   price: number;
   dayChange?: number;
   dayChangePercent?: number;
@@ -106,12 +107,16 @@ export const computeHoldings = (
       const pnlPercent = totalCost > 0 ? (pnlValue / totalCost) * 100 : 0;
       const dayChange =
         override?.dayChange !== undefined
-          ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency)
+          ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency) * totalQuantity
           : undefined;
       const dayChangePercent = override?.dayChangePercent;
 
+      // Find the name from the last transaction for this ticker (CSV fallback)
+      const lastTxWithName = ordered.filter(tx => tx.ticker === ticker && tx.name).pop();
+
       const holding: Holding = {
         ticker,
+        name: override?.name || lastTxWithName?.name,
         currency,
         totalQuantity,
         averageBuyPrice,
@@ -134,7 +139,7 @@ export const computeSummary = (holdings: Holding[]): PortfolioSummary => {
   return {
     totalValue,
     totalPnl,
-    dailyPnl: 0,
+    dailyPnl: holdings.reduce((sum, holding) => sum + (holding.dayChange ?? 0), 0),
   };
 };
 

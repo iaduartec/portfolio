@@ -18,7 +18,7 @@ const chat = new Chat({
 
 export function AIChat() {
   const portfolio = usePortfolioData();
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true);
   const { messages, status, error, sendMessage } = useChat({
     chat,
     experimental_throttle: 50,

@@ -1,16 +1,11 @@
 import { Transaction, TransactionType } from "@/types/transactions";
 import { CurrencyCode } from "@/lib/formatters";
 
-export type ParsedRow = Record<string, string | number>;
+import { resolveTradingViewSymbol, TRADINGVIEW_TICKER_OVERRIDES } from "@/lib/marketSymbols";
 
-export const TICKER_SUFFIX_OVERRIDES: Record<string, string> = {
-  "41L": ".MC",
-  AJ3: ".MC",
-  OZTA: ".MC",
-  REP: ".MC",
-  VHM: ".MC",
-  ENL: ".MI",
-};
+export const TICKER_SUFFIX_OVERRIDES = TRADINGVIEW_TICKER_OVERRIDES;
+
+export type ParsedRow = Record<string, string | number>;
 
 export const fieldAliases: Record<keyof Transaction, string[]> = {
   date: ["date", "closing time", "close_time", "datetime", "trade_date"],
@@ -28,6 +23,7 @@ export const fieldAliases: Record<keyof Transaction, string[]> = {
   ],
   fee: ["fee", "fees", "commission", "broker fee"],
   currency: ["currency", "ccy", "currency_code", "moneda"],
+  name: ["name", "company", "description", "asset name", "nombre"],
 };
 
 export const normalizeNumber = (value: unknown): number | null => {
@@ -92,9 +88,7 @@ export const normalizeCurrency = (raw: unknown): CurrencyCode | undefined => {
 export const normalizeTicker = (raw: string): string => {
   const cleaned = raw.trim().toUpperCase();
   if (!cleaned) return cleaned;
-  if (cleaned.includes(".") || cleaned.includes(":")) return cleaned;
-  const suffix = TICKER_SUFFIX_OVERRIDES[cleaned];
-  return suffix ? `${cleaned}${suffix}` : cleaned;
+  return resolveTradingViewSymbol(cleaned);
 };
 
 export const toTransaction = (row: ParsedRow): Transaction | null => {
@@ -126,6 +120,10 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
     row,
     fieldAliases.currency.map((a) => a.toLowerCase()),
   );
+  const nameRaw = pickField(
+    row,
+    fieldAliases.name.map((a) => a.toLowerCase()),
+  );
 
   const date = dateRaw ? String(dateRaw).trim() : "";
   const ticker = tickerRaw ? normalizeTicker(String(tickerRaw)) : "";
@@ -141,11 +139,12 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
   const fee =
     feeRaw !== undefined ? (normalizeNumber(feeRaw) ?? undefined) : undefined;
   const currency = normalizeCurrency(currencyRaw);
+  const name = nameRaw ? String(nameRaw).trim() : undefined;
 
   // Requerir solo date; ticker puede estar vacío para transacciones de efectivo
   if (!date) {
     return null;
   }
 
-  return { date, ticker, type, quantity, price, fee, currency };
+  return { date, ticker, name, type, quantity, price, fee, currency };
 };

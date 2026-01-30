@@ -31,6 +31,11 @@ export function DashboardClient() {
     [holdings, activeTicker]
   );
 
+  const dailyPnlPercent = useMemo(() => {
+    const prevValue = summary.totalValue - summary.dailyPnl;
+    return prevValue > 0 ? (summary.dailyPnl / prevValue) * 100 : 0;
+  }, [summary.totalValue, summary.dailyPnl]);
+
   return (
     <>
       <DashboardHero />
@@ -39,6 +44,7 @@ export function DashboardClient() {
         summary={summary}
         realizedTotal={realizedTotal}
         totalPnlPercent={totalPnlPercent}
+        dailyPnlPercent={dailyPnlPercent}
         isLoading={isLoading}
       />
 

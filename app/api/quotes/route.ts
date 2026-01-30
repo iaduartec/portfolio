@@ -3,6 +3,7 @@ import { resolveExchange, resolveYahooSymbol } from "@/lib/marketSymbols";
 
 type Quote = {
   ticker: string;
+  name?: string;
   price: number;
   dayChange?: number;
   dayChangePercent?: number;
@@ -214,12 +215,14 @@ const fetchYahooQuote = async (ticker: string): Promise<Quote | null> => {
     const lastIndex = closes.length - 1;
     const lastClose = Number(closes[lastIndex]);
     if (!Number.isFinite(lastClose)) return null;
-    const prevClose = Number(meta?.previousClose);
-    const dayChange = Number.isFinite(prevClose) ? lastClose - prevClose : undefined;
+
+    const prevClose = Number(meta?.chartPreviousClose ?? meta?.previousClose ?? meta?.regularMarketPreviousClose);
+    const dayChange = Number.isFinite(prevClose) && prevClose !== 0 ? lastClose - prevClose : undefined;
     const dayChangePercent =
       Number.isFinite(prevClose) && prevClose !== 0 ? (dayChange! / prevClose) * 100 : undefined;
     return {
       ticker,
+      name: meta?.longName || meta?.shortName || undefined,
       price: lastClose,
       dayChange,
       dayChangePercent,
@@ -252,18 +255,23 @@ export async function GET(request: Request) {
     const results: Quote[] = [];
 
     for (const ticker of missingTickers) {
-      const stooqQuote = await fetchStooqQuote(ticker);
-      if (stooqQuote) {
-        setCachedQuote(stooqQuote);
-        results.push(stooqQuote);
-        continue;
-      }
+      // 1. Try Yahoo Finance First (Preferred for names and reliability)
       const yahooQuote = await fetchYahooQuote(ticker);
       if (yahooQuote) {
         setCachedQuote(yahooQuote);
         results.push(yahooQuote);
         continue;
       }
+
+      // 2. Try Stooq as fallback
+      const stooqQuote = await fetchStooqQuote(ticker);
+      if (stooqQuote) {
+        setCachedQuote(stooqQuote);
+        results.push(stooqQuote);
+        continue;
+      }
+
+      // 3. Try AlphaVantage if Key exists
       if (alphaKey) {
         const alphaQuote = await fetchAlphaQuote(ticker, alphaKey);
         if (alphaQuote) {

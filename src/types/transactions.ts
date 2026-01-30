@@ -5,6 +5,7 @@ import type { CurrencyCode } from "@/lib/formatters";
 export interface Transaction {
   date: string; // YYYY-MM-DD
   ticker: string;
+  name?: string;
   type: TransactionType;
   quantity: number;
   price: number;

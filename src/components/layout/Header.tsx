@@ -11,7 +11,6 @@ const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Panel" },
   { href: "/portfolio", label: "Portafolio" },
   { href: "/lab", label: "Lab Tecnico" },
-  { href: "/ai-agents", label: "Agentes de IA" },
   { href: "/upload", label: "Cargar CSV" },
 ];
 
@@ -20,8 +19,8 @@ export function Header() {
   const { currency, setCurrency } = useCurrency();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+    <header className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/70 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8 py-4">
         <Link href="/" className="flex items-center gap-3">
           <Image
             src="/myinvestor.png"

@@ -97,6 +97,7 @@ export function usePortfolioData() {
         for (const quote of data.quotes) {
           if (!quote?.ticker || !Number.isFinite(quote.price)) continue;
           nextMap[quote.ticker.toUpperCase()] = {
+            name: quote.name,
             price: quote.price,
             dayChange: Number.isFinite(quote.dayChange) ? quote.dayChange : undefined,
             dayChangePercent: Number.isFinite(quote.dayChangePercent)

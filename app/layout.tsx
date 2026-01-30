@@ -64,15 +64,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" className={manrope.variable} suppressHydrationWarning>
       <body
-        className="flex min-h-screen flex-col bg-background text-text antialiased"
+        className="flex min-h-screen flex-col bg-background text-text antialiased overflow-x-hidden"
         suppressHydrationWarning
       >
         <CurrencyProvider>
-          <div className="border-b border-border/60 bg-surface">
-            <TradingViewTickerTape />
+          <div className="w-full border-b border-border/60 bg-surface">
+            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+              <TradingViewTickerTape />
+            </div>
           </div>
           <Header />
-          <main id="main-content" className="flex-1">
+          <main id="main-content" className="w-full flex-1">
             {children}
           </main>
           <Footer />

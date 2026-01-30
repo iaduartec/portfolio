@@ -1,14 +1,18 @@
 const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
   ENL: "ENEL.MI",
   "41L": "ROVI.MC",
+  "41L.MC": "ROVI.MC",
   AJ3: "ANA.MC",
+  "AJ3.MC": "ANA.MC",
   OZTA: "GRF.MC",
+  "OZTA.MC": "GRF.MC",
   VHM: "SCYR.MC",
+  "VHM.MC": "SCYR.MC",
   REP: "REP.MC",
   "7LB": "7LB.SG",
 };
 
-const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
+export const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
   ENL: "MIL:ENEL",
   "41L": "BME:ROVI",
   AJ3: "BME:ANA",

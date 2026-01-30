@@ -5,13 +5,27 @@ interface DashboardStatsProps {
     summary: PortfolioSummary;
     realizedTotal: number;
     totalPnlPercent: number;
+    dailyPnlPercent: number;
     isLoading: boolean;
 }
 
-export function DashboardStats({ summary, realizedTotal, totalPnlPercent, isLoading }: DashboardStatsProps) {
+export function DashboardStats({
+    summary,
+    realizedTotal,
+    totalPnlPercent,
+    dailyPnlPercent,
+    isLoading
+}: DashboardStatsProps) {
     return (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Valor total" value={summary.totalValue} isLoading={isLoading} />
+            <StatCard
+                label="P&L día"
+                value={summary.dailyPnl}
+                change={dailyPnlPercent}
+                changeVariant="percent"
+                isLoading={isLoading}
+            />
             <StatCard
                 label="P&L abierto"
                 value={summary.totalPnl}
