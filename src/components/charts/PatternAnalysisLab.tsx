@@ -81,6 +81,15 @@ type IndicatorSummary = {
   atrPercent?: number;
   vwap?: number;
   ema200?: number;
+  macdLine?: number;
+  macdSignal?: number;
+  macdHist?: number;
+  supertrend?: number;
+  supertrendDirection?: "bullish" | "bearish";
+  ichimokuTenkan?: number;
+  ichimokuKijun?: number;
+  ichimokuSpanA?: number;
+  ichimokuSpanB?: number;
 };
 
 const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): AnalysisResult => {
@@ -762,6 +771,183 @@ const computeAtrBands = (
   return { upper, lower };
 };
 
+const computeEmaValues = (values: number[], period: number) => {
+  const result: Array<number | undefined> = Array.from({ length: values.length }, () => undefined);
+  if (values.length < period) return result;
+  let sum = 0;
+  for (let i = 0; i < period; i += 1) {
+    sum += values[i];
+  }
+  let ema = sum / period;
+  result[period - 1] = ema;
+  const multiplier = 2 / (period + 1);
+  for (let i = period; i < values.length; i += 1) {
+    ema = (values[i] - ema) * multiplier + ema;
+    result[i] = ema;
+  }
+  return result;
+};
+
+const computeMacd = (candles: CandlePoint[], fast = 12, slow = 26, signal = 9) => {
+  const closes = candles.map((candle) => candle.close);
+  if (closes.length < slow + signal) {
+    return {
+      line: [],
+      signal: [],
+      histogram: [],
+      last: {},
+    };
+  }
+  const emaFast = computeEmaValues(closes, fast);
+  const emaSlow = computeEmaValues(closes, slow);
+  const line: Array<{ time: string; value: number }> = [];
+  const lineValues: Array<number> = [];
+  const lineIndices: Array<number> = [];
+
+  for (let i = 0; i < candles.length; i += 1) {
+    const fastValue = emaFast[i];
+    const slowValue = emaSlow[i];
+    if (fastValue === undefined || slowValue === undefined) continue;
+    const value = fastValue - slowValue;
+    line.push({ time: candles[i].time, value });
+    lineValues.push(value);
+    lineIndices.push(i);
+  }
+
+  const signalValues = computeEmaValues(lineValues, signal);
+  const signalLine: Array<{ time: string; value: number }> = [];
+  const histogram: Array<{ time: string; value: number }> = [];
+  for (let i = 0; i < lineValues.length; i += 1) {
+    const signalValue = signalValues[i];
+    if (signalValue === undefined) continue;
+    const time = candles[lineIndices[i]].time;
+    signalLine.push({ time, value: signalValue });
+    histogram.push({ time, value: lineValues[i] - signalValue });
+  }
+
+  const lastLine = line.length > 0 ? line[line.length - 1]?.value : undefined;
+  const lastSignal = signalLine.length > 0 ? signalLine[signalLine.length - 1]?.value : undefined;
+  const lastHist = histogram.length > 0 ? histogram[histogram.length - 1]?.value : undefined;
+
+  return {
+    line,
+    signal: signalLine,
+    histogram,
+    last: { line: lastLine, signal: lastSignal, hist: lastHist },
+  };
+};
+
+const computeSupertrend = (candles: CandlePoint[], period = 10, multiplier = 3) => {
+  if (candles.length <= period) {
+    return { points: [], last: undefined, direction: undefined } as const;
+  }
+  const atrSeries = computeAtrSeries(candles, period);
+  const atrMap = new Map(atrSeries.map((point) => [point.time, point.value]));
+
+  let prevFinalUpper = 0;
+  let prevFinalLower = 0;
+  let prevTrend: "bullish" | "bearish" | undefined;
+  const points: Array<{ time: string; value: number; trend: "bullish" | "bearish" }> = [];
+
+  for (let i = 0; i < candles.length; i += 1) {
+    const candle = candles[i];
+    const atr = atrMap.get(candle.time);
+    if (atr === undefined || !Number.isFinite(atr)) continue;
+    const basicUpper = (candle.high + candle.low) / 2 + multiplier * atr;
+    const basicLower = (candle.high + candle.low) / 2 - multiplier * atr;
+
+    const prevClose = i > 0 ? candles[i - 1].close : candle.close;
+    const finalUpper =
+      i === 0 || basicUpper < prevFinalUpper || prevClose > prevFinalUpper
+        ? basicUpper
+        : prevFinalUpper;
+    const finalLower =
+      i === 0 || basicLower > prevFinalLower || prevClose < prevFinalLower
+        ? basicLower
+        : prevFinalLower;
+
+    let trend: "bullish" | "bearish";
+    if (!prevTrend) {
+      trend = candle.close >= finalUpper ? "bullish" : "bearish";
+    } else if (prevTrend === "bearish" && candle.close > finalUpper) {
+      trend = "bullish";
+    } else if (prevTrend === "bullish" && candle.close < finalLower) {
+      trend = "bearish";
+    } else {
+      trend = prevTrend;
+    }
+
+    const supertrend = trend === "bullish" ? finalLower : finalUpper;
+    points.push({ time: candle.time, value: supertrend, trend });
+
+    prevFinalUpper = finalUpper;
+    prevFinalLower = finalLower;
+    prevTrend = trend;
+  }
+
+  const lastPoint = points.length > 0 ? points[points.length - 1] : undefined;
+  return {
+    points,
+    last: lastPoint?.value,
+    direction: lastPoint?.trend,
+  };
+};
+
+const computeIchimoku = (candles: CandlePoint[]) => {
+  const tenkan: { time: string; value: number }[] = [];
+  const kijun: { time: string; value: number }[] = [];
+  const spanA: { time: string; value: number }[] = [];
+  const spanB: { time: string; value: number }[] = [];
+  const shift = 26;
+
+  const highest = (start: number, end: number) =>
+    candles.slice(start, end + 1).reduce((max, candle) => Math.max(max, candle.high), -Infinity);
+  const lowest = (start: number, end: number) =>
+    candles.slice(start, end + 1).reduce((min, candle) => Math.min(min, candle.low), Infinity);
+
+  for (let i = 0; i < candles.length; i += 1) {
+    if (i >= 8) {
+      const max = highest(i - 8, i);
+      const min = lowest(i - 8, i);
+      tenkan.push({ time: candles[i].time, value: (max + min) / 2 });
+    }
+    if (i >= 25) {
+      const max = highest(i - 25, i);
+      const min = lowest(i - 25, i);
+      const kijunValue = (max + min) / 2;
+      kijun.push({ time: candles[i].time, value: kijunValue });
+
+      const tenkanValue = tenkan[tenkan.length - 1]?.value;
+      if (tenkanValue !== undefined && i + shift < candles.length) {
+        spanA.push({ time: candles[i + shift].time, value: (tenkanValue + kijunValue) / 2 });
+      }
+    }
+    if (i >= 51 && i + shift < candles.length) {
+      const max = highest(i - 51, i);
+      const min = lowest(i - 51, i);
+      spanB.push({ time: candles[i + shift].time, value: (max + min) / 2 });
+    }
+  }
+
+  const lastTenkan = tenkan.length > 0 ? tenkan[tenkan.length - 1]?.value : undefined;
+  const lastKijun = kijun.length > 0 ? kijun[kijun.length - 1]?.value : undefined;
+  const lastSpanA = spanA.length > 0 ? spanA[spanA.length - 1]?.value : undefined;
+  const lastSpanB = spanB.length > 0 ? spanB[spanB.length - 1]?.value : undefined;
+
+  return {
+    tenkan,
+    kijun,
+    spanA,
+    spanB,
+    last: {
+      tenkan: lastTenkan,
+      kijun: lastKijun,
+      spanA: lastSpanA,
+      spanB: lastSpanB,
+    },
+  };
+};
+
 const computeRsi = (candles: CandlePoint[], period: number) => {
   if (candles.length <= period) return undefined;
   let gains = 0;
@@ -886,6 +1072,9 @@ export function PatternAnalysisLab() {
     vwap: true,
     atrBands: false,
     pivots: true,
+    supertrend: true,
+    ichimoku: true,
+    macd: true,
   });
   const { holdings } = usePortfolioData();
   const portfolioTickers = useMemo(() => {
@@ -1040,6 +1229,79 @@ export function PatternAnalysisLab() {
       }
     }
 
+    let supertrendValue: number | undefined;
+    let supertrendDirection: "bullish" | "bearish" | undefined;
+    if (indicatorFilters.supertrend) {
+      const supertrend = computeSupertrend(candles, 10, 3);
+      supertrendValue = supertrend.last;
+      supertrendDirection = supertrend.direction;
+      if (supertrend.points.length > 0) {
+        lines.push({
+          id: "supertrend",
+          name: "Supertrend",
+          points: supertrend.points.map((point) => ({ time: point.time, value: point.value })),
+          color:
+            supertrend.direction === "bullish"
+              ? "rgba(0,192,116,0.75)"
+              : "rgba(246,70,93,0.75)",
+          style: LineStyle.Solid,
+          width: 2,
+        });
+      }
+    }
+
+    let ichimokuSummary: {
+      tenkan?: number;
+      kijun?: number;
+      spanA?: number;
+      spanB?: number;
+    } = {};
+    if (indicatorFilters.ichimoku) {
+      const ichimoku = computeIchimoku(candles);
+      ichimokuSummary = ichimoku.last;
+      if (ichimoku.tenkan.length > 0) {
+        lines.push({
+          id: "ichimoku-tenkan",
+          name: "Ichimoku Tenkan",
+          points: ichimoku.tenkan,
+          color: "rgba(94,129,172,0.9)",
+          style: LineStyle.Solid,
+          width: 1,
+        });
+      }
+      if (ichimoku.kijun.length > 0) {
+        lines.push({
+          id: "ichimoku-kijun",
+          name: "Ichimoku Kijun",
+          points: ichimoku.kijun,
+          color: "rgba(235,203,139,0.9)",
+          style: LineStyle.Solid,
+          width: 1,
+        });
+      }
+      if (ichimoku.spanA.length > 0) {
+        lines.push({
+          id: "ichimoku-span-a",
+          name: "Ichimoku Span A",
+          points: ichimoku.spanA,
+          color: "rgba(0,192,116,0.45)",
+          style: LineStyle.Dotted,
+          width: 1,
+        });
+      }
+      if (ichimoku.spanB.length > 0) {
+        lines.push({
+          id: "ichimoku-span-b",
+          name: "Ichimoku Span B",
+          points: ichimoku.spanB,
+          color: "rgba(246,70,93,0.45)",
+          style: LineStyle.Dotted,
+          width: 1,
+        });
+      }
+    }
+
+    const macd = indicatorFilters.macd ? computeMacd(candles) : null;
     const pivotLines = indicatorFilters.pivots ? buildPivotLevels(candles) : [];
     const lastClose = candles[candles.length - 1]?.close;
     const summary: IndicatorSummary = {
@@ -1051,6 +1313,15 @@ export function PatternAnalysisLab() {
         atrLast && lastClose ? Number(((atrLast / lastClose) * 100).toFixed(2)) : undefined,
       vwap: vwapLast,
       ema200: ema200Last,
+      macdLine: macd?.last.line,
+      macdSignal: macd?.last.signal,
+      macdHist: macd?.last.hist,
+      supertrend: supertrendValue,
+      supertrendDirection,
+      ichimokuTenkan: ichimokuSummary.tenkan,
+      ichimokuKijun: ichimokuSummary.kijun,
+      ichimokuSpanA: ichimokuSummary.spanA,
+      ichimokuSpanB: ichimokuSummary.spanB,
     };
 
     return { lines, pivotLines, summary };
@@ -1120,6 +1391,26 @@ export function PatternAnalysisLab() {
       summary.atrPercent !== undefined ? `ATR14%=${summary.atrPercent.toFixed(2)}` : "",
       summary.vwap !== undefined ? `VWAP=${summary.vwap.toFixed(2)}` : "",
       summary.ema200 !== undefined ? `EMA200=${summary.ema200.toFixed(2)}` : "",
+      summary.macdLine !== undefined
+        ? `MACD=${summary.macdLine.toFixed(2)}`
+        : "",
+      summary.macdSignal !== undefined
+        ? `Signal=${summary.macdSignal.toFixed(2)}`
+        : "",
+      summary.macdHist !== undefined
+        ? `Hist=${summary.macdHist.toFixed(2)}`
+        : "",
+      summary.supertrend !== undefined
+        ? `Supertrend=${summary.supertrend.toFixed(2)}${
+            summary.supertrendDirection ? `(${summary.supertrendDirection})` : ""
+          }`
+        : "",
+      summary.ichimokuTenkan !== undefined
+        ? `Tenkan=${summary.ichimokuTenkan.toFixed(2)}`
+        : "",
+      summary.ichimokuKijun !== undefined ? `Kijun=${summary.ichimokuKijun.toFixed(2)}` : "",
+      summary.ichimokuSpanA !== undefined ? `SpanA=${summary.ichimokuSpanA.toFixed(2)}` : "",
+      summary.ichimokuSpanB !== undefined ? `SpanB=${summary.ichimokuSpanB.toFixed(2)}` : "",
     ]
       .filter(Boolean)
       .join(", ");
@@ -1345,7 +1636,10 @@ export function PatternAnalysisLab() {
             { id: "ema200", label: "EMA 200" },
             { id: "bollinger", label: "Bollinger" },
             { id: "vwap", label: "VWAP" },
+            { id: "macd", label: "MACD" },
             { id: "atrBands", label: "ATR bandas" },
+            { id: "supertrend", label: "Supertrend" },
+            { id: "ichimoku", label: "Ichimoku" },
             { id: "pivots", label: "Pivots" },
           ] as const).map((item) => (
             <label
@@ -1497,6 +1791,81 @@ export function PatternAnalysisLab() {
                       ? indicatorSummary.ema200.toFixed(2)
                       : "--"}
                   </span>
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+                <p className="uppercase tracking-[0.2em] text-muted">Momentum</p>
+                <div className="mt-2 grid gap-2">
+                  <div>
+                    <span className="text-muted">MACD:</span>{" "}
+                    <span className="text-text">
+                      {indicatorSummary.macdLine !== undefined
+                        ? indicatorSummary.macdLine.toFixed(2)
+                        : "--"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted">Signal:</span>{" "}
+                    <span className="text-text">
+                      {indicatorSummary.macdSignal !== undefined
+                        ? indicatorSummary.macdSignal.toFixed(2)
+                        : "--"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted">Hist:</span>{" "}
+                    <span className="text-text">
+                      {indicatorSummary.macdHist !== undefined
+                        ? indicatorSummary.macdHist.toFixed(2)
+                        : "--"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+                <p className="uppercase tracking-[0.2em] text-muted">Tendencia</p>
+                <div className="mt-2 grid gap-2">
+                  <div>
+                    <span className="text-muted">Supertrend:</span>{" "}
+                    <span className="text-text">
+                      {indicatorSummary.supertrend !== undefined
+                        ? indicatorSummary.supertrend.toFixed(2)
+                        : "--"}
+                    </span>
+                    {indicatorSummary.supertrendDirection && (
+                      <span className="ml-2 text-[10px] uppercase tracking-[0.2em] text-muted">
+                        {indicatorSummary.supertrendDirection === "bullish"
+                          ? "alcista"
+                          : "bajista"}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-muted">Tenkan/Kijun:</span>{" "}
+                    <span className="text-text">
+                      {indicatorSummary.ichimokuTenkan !== undefined
+                        ? indicatorSummary.ichimokuTenkan.toFixed(2)
+                        : "--"}
+                      {" / "}
+                      {indicatorSummary.ichimokuKijun !== undefined
+                        ? indicatorSummary.ichimokuKijun.toFixed(2)
+                        : "--"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted">Span A/B:</span>{" "}
+                    <span className="text-text">
+                      {indicatorSummary.ichimokuSpanA !== undefined
+                        ? indicatorSummary.ichimokuSpanA.toFixed(2)
+                        : "--"}
+                      {" / "}
+                      {indicatorSummary.ichimokuSpanB !== undefined
+                        ? indicatorSummary.ichimokuSpanB.toFixed(2)
+                        : "--"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
