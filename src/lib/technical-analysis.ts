@@ -322,9 +322,44 @@ export const detectDoubleBottom = (candles: CandlePoint[], swings: SwingPoint[],
   return null;
 };
 
-export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
+export const detectHeadAndShoulders = (
+  candles: CandlePoint[],
+  swings: SwingPoint[],
+  volumes: VolumePoint[] = []
+): Pattern | null => {
   const highs = swings.filter((swing) => swing.type === "high");
   const lows = swings.filter((swing) => swing.type === "low");
+  const recentWindow = 35;
+  const shoulderSymmetry = 0.03;
+  const headMinGap = 0.03;
+  const necklineDriftMax = 0.04;
+  const minHeightRatio = 0.04;
+  const minNeckDepth = 0.02;
+  const breakThreshold = 0.005;
+  const volumeDrop = 0.07;
+  const breakoutVolumeBoost = 1.2;
+  const volumeMap = volumes.length > 0 ? buildVolumeMap(volumes) : null;
+  let bestPattern: { pattern: Pattern; score: number } | null = null;
+
+  const volumeAt = (index: number) =>
+    volumeMap?.get(candles[index]?.time ?? "") ?? 0;
+  const avgVolumeBetween = (startIndex: number, endIndex: number) => {
+    if (!volumeMap) return 0;
+    const start = Math.max(0, Math.min(startIndex, endIndex));
+    const end = Math.max(0, Math.max(startIndex, endIndex));
+    let sum = 0;
+    let count = 0;
+    for (let i = start; i <= end && i < candles.length; i += 1) {
+      const volume = volumeAt(i);
+      if (volume > 0) {
+        sum += volume;
+        count += 1;
+      }
+    }
+    return count > 0 ? sum / count : 0;
+  };
+  const avgVolumeAround = (index: number, window: number = 3) =>
+    avgVolumeBetween(index - window, index + window);
 
   // 1. Standard Head & Shoulders (Bearish)
   // Requisitos: tendencia previa alcista, 3 picos (cabeza mayor), neckline definida, formación 20-150 velas
@@ -340,12 +375,13 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
     // Separación mínima entre puntos (al menos 5 velas entre cada uno)
     if (head.index - left.index < 5 || right.index - head.index < 5) continue;
 
-    // Simetría de hombros (máx 5% diferencia)
+    // Simetría de hombros (máx 3% diferencia)
     const shoulderAvg = (left.price + right.price) / 2;
-    if (Math.abs(left.price - right.price) / shoulderAvg > 0.05) continue;
+    if (Math.abs(left.price - right.price) / shoulderAvg > shoulderSymmetry) continue;
 
-    // Cabeza debe ser claramente más alta que los hombros (al menos 2%)
-    if (head.price < shoulderAvg * 1.02) continue;
+    // Cabeza debe ser claramente más alta que el hombro más alto (al menos 3%)
+    const maxShoulder = Math.max(left.price, right.price);
+    if (head.price < maxShoulder * (1 + headMinGap)) continue;
 
     // REQUISITO: Tendencia previa alcista clara
     if (!checkTrend(candles, left.index, Math.min(40, left.index), "up")) continue;
@@ -365,19 +401,46 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
 
     // Neckline: línea que conecta los dos valles
     const necklineSlope = (valley2Price - valley1Price) / (head.index + valley2Idx - left.index - valley1Idx);
+    const necklineDrift = Math.abs(valley2Price - valley1Price) / shoulderAvg;
+    if (necklineDrift > necklineDriftMax) continue;
 
+    const depthLeft = (left.price - valley1Price) / left.price;
+    const depthRight = (right.price - valley2Price) / right.price;
+    if (depthLeft < minNeckDepth || depthRight < minNeckDepth) continue;
+
+    const leftVol = avgVolumeAround(left.index);
+    const headVol = avgVolumeAround(head.index);
+    const rightVol = avgVolumeAround(right.index);
+    const hasVolume = volumeMap && (leftVol > 0 || headVol > 0 || rightVol > 0);
+    if (hasVolume) {
+      const volumeDecreasing =
+        headVol <= leftVol * (1 - volumeDrop) && rightVol <= headVol * (1 - volumeDrop);
+      if (!volumeDecreasing) continue;
+    }
 
     const height = head.price - Math.max(valley1Price, valley2Price);
     if (height <= 0) continue;
 
-    // Altura mínima significativa (al menos 3% del precio)
-    if (height / head.price < 0.03) continue;
+    // Altura mínima significativa (al menos 4% del precio)
+    if (height / head.price < minHeightRatio) continue;
+
+    const barsSinceRight = candles.length - 1 - right.index;
+    if (barsSinceRight > recentWindow) continue;
+
+    const necklineAt = (index: number) =>
+      valley1Price + necklineSlope * (index - left.index - valley1Idx);
 
     const lastPrice = candles[candles.length - 1].close;
-    const currentNeckline = valley1Price + necklineSlope * (candles.length - 1 - left.index - valley1Idx);
+    const currentNeckline = necklineAt(candles.length - 1);
+
+    const breakdownIdx = candles
+      .slice(right.index)
+      .findIndex((c, offset) => c.close < necklineAt(right.index + offset) * (1 - breakThreshold));
+    const breakdownIndex = breakdownIdx === -1 ? -1 : right.index + breakdownIdx;
 
     // Gatillo: cierre rompiendo neckline
-    const isTriggered = lastPrice < currentNeckline;
+    const isTriggered =
+      breakdownIdx !== -1 && lastPrice < currentNeckline * (1 - breakThreshold);
     const projection = currentNeckline - height;
 
     // Stop conservador: sobre el hombro derecho tras pullback
@@ -387,7 +450,13 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
     const postPatternHigh = Math.max(...candles.slice(right.index).map(c => c.high));
     if (postPatternHigh > head.price * 1.01) continue;
 
-    return {
+    if (hasVolume && isTriggered && breakdownIndex !== -1) {
+      const baseline = avgVolumeBetween(Math.max(0, breakdownIndex - 20), breakdownIndex - 1);
+      const breakVolume = volumeAt(breakdownIndex);
+      if (baseline > 0 && breakVolume < baseline * breakoutVolumeBoost) continue;
+    }
+
+    const pattern = {
       kind: "head-shoulders",
       name: isTriggered ? "HCH (Confirmado)" : "Hombro Cabeza Hombro",
       description: `Reversión bajista. ${isTriggered ? "Neckline rota." : "Esperar ruptura de neckline."} Objetivo: ${projection.toFixed(2)}`,
@@ -426,6 +495,10 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
         },
       ],
     };
+    const score = right.index + (isTriggered ? candles.length : 0);
+    if (!bestPattern || score > bestPattern.score) {
+      bestPattern = { pattern, score };
+    }
   }
 
   // 2. Inverse Head & Shoulders (Bullish)
@@ -444,10 +517,11 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
 
     // Simetría de hombros
     const shoulderAvg = (left.price + right.price) / 2;
-    if (Math.abs(left.price - right.price) / shoulderAvg > 0.05) continue;
+    if (Math.abs(left.price - right.price) / shoulderAvg > shoulderSymmetry) continue;
 
-    // Cabeza debe ser claramente más baja (al menos 2%)
-    if (head.price > shoulderAvg * 0.98) continue;
+    // Cabeza debe ser claramente más baja que el hombro más bajo (al menos 3%)
+    const minShoulder = Math.min(left.price, right.price);
+    if (head.price > minShoulder * (1 - headMinGap)) continue;
 
     // REQUISITO: Tendencia previa bajista clara
     if (!checkTrend(candles, left.index, Math.min(40, left.index), "down")) continue;
@@ -466,16 +540,44 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
     const peak2Time = candles[head.index + peak2Idx].time;
 
     const necklineSlope = (peak2Price - peak1Price) / (head.index + peak2Idx - left.index - peak1Idx);
+    const necklineDrift = Math.abs(peak2Price - peak1Price) / shoulderAvg;
+    if (necklineDrift > necklineDriftMax) continue;
+
+    const depthLeft = (peak1Price - left.price) / peak1Price;
+    const depthRight = (peak2Price - right.price) / peak2Price;
+    if (depthLeft < minNeckDepth || depthRight < minNeckDepth) continue;
     const height = Math.min(peak1Price, peak2Price) - head.price;
 
+    const leftVol = avgVolumeAround(left.index);
+    const headVol = avgVolumeAround(head.index);
+    const rightVol = avgVolumeAround(right.index);
+    const hasVolume = volumeMap && (leftVol > 0 || headVol > 0 || rightVol > 0);
+    if (hasVolume) {
+      const volumeDecreasing =
+        headVol <= leftVol * (1 - volumeDrop) && rightVol <= headVol * (1 - volumeDrop);
+      if (!volumeDecreasing) continue;
+    }
+
     if (height <= 0) continue;
-    if (height / head.price < 0.03) continue;
+    if (height / head.price < minHeightRatio) continue;
+
+    const barsSinceRight = candles.length - 1 - right.index;
+    if (barsSinceRight > recentWindow) continue;
+
+    const necklineAt = (index: number) =>
+      peak1Price + necklineSlope * (index - left.index - peak1Idx);
 
     const lastPrice = candles[candles.length - 1].close;
-    const currentNeckline = peak1Price + necklineSlope * (candles.length - 1 - left.index - peak1Idx);
+    const currentNeckline = necklineAt(candles.length - 1);
+
+    const breakoutIdx = candles
+      .slice(right.index)
+      .findIndex((c, offset) => c.close > necklineAt(right.index + offset) * (1 + breakThreshold));
+    const breakoutIndex = breakoutIdx === -1 ? -1 : right.index + breakoutIdx;
 
     // Gatillo: cierre rompiendo neckline al alza
-    const isTriggered = lastPrice > currentNeckline;
+    const isTriggered =
+      breakoutIdx !== -1 && lastPrice > currentNeckline * (1 + breakThreshold);
     const projection = currentNeckline + height;
 
     // Stop agresivo: bajo el hombro derecho
@@ -485,7 +587,13 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
     const postPatternLow = Math.min(...candles.slice(right.index).map(c => c.low));
     if (postPatternLow < head.price * 0.99) continue;
 
-    return {
+    if (hasVolume && isTriggered && breakoutIndex !== -1) {
+      const baseline = avgVolumeBetween(Math.max(0, breakoutIndex - 20), breakoutIndex - 1);
+      const breakVolume = volumeAt(breakoutIndex);
+      if (baseline > 0 && breakVolume < baseline * breakoutVolumeBoost) continue;
+    }
+
+    const pattern = {
       kind: "inverse-head-shoulders",
       name: isTriggered ? "HCH Invertido (Confirmado)" : "HCH Invertido",
       description: `Reversión alcista. ${isTriggered ? "Neckline rota." : "Esperar ruptura de neckline."} Objetivo: ${projection.toFixed(2)}`,
@@ -524,9 +632,13 @@ export const detectHeadAndShoulders = (candles: CandlePoint[], swings: SwingPoin
         },
       ],
     };
+    const score = right.index + (isTriggered ? candles.length : 0);
+    if (!bestPattern || score > bestPattern.score) {
+      bestPattern = { pattern, score };
+    }
   }
 
-  return null;
+  return bestPattern?.pattern ?? null;
 };
 
 export const detectAscendingTriangle = (candles: CandlePoint[], swings: SwingPoint[]): Pattern | null => {
@@ -2057,7 +2169,7 @@ export const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): A
   const doubleBottom = detectDoubleBottom(candles, swings, volumes);
   if (doubleBottom) patterns.push(doubleBottom);
 
-  const headShoulders = detectHeadAndShoulders(candles, swings);
+  const headShoulders = detectHeadAndShoulders(candles, swings, volumes);
   if (headShoulders) patterns.push(headShoulders);
 
   const ascendingTriangle = detectAscendingTriangle(candles, swings);
