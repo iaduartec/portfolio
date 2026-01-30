@@ -73,6 +73,16 @@ type AnalysisResult = {
   support: PatternLine[];
 };
 
+type IndicatorSummary = {
+  rsi?: number;
+  mfi?: number;
+  cmo?: number;
+  atr?: number;
+  atrPercent?: number;
+  vwap?: number;
+  ema200?: number;
+};
+
 const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): AnalysisResult => {
   if (candles.length === 0) {
     return { candles: [], volumes: [], patterns: [], support: [] };
@@ -621,6 +631,231 @@ const buildSupportResistance = (candles: CandlePoint[], swings: SwingPoint[]): P
   ];
 };
 
+const computeSma = (candles: CandlePoint[], period: number) => {
+  if (candles.length < period) return [];
+  const points: { time: string; value: number }[] = [];
+  let sum = 0;
+  for (let i = 0; i < candles.length; i += 1) {
+    sum += candles[i].close;
+    if (i >= period) {
+      sum -= candles[i - period].close;
+    }
+    if (i >= period - 1) {
+      points.push({ time: candles[i].time, value: sum / period });
+    }
+  }
+  return points;
+};
+
+const computeEma = (candles: CandlePoint[], period: number) => {
+  if (candles.length < period) return [];
+  const points: { time: string; value: number }[] = [];
+  const multiplier = 2 / (period + 1);
+  let ema = 0;
+  for (let i = 0; i < candles.length; i += 1) {
+    const close = candles[i].close;
+    if (i < period) {
+      ema += close;
+      if (i === period - 1) {
+        ema /= period;
+        points.push({ time: candles[i].time, value: ema });
+      }
+      continue;
+    }
+    ema = (close - ema) * multiplier + ema;
+    points.push({ time: candles[i].time, value: ema });
+  }
+  return points;
+};
+
+const computeBollingerBands = (candles: CandlePoint[], period: number, multiplier: number) => {
+  if (candles.length < period) {
+    return { upper: [], middle: [], lower: [] };
+  }
+  const upper: { time: string; value: number }[] = [];
+  const middle: { time: string; value: number }[] = [];
+  const lower: { time: string; value: number }[] = [];
+  for (let i = period - 1; i < candles.length; i += 1) {
+    const slice = candles.slice(i - period + 1, i + 1);
+    const mean = slice.reduce((sum, candle) => sum + candle.close, 0) / period;
+    const variance =
+      slice.reduce((sum, candle) => sum + (candle.close - mean) ** 2, 0) / period;
+    const deviation = Math.sqrt(variance);
+    upper.push({ time: candles[i].time, value: mean + deviation * multiplier });
+    middle.push({ time: candles[i].time, value: mean });
+    lower.push({ time: candles[i].time, value: mean - deviation * multiplier });
+  }
+  return { upper, middle, lower };
+};
+
+const buildVolumeMap = (volumes: VolumePoint[]) => {
+  const map = new Map<string, number>();
+  volumes.forEach((point) => {
+    map.set(point.time, point.value);
+  });
+  return map;
+};
+
+const computeVwap = (candles: CandlePoint[], volumes: VolumePoint[]) => {
+  const volumeMap = buildVolumeMap(volumes);
+  const points: { time: string; value: number }[] = [];
+  let cumulativePV = 0;
+  let cumulativeVolume = 0;
+  let lastValue: number | null = null;
+  candles.forEach((candle) => {
+    const volume = volumeMap.get(candle.time) ?? 0;
+    if (Number.isFinite(volume) && volume > 0) {
+      const typical = (candle.high + candle.low + candle.close) / 3;
+      cumulativePV += typical * volume;
+      cumulativeVolume += volume;
+      if (cumulativeVolume > 0) {
+        lastValue = cumulativePV / cumulativeVolume;
+      }
+    }
+    if (lastValue !== null) {
+      points.push({ time: candle.time, value: lastValue });
+    }
+  });
+  return points;
+};
+
+const computeAtrSeries = (candles: CandlePoint[], period: number) => {
+  if (candles.length <= period) return [];
+  const trs: number[] = [];
+  for (let i = 0; i < candles.length; i += 1) {
+    const current = candles[i];
+    const prevClose = i > 0 ? candles[i - 1].close : current.close;
+    const tr = Math.max(
+      current.high - current.low,
+      Math.abs(current.high - prevClose),
+      Math.abs(current.low - prevClose)
+    );
+    trs.push(tr);
+  }
+  let atr = trs.slice(1, period + 1).reduce((sum, value) => sum + value, 0) / period;
+  const points: { time: string; value: number }[] = [];
+  for (let i = period; i < candles.length; i += 1) {
+    if (i === period) {
+      points.push({ time: candles[i].time, value: atr });
+      continue;
+    }
+    atr = (atr * (period - 1) + trs[i]) / period;
+    points.push({ time: candles[i].time, value: atr });
+  }
+  return points;
+};
+
+const computeAtrBands = (
+  candles: CandlePoint[],
+  atrSeries: { time: string; value: number }[],
+  multiplier: number
+) => {
+  const upper: { time: string; value: number }[] = [];
+  const lower: { time: string; value: number }[] = [];
+  const atrMap = new Map(atrSeries.map((point) => [point.time, point.value]));
+  candles.forEach((candle) => {
+    const atr = atrMap.get(candle.time);
+    if (atr === undefined || !Number.isFinite(atr)) return;
+    upper.push({ time: candle.time, value: candle.close + atr * multiplier });
+    lower.push({ time: candle.time, value: candle.close - atr * multiplier });
+  });
+  return { upper, lower };
+};
+
+const computeRsi = (candles: CandlePoint[], period: number) => {
+  if (candles.length <= period) return undefined;
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i <= period; i += 1) {
+    const delta = candles[i].close - candles[i - 1].close;
+    if (delta >= 0) gains += delta;
+    else losses -= delta;
+  }
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  for (let i = period + 1; i < candles.length; i += 1) {
+    const delta = candles[i].close - candles[i - 1].close;
+    const gain = delta > 0 ? delta : 0;
+    const loss = delta < 0 ? -delta : 0;
+    avgGain = (avgGain * (period - 1) + gain) / period;
+    avgLoss = (avgLoss * (period - 1) + loss) / period;
+  }
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - 100 / (1 + rs);
+};
+
+const computeCmo = (candles: CandlePoint[], period: number) => {
+  if (candles.length <= period) return undefined;
+  let gains = 0;
+  let losses = 0;
+  for (let i = candles.length - period; i < candles.length; i += 1) {
+    if (i === 0) continue;
+    const delta = candles[i].close - candles[i - 1].close;
+    if (delta >= 0) gains += delta;
+    else losses -= delta;
+  }
+  const total = gains + losses;
+  if (total === 0) return 0;
+  return (100 * (gains - losses)) / total;
+};
+
+const computeMfi = (candles: CandlePoint[], volumes: VolumePoint[], period: number) => {
+  if (candles.length <= period) return undefined;
+  const volumeMap = buildVolumeMap(volumes);
+  let positiveFlow = 0;
+  let negativeFlow = 0;
+  for (let i = candles.length - period; i < candles.length; i += 1) {
+    if (i === 0) continue;
+    const prev = candles[i - 1];
+    const current = candles[i];
+    const prevTypical = (prev.high + prev.low + prev.close) / 3;
+    const typical = (current.high + current.low + current.close) / 3;
+    const volume = volumeMap.get(current.time) ?? 0;
+    if (!Number.isFinite(volume) || volume <= 0) continue;
+    const flow = typical * volume;
+    if (typical >= prevTypical) positiveFlow += flow;
+    else negativeFlow += flow;
+  }
+  if (positiveFlow + negativeFlow === 0) return undefined;
+  const moneyRatio = negativeFlow === 0 ? Number.POSITIVE_INFINITY : positiveFlow / negativeFlow;
+  return 100 - 100 / (1 + moneyRatio);
+};
+
+const buildPivotLevels = (candles: CandlePoint[]) => {
+  if (candles.length === 0) return [];
+  const last = candles[candles.length - 1];
+  const firstTime = candles[0].time;
+  const lastTime = last.time;
+  const pivot = (last.high + last.low + last.close) / 3;
+  const r1 = 2 * pivot - last.low;
+  const s1 = 2 * pivot - last.high;
+  const r2 = pivot + (last.high - last.low);
+  const s2 = pivot - (last.high - last.low);
+  const r3 = last.high + 2 * (pivot - last.low);
+  const s3 = last.low - 2 * (last.high - pivot);
+  const levels = [
+    { id: "pivot", name: "Pivot", value: pivot, color: "rgba(255,255,255,0.35)" },
+    { id: "r1", name: "R1", value: r1, color: "rgba(0,192,116,0.5)" },
+    { id: "r2", name: "R2", value: r2, color: "rgba(0,192,116,0.35)" },
+    { id: "r3", name: "R3", value: r3, color: "rgba(0,192,116,0.25)" },
+    { id: "s1", name: "S1", value: s1, color: "rgba(246,70,93,0.5)" },
+    { id: "s2", name: "S2", value: s2, color: "rgba(246,70,93,0.35)" },
+    { id: "s3", name: "S3", value: s3, color: "rgba(246,70,93,0.25)" },
+  ];
+  return levels.map((level) => ({
+    id: `pivot-${level.id}`,
+    name: level.name,
+    points: [
+      { time: firstTime, value: level.value },
+      { time: lastTime, value: level.value },
+    ],
+    color: level.color,
+    style: LineStyle.Dashed,
+    width: 1,
+  }));
+};
+
 const confidenceLabel = (value: number) => {
   if (value >= 0.9) return "Alta";
   if (value >= 0.75) return "Media";
@@ -642,6 +877,15 @@ export function PatternAnalysisLab() {
     "falling-channel": true,
     "bullish-engulfing": true,
     "bearish-engulfing": true,
+  });
+  const [indicatorFilters, setIndicatorFilters] = useState({
+    sma20: true,
+    ema50: true,
+    ema200: true,
+    bollinger: true,
+    vwap: true,
+    atrBands: false,
+    pivots: true,
   });
   const { holdings } = usePortfolioData();
   const portfolioTickers = useMemo(() => {
@@ -670,6 +914,148 @@ export function PatternAnalysisLab() {
     [analysis.patterns, filters]
   );
 
+  const indicatorBundle = useMemo(() => {
+    const lines: PatternLine[] = [];
+    const candles = analysis.candles;
+    const volumes = analysis.volumes;
+    if (candles.length === 0) {
+      return { lines, pivotLines: [], summary: {} as IndicatorSummary };
+    }
+
+    if (indicatorFilters.sma20) {
+      const points = computeSma(candles, 20);
+      if (points.length > 0) {
+        lines.push({
+          id: "sma-20",
+          name: "SMA 20",
+          points,
+          color: "rgba(122,162,247,0.9)",
+          style: LineStyle.Solid,
+          width: 2,
+        });
+      }
+    }
+
+    if (indicatorFilters.ema50) {
+      const points = computeEma(candles, 50);
+      if (points.length > 0) {
+        lines.push({
+          id: "ema-50",
+          name: "EMA 50",
+          points,
+          color: "rgba(255,184,108,0.9)",
+          style: LineStyle.Solid,
+          width: 2,
+        });
+      }
+    }
+
+    let ema200Last: number | undefined;
+    if (indicatorFilters.ema200) {
+      const points = computeEma(candles, 200);
+      if (points.length > 0) {
+        ema200Last = points[points.length - 1]?.value;
+        lines.push({
+          id: "ema-200",
+          name: "EMA 200",
+          points,
+          color: "rgba(243,139,168,0.9)",
+          style: LineStyle.Solid,
+          width: 2,
+        });
+      }
+    }
+
+    if (indicatorFilters.bollinger) {
+      const { upper, middle, lower } = computeBollingerBands(candles, 20, 2);
+      if (upper.length > 0) {
+        lines.push(
+          {
+            id: "bb-upper",
+            name: "Bollinger sup.",
+            points: upper,
+            color: "rgba(170,170,170,0.6)",
+            style: LineStyle.Dotted,
+            width: 1,
+          },
+          {
+            id: "bb-middle",
+            name: "Bollinger media",
+            points: middle,
+            color: "rgba(170,170,170,0.35)",
+            style: LineStyle.Dashed,
+            width: 1,
+          },
+          {
+            id: "bb-lower",
+            name: "Bollinger inf.",
+            points: lower,
+            color: "rgba(170,170,170,0.6)",
+            style: LineStyle.Dotted,
+            width: 1,
+          }
+        );
+      }
+    }
+
+    let vwapLast: number | undefined;
+    if (indicatorFilters.vwap) {
+      const points = computeVwap(candles, volumes);
+      if (points.length > 0) {
+        vwapLast = points[points.length - 1]?.value;
+        lines.push({
+          id: "vwap",
+          name: "VWAP",
+          points,
+          color: "rgba(64,191,255,0.85)",
+          style: LineStyle.Solid,
+          width: 2,
+        });
+      }
+    }
+
+    const atrSeries = computeAtrSeries(candles, 14);
+    const atrLast = atrSeries.length > 0 ? atrSeries[atrSeries.length - 1]?.value : undefined;
+    if (indicatorFilters.atrBands && atrSeries.length > 0) {
+      const { upper, lower } = computeAtrBands(candles, atrSeries, 2);
+      if (upper.length > 0) {
+        lines.push(
+          {
+            id: "atr-upper",
+            name: "ATR banda sup.",
+            points: upper,
+            color: "rgba(0,192,116,0.4)",
+            style: LineStyle.Dashed,
+            width: 1,
+          },
+          {
+            id: "atr-lower",
+            name: "ATR banda inf.",
+            points: lower,
+            color: "rgba(246,70,93,0.4)",
+            style: LineStyle.Dashed,
+            width: 1,
+          }
+        );
+      }
+    }
+
+    const pivotLines = indicatorFilters.pivots ? buildPivotLevels(candles) : [];
+    const lastClose = candles[candles.length - 1]?.close;
+    const summary: IndicatorSummary = {
+      rsi: computeRsi(candles, 14),
+      mfi: computeMfi(candles, volumes, 14),
+      cmo: computeCmo(candles, 14),
+      atr: atrLast,
+      atrPercent:
+        atrLast && lastClose ? Number(((atrLast / lastClose) * 100).toFixed(2)) : undefined,
+      vwap: vwapLast,
+      ema200: ema200Last,
+    };
+
+    return { lines, pivotLines, summary };
+  }, [analysis.candles, analysis.volumes, indicatorFilters]);
+
   const aiChat = useMemo(
     () => new Chat({ transport: new DefaultChatTransport({ api: "/api/chat" }) }),
     []
@@ -684,6 +1070,7 @@ export function PatternAnalysisLab() {
   const isLoading = status === "submitted" || status === "streaming";
   const canAnalyze = liveStatus === "idle" && analysis.candles.length > 0 && !isLoading;
   const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+  const indicatorSummary = indicatorBundle.summary;
   const latestText = latestAssistant
     ? (() => {
         const isTextPart = (part: unknown): part is { type: "text"; text: string } =>
@@ -725,16 +1112,28 @@ export function PatternAnalysisLab() {
       low: candle.low,
       close: candle.close,
     }));
+    const summary = indicatorBundle.summary;
+    const indicatorText = [
+      summary.rsi !== undefined ? `RSI14=${summary.rsi.toFixed(1)}` : "",
+      summary.mfi !== undefined ? `MFI14=${summary.mfi.toFixed(1)}` : "",
+      summary.cmo !== undefined ? `CMO14=${summary.cmo.toFixed(1)}` : "",
+      summary.atrPercent !== undefined ? `ATR14%=${summary.atrPercent.toFixed(2)}` : "",
+      summary.vwap !== undefined ? `VWAP=${summary.vwap.toFixed(2)}` : "",
+      summary.ema200 !== undefined ? `EMA200=${summary.ema200.toFixed(2)}` : "",
+    ]
+      .filter(Boolean)
+      .join(", ");
     return [
       "Eres un analista tecnico.",
       `Ticker: ${selected.symbol}.`,
       "Fuente de datos: Alpha Vantage.",
       `Patrones detectados: ${patternNames}.`,
+      indicatorText ? `Indicadores: ${indicatorText}.` : "",
       "Usa las ultimas 20 velas para comentar estructura, sesgo y niveles.",
       "Devuelve un resumen breve y niveles de soporte/resistencia.",
       `Velas: ${JSON.stringify(recent)}`,
     ].join(" ");
-  }, [activePatterns, analysis.candles, selected.symbol]);
+  }, [activePatterns, analysis.candles, indicatorBundle.summary, selected.symbol]);
 
   useEffect(() => {
     let ignore = false;
@@ -843,18 +1242,21 @@ export function PatternAnalysisLab() {
       candleSeries.setMarkers(markers);
     }
 
-    [...analysis.support, ...activePatterns.flatMap((pattern) => pattern.lines)].forEach(
-      (line) => {
-        const series = chart.addLineSeries({
-          color: line.color,
-          lineWidth: normalizeLineWidth(line.width),
-          lineStyle: line.style ?? LineStyle.Solid,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        series.setData(line.points);
-      }
-    );
+    [
+      ...analysis.support,
+      ...indicatorBundle.pivotLines,
+      ...indicatorBundle.lines,
+      ...activePatterns.flatMap((pattern) => pattern.lines),
+    ].forEach((line) => {
+      const series = chart.addLineSeries({
+        color: line.color,
+        lineWidth: normalizeLineWidth(line.width),
+        lineStyle: line.style ?? LineStyle.Solid,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      series.setData(line.points);
+    });
 
     chart.timeScale().fitContent();
     const resizeObserver = new ResizeObserver(([entry]) => {
@@ -866,7 +1268,7 @@ export function PatternAnalysisLab() {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [analysis, activePatterns]);
+  }, [analysis, activePatterns, indicatorBundle]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2.1fr,1fr]">
@@ -934,6 +1336,42 @@ export function PatternAnalysisLab() {
               ))}
             </datalist>
           </form>
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
+            Indicadores
+          </span>
+          {([
+            { id: "sma20", label: "SMA 20" },
+            { id: "ema50", label: "EMA 50" },
+            { id: "ema200", label: "EMA 200" },
+            { id: "bollinger", label: "Bollinger" },
+            { id: "vwap", label: "VWAP" },
+            { id: "atrBands", label: "ATR bandas" },
+            { id: "pivots", label: "Pivots" },
+          ] as const).map((item) => (
+            <label
+              key={item.id}
+              className={cn(
+                "flex items-center gap-2 rounded-full border border-border/60 px-3 py-1 transition",
+                indicatorFilters[item.id] ? "bg-surface text-text" : "text-muted"
+              )}
+            >
+              <input
+                type="checkbox"
+                checked={indicatorFilters[item.id]}
+                onChange={(event) =>
+                  setIndicatorFilters((prev) => ({
+                    ...prev,
+                    [item.id]: event.target.checked,
+                  }))
+                }
+                className="accent-accent"
+              />
+              {item.label}
+            </label>
+          ))}
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
+            Patrones
+          </span>
           {([
             { id: "double-top", label: "Doble techo" },
             { id: "double-bottom", label: "Doble suelo" },
@@ -978,63 +1416,154 @@ export function PatternAnalysisLab() {
         <div ref={containerRef} className="w-full rounded-lg border border-border/60 bg-surface-muted/40" />
       </Card>
 
-      <Card title="Deteccion IA" subtitle="Analisis IA sobre velas reales.">
-        <div className="flex flex-col gap-4 text-sm text-muted">
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              onClick={async () => {
-                setMessages([]);
-                await sendMessage({ text: aiPrompt });
-              }}
-              disabled={!canAnalyze}
-              className="bg-accent text-white hover:brightness-110"
-            >
-              {isLoading ? "Analizando..." : "Analizar con IA"}
-            </Button>
-            {!canAnalyze && liveStatus === "loading" && (
-              <span className="text-xs text-muted">Esperando datos en vivo...</span>
-            )}
-            {error && (
-              <span className="text-xs text-danger">
-                No se pudo conectar con la IA. Revisa la clave API.
-              </span>
-            )}
-          </div>
-
-          {activePatterns.length === 0 ? (
-            <p>No hay patrones activos. Activa un filtro para ver resultados.</p>
-          ) : (
-            activePatterns.map((pattern) => (
-              <div key={pattern.kind} className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-text">{pattern.name}</p>
-                  <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs">
-                    {confidenceLabel(pattern.confidence)} ({Math.round(pattern.confidence * 100)}%)
+      <div className="flex flex-col gap-6">
+        <Card title="Indicadores" subtitle="Momentum, volatilidad y niveles clave.">
+          <div className="flex flex-col gap-3 text-sm text-muted">
+            <div className="grid gap-3 sm:grid-cols-2">
+              {[
+                {
+                  label: "RSI 14",
+                  value: indicatorSummary.rsi,
+                  hint:
+                    indicatorSummary.rsi !== undefined
+                      ? indicatorSummary.rsi >= 70
+                        ? "Sobrecompra"
+                        : indicatorSummary.rsi <= 30
+                          ? "Sobreventa"
+                          : "Neutral"
+                      : "—",
+                },
+                {
+                  label: "MFI 14",
+                  value: indicatorSummary.mfi,
+                  hint:
+                    indicatorSummary.mfi !== undefined
+                      ? indicatorSummary.mfi >= 80
+                        ? "Sobrecompra"
+                        : indicatorSummary.mfi <= 20
+                          ? "Sobreventa"
+                          : "Neutral"
+                      : "—",
+                },
+                {
+                  label: "CMO 14",
+                  value: indicatorSummary.cmo,
+                  hint:
+                    indicatorSummary.cmo !== undefined
+                      ? indicatorSummary.cmo >= 50
+                        ? "Momentum alcista"
+                        : indicatorSummary.cmo <= -50
+                          ? "Momentum bajista"
+                          : "Lateral"
+                      : "—",
+                },
+                {
+                  label: "ATR 14 %",
+                  value: indicatorSummary.atrPercent,
+                  hint: indicatorSummary.atrPercent ? "Volatilidad" : "—",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
+                >
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">
+                    {item.label}
+                  </p>
+                  <div className="mt-2 flex items-baseline justify-between">
+                    <span className="text-lg font-semibold text-text">
+                      {item.value !== undefined ? item.value.toFixed(2) : "--"}
+                    </span>
+                    <span className="text-xs text-muted">{item.hint}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+              <p className="uppercase tracking-[0.2em] text-muted">Niveles</p>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <span className="text-muted">VWAP:</span>{" "}
+                  <span className="text-text">
+                    {indicatorSummary.vwap !== undefined
+                      ? indicatorSummary.vwap.toFixed(2)
+                      : "--"}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-muted">{pattern.description}</p>
-                <div className="mt-2 text-[11px] uppercase tracking-[0.2em] text-muted">
-                  Lineas: {pattern.lines.length}
+                <div>
+                  <span className="text-muted">EMA 200:</span>{" "}
+                  <span className="text-text">
+                    {indicatorSummary.ema200 !== undefined
+                      ? indicatorSummary.ema200.toFixed(2)
+                      : "--"}
+                  </span>
                 </div>
               </div>
-            ))
-          )}
-
-          <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted">Resumen IA</p>
-            {latestText ? (
-              <div className="mt-2 text-sm text-text">
-                <MemoizedMarkdown id="pattern-ia" content={latestText} />
-              </div>
-            ) : (
-              <p className="mt-2 text-xs text-muted">
-                Ejecuta la analisis para recibir un resumen.
-              </p>
-            )}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+
+        <Card title="Deteccion IA" subtitle="Analisis IA sobre velas reales.">
+          <div className="flex flex-col gap-4 text-sm text-muted">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                type="button"
+                onClick={async () => {
+                  setMessages([]);
+                  await sendMessage({ text: aiPrompt });
+                }}
+                disabled={!canAnalyze}
+                className="bg-accent text-white hover:brightness-110"
+              >
+                {isLoading ? "Analizando..." : "Analizar con IA"}
+              </Button>
+              {!canAnalyze && liveStatus === "loading" && (
+                <span className="text-xs text-muted">Esperando datos en vivo...</span>
+              )}
+              {error && (
+                <span className="text-xs text-danger">
+                  No se pudo conectar con la IA. Revisa la clave API.
+                </span>
+              )}
+            </div>
+
+            {activePatterns.length === 0 ? (
+              <p>No hay patrones activos. Activa un filtro para ver resultados.</p>
+            ) : (
+              activePatterns.map((pattern) => (
+                <div
+                  key={pattern.kind}
+                  className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-text">{pattern.name}</p>
+                    <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs">
+                      {confidenceLabel(pattern.confidence)} ({Math.round(pattern.confidence * 100)}%)
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted">{pattern.description}</p>
+                  <div className="mt-2 text-[11px] uppercase tracking-[0.2em] text-muted">
+                    Lineas: {pattern.lines.length}
+                  </div>
+                </div>
+              ))
+            )}
+
+            <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted">Resumen IA</p>
+              {latestText ? (
+                <div className="mt-2 text-sm text-text">
+                  <MemoizedMarkdown id="pattern-ia" content={latestText} />
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted">
+                  Ejecuta la analisis para recibir un resumen.
+                </p>
+              )}
+            </div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

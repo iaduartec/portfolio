@@ -55,6 +55,7 @@ Crea un archivo `.env.local` con tus claves:
 
 ```env
 GOOGLE_GEMINI_API_KEY=tu_clave_aqui
+NEXT_PUBLIC_EXCHANGERATE_HOST_KEY=tu_clave_exchangerate_host_opcional
 ```
 
 ### 4. Lanzar en Desarrollo

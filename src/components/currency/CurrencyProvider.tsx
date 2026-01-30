@@ -55,17 +55,44 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     if (apiKey) {
       url.searchParams.set("access_key", apiKey);
     }
-    void fetch(url.toString())
-      .then((res) => res.json())
-      .then((data) => {
-        const nextRate = Number(data?.rates?.USD);
-        if (!Number.isFinite(nextRate) || nextRate <= 0) return;
-        if (!isActive) return;
-        setFxRate(nextRate);
-        window.localStorage.setItem(FX_STORAGE_KEY, String(nextRate));
-        window.localStorage.setItem(FX_TIMESTAMP_KEY, String(Date.now()));
-      })
-      .catch(() => {});
+    const persistRate = (nextRate: number) => {
+      if (!isActive) return;
+      setFxRate(nextRate);
+      window.localStorage.setItem(FX_STORAGE_KEY, String(nextRate));
+      window.localStorage.setItem(FX_TIMESTAMP_KEY, String(Date.now()));
+    };
+
+    const fetchPrimary = async () => {
+      const res = await fetch(url.toString());
+      if (!res.ok) return null;
+      const data = await res.json();
+      const nextRate = Number(data?.rates?.USD);
+      return Number.isFinite(nextRate) && nextRate > 0 ? nextRate : null;
+    };
+
+    const fetchFallback = async () => {
+      const res = await fetch("https://open.er-api.com/v6/latest/EUR");
+      if (!res.ok) return null;
+      const data = await res.json();
+      const nextRate = Number(data?.rates?.USD);
+      return Number.isFinite(nextRate) && nextRate > 0 ? nextRate : null;
+    };
+
+    void (async () => {
+      try {
+        const primaryRate = await fetchPrimary();
+        if (primaryRate !== null) {
+          persistRate(primaryRate);
+          return;
+        }
+        const fallbackRate = await fetchFallback();
+        if (fallbackRate !== null) {
+          persistRate(fallbackRate);
+        }
+      } catch {
+        // swallow to keep UX stable
+      }
+    })();
     return () => {
       isActive = false;
     };
