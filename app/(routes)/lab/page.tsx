@@ -1,19 +1,43 @@
-import { PatternAnalysisLab } from "@/components/charts/PatternAnalysisLab";
 import { Shell } from "@/components/layout/Shell";
+import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
+import { PortfolioChartsGrid } from "@/components/charts/PortfolioChartsGrid";
+import { AITechnicalAnalysis } from "@/components/ai/AITechnicalAnalysis";
+import { Card } from "@/components/ui/card";
 
 export default function PatternLabPage() {
   return (
     <Shell>
-      <section className="flex flex-col gap-2">
-        <p className="text-xs uppercase tracking-[0.08em] text-muted">Laboratorio</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-text">IA de patrones tecnicos</h1>
-        <p className="text-sm text-muted">
-          Pestaña de pruebas para analisis tecnico. La IA simula patrones, los detecta y los dibuja
-          sobre el grafico.
+      <section className="flex flex-col gap-2 mb-8">
+        <p className="text-xs uppercase tracking-[0.08em] text-muted">Laboratorio Avanzado</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-text">Análisis Técnico y Estratégico</h1>
+        <p className="text-sm text-muted max-w-2xl">
+          Herramientas profesionales para el análisis de mercados. Utiliza el gráfico avanzado para exploración libre,
+          revisa el estado técnico de tu cartera y obtén recomendaciones detalladas generadas por IA.
         </p>
       </section>
 
-      <PatternAnalysisLab />
+      <div className="flex flex-col gap-10">
+        {/* Block 1: TradingView Advanced Chart */}
+        <Card
+          title="Analizador Global"
+          subtitle="Explora cualquier símbolo, añade indicadores y realiza tu propio análisis técnico."
+          className="p-0 overflow-hidden border-none bg-surface-muted/20"
+        >
+          <TradingViewAdvancedChart />
+        </Card>
+
+        {/* Block 2: Portfolio Analysis */}
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-semibold text-text">Estado de Cartera</h2>
+            <p className="text-sm text-muted">Gráficos individuales con detección automática de patrones relevantes.</p>
+          </div>
+          <PortfolioChartsGrid />
+        </section>
+
+        {/* Block 3: AI Strategic Analysis */}
+        <AITechnicalAnalysis />
+      </div>
     </Shell>
   );
 }
