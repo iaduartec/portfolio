@@ -104,24 +104,27 @@ export const computeHoldings = (
       const marketValue = totalQuantity * currentPriceBase;
       const pnlValue = marketValue - totalCost;
       const pnlPercent = totalCost > 0 ? (pnlValue / totalCost) * 100 : 0;
+      const dayChange =
+        override?.dayChange !== undefined
+          ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency)
+          : undefined;
+      const dayChangePercent = override?.dayChangePercent;
 
-      return {
+      const holding: Holding = {
         ticker,
         currency,
         totalQuantity,
         averageBuyPrice,
         currentPrice: currentPriceBase,
-        dayChange:
-          override?.dayChange !== undefined
-            ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency)
-            : undefined,
-        dayChangePercent: override?.dayChangePercent,
         marketValue,
         pnlValue,
         pnlPercent,
+        ...(dayChange !== undefined ? { dayChange } : {}),
+        ...(dayChangePercent !== undefined ? { dayChangePercent } : {}),
       };
+      return holding;
     })
-    .filter((holding): holding is Holding => Boolean(holding));
+    .filter((holding): holding is Holding => holding !== null);
 };
 
 export const computeSummary = (holdings: Holding[]): PortfolioSummary => {

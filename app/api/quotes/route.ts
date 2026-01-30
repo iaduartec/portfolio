@@ -201,6 +201,7 @@ const fetchYahooQuote = async (ticker: string): Promise<Quote | null> => {
   )}?interval=1d&range=5d`;
   try {
     const res = await fetch(url, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
     const json = await res.json();
     const result = json?.chart?.result?.[0];
     const meta = result?.meta;

@@ -110,27 +110,33 @@ const fetchYahooOHLC = async (ticker: string) => {
     const result = json?.chart?.result?.[0];
     if (!result) return null;
 
-    const timestamps = result.timestamp || [];
+    const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
     const quote = result.indicators?.quote?.[0] || {};
     
-    const opens = quote.open || [];
-    const highs = quote.high || [];
-    const lows = quote.low || [];
-    const closes = quote.close || [];
-    const volumes = quote.volume || [];
+    const opens = Array.isArray(quote.open) ? quote.open : [];
+    const highs = Array.isArray(quote.high) ? quote.high : [];
+    const lows = Array.isArray(quote.low) ? quote.low : [];
+    const closes = Array.isArray(quote.close) ? quote.close : [];
+    const volumes = Array.isArray(quote.volume) ? quote.volume : [];
 
     const candles = [];
     const volumesData = [];
 
     for (let i = 0; i < timestamps.length; i++) {
-      if (!opens[i] || !highs[i] || !lows[i] || !closes[i]) continue;
-      
       const time = new Date(timestamps[i] * 1000).toISOString().split('T')[0];
       const open = Number(opens[i]);
       const high = Number(highs[i]);
       const low = Number(lows[i]);
       const close = Number(closes[i]);
       const volume = Number(volumes[i] || 0);
+      if (
+        !Number.isFinite(open) ||
+        !Number.isFinite(high) ||
+        !Number.isFinite(low) ||
+        !Number.isFinite(close)
+      ) {
+        continue;
+      }
 
       candles.push({ time, open, high, low, close });
       volumesData.push({
