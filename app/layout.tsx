@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape";
 import { CurrencyProvider } from "@/components/currency/CurrencyProvider";
+import { getSiteUrl } from "@/lib/site";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -13,23 +14,33 @@ const manrope = Manrope({
   variable: "--font-manrope",
 });
 
+const siteUrl = getSiteUrl();
+
 export const metadata: Metadata = {
   title: {
     default: "MyInvestView | Análisis de Portafolio con IA y TradingView",
     template: "%s | MyInvestView",
   },
-  description: "Optimiza tus inversiones con Inteligencia Artificial. Panel de portafolio avanzado con agentes de IA, analisis tecnico de TradingView y seguimiento de rentabilidad en tiempo real.",
-  keywords: ["IA para trading", "Analisis de portafolio", "Inversion inteligente", "Panel TradingView", "Agentes de IA", "Finanzas"],
-  authors: [{ name: "Duartec", url: "https://portfolio-duartec.vercel.app" }],
+  description:
+    "Optimiza tus inversiones con Inteligencia Artificial. Panel de portafolio avanzado con agentes de IA, análisis técnico de TradingView y seguimiento de rentabilidad en tiempo real.",
+  keywords: [
+    "IA para trading",
+    "Análisis de portafolio",
+    "Inversión inteligente",
+    "Panel TradingView",
+    "Agentes de IA",
+    "Finanzas",
+  ],
+  authors: [{ name: "Duartec", url: siteUrl }],
   creator: "Duartec",
-  metadataBase: new URL("https://portfolio-duartec.vercel.app"),
+  metadataBase: new URL(siteUrl),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "MyInvestView - Inteligencia Artificial aplicada al Trading",
     description: "Analiza tu cartera en segundos con agentes inteligentes.",
-    url: "https://portfolio-duartec.vercel.app",
+    url: siteUrl,
     siteName: "MyInvestView",
     images: [
       {
@@ -45,7 +56,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "MyInvestView | Análisis de Portafolio con IA",
-    description: "Maximiza tu rentabilidad con analisis de IA y TradingView.",
+    description: "Maximiza tu rentabilidad con análisis de IA y TradingView.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -67,6 +78,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         className="flex min-h-screen flex-col bg-background text-text antialiased overflow-x-hidden"
         suppressHydrationWarning
       >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-text focus:shadow-panel"
+        >
+          Saltar al contenido
+        </a>
         <CurrencyProvider>
           <div className="w-full border-b border-border/60 bg-surface">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -74,7 +91,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <Header />
-          <main id="main-content" className="w-full flex-1">
+          <main id="main-content" className="w-full flex-1" tabIndex={-1}>
             {children}
           </main>
           <Footer />

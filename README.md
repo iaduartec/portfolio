@@ -51,6 +51,8 @@ pnpm install
 
 ### 3. Variables de Entorno
 
+> Recomendado: define `NEXT_PUBLIC_SITE_URL` para que el SEO (canonical/OG/sitemap/robots) sea correcto en producción.
+
 Crea un archivo `.env.local` con tus claves:
 
 ```env

@@ -1,8 +1,9 @@
-import { MetadataRoute } from 'next';
+import { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://portfolio-duartec.vercel.app';
-  
+  const baseUrl = getSiteUrl();
+
   return [
     {
       url: baseUrl,
@@ -31,8 +32,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: `${baseUrl}/upload`,
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: "monthly",
       priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/legal/terminos`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${baseUrl}/legal/privacidad`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.2,
+    },
+    {
+      url: `${baseUrl}/legal/riesgo`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.2,
     },
   ];
 }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Upload, List } from "lucide-react";
 
 export function DashboardHero() {
@@ -16,23 +17,20 @@ export function DashboardHero() {
                 </p>
             </div>
             <div className="flex flex-wrap gap-3">
-                <button
-                    onClick={() => window.location.href = '/upload'}
-                    className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98]"
+                <Link
+                    href="/upload"
+                    className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-base font-bold text-white shadow-lg shadow-accent/20 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                     <Upload className="h-5 w-5" />
-                    Analizar Mi Cartera
-                </button>
-                <button
-                    onClick={() => {
-                        const el = document.getElementById('holdings-section');
-                        el?.scrollIntoView({ behavior: 'smooth' });
-                    }}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-6 py-3 text-base font-semibold text-text transition-all hover:bg-surface-muted"
+                    Analizar mi cartera
+                </Link>
+                <Link
+                    href="#holdings-section"
+                    className="flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-6 py-3 text-base font-semibold text-text transition-all hover:bg-surface-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                     <List className="h-5 w-5" />
-                    Ver Posiciones
-                </button>
+                    Ver posiciones
+                </Link>
             </div>
         </section>
     );

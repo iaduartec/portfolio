@@ -39,13 +39,13 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text">Legal</h3>
             <ul className="space-y-2 text-sm text-muted">
               <li>
-                <Link href="#" className="hover:text-accent transition-colors">Términos de Servicio</Link>
+                <Link href={{ pathname: "/legal/terminos" }} className="hover:text-accent transition-colors">Términos de servicio</Link>
               </li>
               <li>
-                <Link href="#" className="hover:text-accent transition-colors">Política de Privacidad</Link>
+                <Link href={{ pathname: "/legal/privacidad" }} className="hover:text-accent transition-colors">Política de privacidad</Link>
               </li>
               <li>
-                <Link href="#" className="hover:text-accent transition-colors">Aviso de Riesgo</Link>
+                <Link href={{ pathname: "/legal/riesgo" }} className="hover:text-accent transition-colors">Aviso de riesgo</Link>
               </li>
             </ul>
           </div>
@@ -56,15 +56,39 @@ export function Footer() {
             &copy; {currentYear} MyInvestView. Todos los derechos reservados.
           </p>
           <div className="flex gap-4">
-            <a href="#" className="text-muted hover:text-accent transition-colors" aria-label="GitHub">
-              <Github className="h-4 w-4" />
-            </a>
-            <a href="#" className="text-muted hover:text-accent transition-colors" aria-label="Twitter">
-              <Twitter className="h-4 w-4" />
-            </a>
-            <a href="#" className="text-muted hover:text-accent transition-colors" aria-label="LinkedIn">
-              <Linkedin className="h-4 w-4" />
-            </a>
+            {process.env.NEXT_PUBLIC_GITHUB_URL ? (
+              <a
+                href={process.env.NEXT_PUBLIC_GITHUB_URL}
+                className="text-muted hover:text-accent transition-colors"
+                aria-label="GitHub"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Github className="h-4 w-4" />
+              </a>
+            ) : null}
+            {process.env.NEXT_PUBLIC_TWITTER_URL ? (
+              <a
+                href={process.env.NEXT_PUBLIC_TWITTER_URL}
+                className="text-muted hover:text-accent transition-colors"
+                aria-label="Twitter"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Twitter className="h-4 w-4" />
+              </a>
+            ) : null}
+            {process.env.NEXT_PUBLIC_LINKEDIN_URL ? (
+              <a
+                href={process.env.NEXT_PUBLIC_LINKEDIN_URL}
+                className="text-muted hover:text-accent transition-colors"
+                aria-label="LinkedIn"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Linkedin className="h-4 w-4" />
+              </a>
+            ) : null}
           </div>
         </div>
       </div>
