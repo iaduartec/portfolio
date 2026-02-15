@@ -1,5 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToModelMessages } from 'ai';
+import { z } from 'zod';
 
 export const maxDuration = 30;
 
@@ -22,10 +23,34 @@ export async function POST(req: Request) {
     const portfolio = data?.portfolio;
     const portfolioJson = portfolio ? JSON.stringify(portfolio) : "";
     const baseSystemMessage =
-      "Eres un asistente financiero. Responde en Markdown y utiliza los datos de la cartera cuando esten disponibles.";
+      "Eres un consultor financiero de élite. Responde en Markdown de forma profesional y concisa. " +
+      "Utiliza los datos de la cartera proporcionados para dar consejos personalizados. " +
+      "Si te piden un valor específico, usa la herramienta showStock.";
+
     const systemMessage = portfolioJson
-      ? `${baseSystemMessage}\n\nDatos de la cartera (JSON): ${portfolioJson}\n\nUsa holdings/positions, summary y realizedTrades para responder sobre la cartera.`
+      ? `${baseSystemMessage}\n\nDATOS DE LA CARTERA (Sincronizados):\n${portfolioJson}`
       : baseSystemMessage;
+
+    const showStockTool = {
+      description: 'Muestra información detallada y gráfica de un activo financiero por su ticker (ej: AAPL, TSLA, BTC-USD)',
+      parameters: z.object({
+        symbol: z.string().describe('El símbolo del activo (tickers de Yahoo Finance)'),
+        name: z.string().optional().describe('Nombre de la empresa'),
+        analysis: z.string().optional().describe('Un breve análisis técnico o fundamental hecho por ti')
+      }),
+      execute: async (args: any) => args
+    } as any;
+
+    const suggestTradeTool = {
+      description: 'Sugiere una operación basada en análisis técnico o fundamental',
+      parameters: z.object({
+        symbol: z.string(),
+        action: z.enum(['BUY', 'SELL', 'HOLD']),
+        reason: z.string(),
+        targetPrice: z.number().optional()
+      }),
+      execute: async (args: any) => args
+    } as any;
 
     const models = getGeminiModels();
     if (models.length === 0) {
@@ -39,23 +64,12 @@ export async function POST(req: Request) {
           model,
           system: systemMessage,
           messages: convertToModelMessages(messages ?? []),
-          // tools: {
-          //   showStock: tool({
-          //     description: 'Show stock price and information for a given symbol',
-          //     parameters: z.object({
-          //         symbol: z.string(),
-          //         name: z.string().optional(),
-          //         price: z.number(),
-          //         change: z.number(),
-          //         changePercent: z.number(),
-          //     }),
-          //     execute: async ({ symbol, price, change, changePercent, name }: { symbol: string, price: number, change: number, changePercent: number, name?: string }) => {
-          //         return { symbol, price, change, changePercent, name };
-          //     }
-          //   })
-          // }
+          tools: {
+            showStock: showStockTool,
+            suggestTrade: suggestTradeTool
+          }
         });
-      
+
         return result.toUIMessageStreamResponse();
       } catch (error) {
         lastError = error;

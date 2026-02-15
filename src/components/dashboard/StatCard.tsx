@@ -32,35 +32,50 @@ export function StatCard({
   const { currency, baseCurrency, fxRate } = useCurrency();
   const effectiveChangeVariant = changeVariant ?? variant;
   const isPositive = (change ?? 0) >= 0;
+
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 shadow-panel">
-      <p className="text-xs uppercase tracking-[0.08em] text-muted">{label}</p>
-      <div className="mt-2 flex items-center gap-2">
+    <div className="group relative overflow-hidden rounded-2xl border border-white/5 bg-surface/30 p-5 backdrop-blur-md transition-all hover:bg-surface/50 hover:border-white/10 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+      {/* Decorative Gradient Glow */}
+      <div className={cn(
+        "absolute -right-4 -top-4 h-24 w-24 blur-3xl transition-opacity opacity-0 group-hover:opacity-20",
+        isPositive ? "bg-green-500" : "bg-red-500"
+      )} />
+
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60">{label}</p>
+
+      <div className="mt-3 flex items-end justify-between">
         {isLoading ? (
-          <>
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-5 w-16" />
-          </>
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-24 bg-white/5" />
+            <Skeleton className="h-4 w-16 bg-white/5" />
+          </div>
         ) : (
           <>
-            <p className="text-2xl font-semibold text-text">
-              {formatByVariant(
-                convertCurrency(value, currency, fxRate, baseCurrency),
-                variant,
-                currency
+            <div className="flex flex-col">
+              <p className="text-2xl font-black tracking-tight text-white group-hover:text-primary transition-colors">
+                {formatByVariant(
+                  convertCurrency(value, currency, fxRate, baseCurrency),
+                  variant,
+                  currency
+                )}
+              </p>
+              {change !== undefined && (
+                <div className={cn(
+                  "mt-1 flex items-center gap-1 text-xs font-bold",
+                  isPositive ? "text-green-400" : "text-red-400"
+                )}>
+                  <span>{isPositive ? "↑" : "↓"}</span>
+                  <span>
+                    {formatByVariant(
+                      convertCurrency(Math.abs(change), currency, fxRate, baseCurrency),
+                      effectiveChangeVariant,
+                      currency
+                    )}
+                  </span>
+                  <span className="text-muted-foreground/40 font-medium">vs ayer</span>
+                </div>
               )}
-            </p>
-            {change !== undefined && (
-              <Badge tone={isPositive ? "success" : "danger"}>
-                <span className={cn(isPositive ? "text-success" : "text-danger")}>
-                  {formatByVariant(
-                    convertCurrency(change, currency, fxRate, baseCurrency),
-                    effectiveChangeVariant,
-                    currency
-                  )}
-                </span>
-              </Badge>
-            )}
+            </div>
           </>
         )}
       </div>

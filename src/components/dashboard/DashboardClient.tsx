@@ -37,29 +37,43 @@ export function DashboardClient() {
   }, [summary.totalValue, summary.dailyPnl]);
 
   return (
-    <>
+    <div className="flex flex-col gap-10 pb-20">
       <DashboardHero />
 
-      <DashboardStats
-        summary={summary}
-        realizedTotal={realizedTotal}
-        totalPnlPercent={totalPnlPercent}
-        dailyPnlPercent={dailyPnlPercent}
-        isLoading={isLoading}
-      />
+      <div className="flex flex-col gap-12">
+        <section>
+          <DashboardStats
+            summary={summary}
+            realizedTotal={realizedTotal}
+            totalPnlPercent={totalPnlPercent}
+            dailyPnlPercent={dailyPnlPercent}
+            isLoading={isLoading}
+          />
+        </section>
 
-      <DashboardAIPulse />
+        <section>
+          <DashboardAIPulse />
+        </section>
 
-      <DashboardHoldings
-        holdings={holdings}
-        activeTicker={activeTicker}
-        onSelectTicker={setSelectedTicker}
-        isLoading={isLoading}
-      />
+        <section id="holdings-section" className="scroll-mt-20">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-1 h-6 bg-primary rounded-full" />
+            <h2 className="text-xl font-bold text-white uppercase tracking-wider">Tu Cartera</h2>
+          </div>
+          <DashboardHoldings
+            holdings={holdings}
+            activeTicker={activeTicker}
+            onSelectTicker={setSelectedTicker}
+            isLoading={isLoading}
+          />
+        </section>
 
-      <DashboardTradingView selectedHolding={selectedHolding} />
+        <section className="min-h-[600px] rounded-3xl overflow-hidden border border-white/5 bg-white/2 p-1">
+          <DashboardTradingView selectedHolding={selectedHolding} />
+        </section>
+      </div>
 
       <AIChat />
-    </>
+    </div>
   );
 }

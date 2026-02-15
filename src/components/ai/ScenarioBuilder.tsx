@@ -2,8 +2,8 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input"; // Assuming you have an Input component
-import { BrainCircuit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { BrainCircuit, Sparkles, Loader2 } from "lucide-react";
 import { useState } from "react";
 
 export function ScenarioBuilder() {
@@ -14,40 +14,56 @@ export function ScenarioBuilder() {
     const handleSimulate = async () => {
         if (!scenario) return;
         setLoading(true);
+        setResult(null);
         // Simulation logic would go here (call AI)
-        // For now, mock result
         setTimeout(() => {
-            setResult("Segun la beta historica, una caida del mercado del 10% podria afectar tu cartera en aproximadamente -8,5%.");
+            setResult("Análisis completado: Según la beta histórica y sensibilidad sectorial, un escenario de +1% en tipos impactaría tu cartera en -8.5% debido a la exposición en Growth.");
             setLoading(false);
         }, 1500);
     };
 
     return (
-        <Card className="border-l-4 border-l-purple-500/50 bg-surface/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-purple-500/10 rounded-full text-purple-500">
-                    <BrainCircuit size={20} />
+        <Card className="relative overflow-hidden border-white/5 bg-surface/30 backdrop-blur-md p-5 group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 blur-3xl -z-10" />
+
+            <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-purple-500/10 rounded-xl text-purple-400 border border-purple-500/20">
+                    <BrainCircuit size={18} />
                 </div>
-                <h3 className="font-bold text-lg">Escenarios inteligentes</h3>
+                <div>
+                    <h3 className="font-bold text-sm text-white uppercase tracking-wider">Simulador de Escenarios</h3>
+                    <div className="flex items-center gap-1.5">
+                        <Sparkles size={10} className="text-purple-400" />
+                        <span className="text-[10px] text-muted-foreground font-bold">MONTE CARLO AI</span>
+                    </div>
+                </div>
             </div>
 
             <div className="flex flex-col gap-3">
                 <Input
-                    placeholder="p.ej. Que pasa si los tipos suben 1%?"
+                    placeholder="p.ej. ¿Subida de tipos +1%?"
                     value={scenario}
                     onChange={(e) => setScenario(e.target.value)}
-                    className="bg-background/50"
+                    className="bg-white/5 border-white/10 rounded-xl focus-visible:ring-purple-500 h-10 text-sm"
                 />
                 <Button
                     onClick={handleSimulate}
                     disabled={loading || !scenario}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl h-10 shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
-                    {loading ? "Simulando..." : "Simular impacto"}
+                    {loading ? (
+                        <>
+                            <Loader2 size={16} className="mr-2 animate-spin" />
+                            PROCESANDO...
+                        </>
+                    ) : (
+                        "SIMULAR IMPACTO"
+                    )}
                 </Button>
 
                 {result && (
-                    <div className="mt-2 p-3 bg-purple-500/10 rounded-lg text-sm border border-purple-500/20">
+                    <div className="mt-2 p-3 bg-purple-500/10 rounded-xl text-[11px] border border-purple-500/20 text-purple-200 leading-relaxed animate-in fade-in slide-in-from-top-2">
+                        <span className="font-black text-purple-400 mr-1">IA:</span>
                         {result}
                     </div>
                 )}

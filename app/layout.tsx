@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { TradingViewTickerTape } from "@/components/charts/TradingViewTickerTape";
 import { CurrencyProvider } from "@/components/currency/CurrencyProvider";
+import { GridBackground } from "@/components/layout/GridBackground";
 import { getSiteUrl } from "@/lib/site";
 
 const manrope = Manrope({
@@ -85,7 +86,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Saltar al contenido
         </a>
         <CurrencyProvider>
-          <div className="w-full border-b border-border/60 bg-surface">
+          <GridBackground />
+          <div className="w-full border-b border-border/60 bg-surface/50 backdrop-blur-md sticky top-0 z-[100]">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
               <TradingViewTickerTape />
             </div>

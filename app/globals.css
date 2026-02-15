@@ -3,6 +3,28 @@
 @tailwind utilities;
 
 :root {
+  --background: 222 47% 11%;
+  --foreground: 213 31% 91%;
+  
+  --primary: 221 100% 50%;
+  --primary-foreground: 210 40% 98%;
+  
+  --accent: 221 100% 50%;
+  --accent-foreground: 210 40% 98%;
+  
+  --card: 222 47% 11%;
+  --card-foreground: 213 31% 91%;
+  
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  
+  --surface: #1B1F2D;
+  --surface-muted: #242938;
+  
+  --radius: 0.75rem;
+}
+
+:root {
   color-scheme: dark;
 }
 
@@ -13,8 +35,12 @@
 body {
   margin: 0;
   font-family: var(--font-manrope), system-ui, -apple-system, "Segoe UI", sans-serif;
-  background-color: #131722;
+  background-color: #0d1117;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(41, 98, 255, 0.05) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(0, 192, 116, 0.05) 0px, transparent 50%);
   color: #d1d4dc;
+  min-height: 100vh;
 }
 
 a {
@@ -23,78 +49,69 @@ a {
 }
 
 ::selection {
-  background: rgba(41, 98, 255, 0.2);
-  color: #d1d4dc;
+  background: rgba(41, 98, 255, 0.3);
+  color: #ffffff;
+}
+
+/* Glassmorphism */
+.glass {
+  background: rgba(27, 31, 45, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 .card-glow {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 20px rgba(41, 98, 255, 0.15);
+  transition: box-shadow 0.3s ease;
 }
 
-.glass {
-  background: radial-gradient(circle at top left, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0));
+.card-glow:hover {
+  box-shadow: 0 0 30px rgba(41, 98, 255, 0.25);
 }
 
-.tradingview-widget-container,
-.tradingview-widget-container__widget {
-  background-color: #131722;
+/* Animations */
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
 }
 
-.tradingview-widget-container iframe {
-  background-color: #131722;
+.animate-float {
+  animation: float 6s ease-in-out infinite;
 }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+/* TradingView Overrides */
+.tradingview-widget-container {
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .tradingview-widget-copyright {
   display: none !important;
 }
 
-/* TradingView widget tokens (dark theme) */
-:root {
-  --tv-widget-accent-color: #2962ff;
-  --tv-widget-text-color: #d1d4dc;
-  --tv-widget-background-color: #131722;
-  --tv-widget-font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --tv-widget-price-text-color: #d1d4dc;
-
-  --tv-widget-market-status-pre-color: #b1bac8;
-  --tv-widget-market-status-post-color: #b1bac8;
-  --tv-widget-market-status-open-color: #00c074;
-  --tv-widget-market-status-closed-color: #f6465d;
-
-  --tv-widget-positive-color: #00c074;
-  --tv-widget-positive-area-top-color: rgba(0, 192, 116, 0.2);
-  --tv-widget-positive-area-bottom-color: rgba(0, 192, 116, 0.1);
-
-  --tv-widget-negative-color: #f6465d;
-  --tv-widget-negative-area-top-color: rgba(246, 70, 93, 0.2);
-  --tv-widget-negative-area-bottom-color: rgba(246, 70, 93, 0.1);
-
-  --tv-widget-scales-font-color: #b1bac8;
-  --tv-widget-popup-background-color: #1b1f2a;
-  --tv-widget-tooltip-text-color: #d1d4dc;
-  --tv-widget-tooltip-background-color: #0f141f;
-}
-
-.tv-dark-scope {
-  color-scheme: dark;
-  --tv-widget-accent-color: #2962ff;
-  --tv-widget-text-color: #d1d4dc;
-  --tv-widget-background-color: #131722;
-  --tv-widget-font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --tv-widget-price-text-color: #d1d4dc;
-  --tv-widget-market-status-pre-color: #b1bac8;
-  --tv-widget-market-status-post-color: #b1bac8;
-  --tv-widget-market-status-open-color: #00c074;
-  --tv-widget-market-status-closed-color: #f6465d;
-  --tv-widget-positive-color: #00c074;
-  --tv-widget-positive-area-top-color: rgba(0, 192, 116, 0.2);
-  --tv-widget-positive-area-bottom-color: rgba(0, 192, 116, 0.1);
-  --tv-widget-negative-color: #f6465d;
-  --tv-widget-negative-area-top-color: rgba(246, 70, 93, 0.2);
-  --tv-widget-negative-area-bottom-color: rgba(246, 70, 93, 0.1);
-  --tv-widget-scales-font-color: #b1bac8;
-  --tv-widget-popup-background-color: #1b1f2a;
-  --tv-widget-tooltip-text-color: #d1d4dc;
-  --tv-widget-tooltip-background-color: #0f141f;
+/* AI Analysis Markdown Styling */
+.ai-analysis-output {
+  line-height: 1.6;
 }
 
 .ai-analysis-output h1,
@@ -103,55 +120,74 @@ a {
   color: #f0f3f8;
   font-weight: 600;
   letter-spacing: 0.02em;
-  margin: 0.8rem 0 0.4rem;
+  margin: 1.2rem 0 0.6rem;
 }
 
 .ai-analysis-output h1 {
-  font-size: 1.05rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 0.4rem;
-  margin-top: 0;
+  font-size: 1.1rem;
+  border-bottom: 2px solid rgba(41, 98, 255, 0.3);
+  padding-bottom: 0.5rem;
 }
 
 .ai-analysis-output h2 {
-  font-size: 0.98rem;
-  background: rgba(41, 98, 255, 0.12);
-  border: 1px solid rgba(41, 98, 255, 0.2);
-  padding: 0.45rem 0.6rem;
-  border-radius: 0.6rem;
-}
-
-.ai-analysis-output h3 {
-  font-size: 0.95rem;
+  font-size: 1rem;
+  background: rgba(41, 98, 255, 0.1);
+  border-left: 3px solid #2962ff;
+  padding: 0.5rem 0.8rem;
+  border-radius: 0 0.5rem 0.5rem 0;
 }
 
 .ai-analysis-output p {
-  margin: 0.35rem 0;
+  margin: 0.8rem 0;
 }
 
 .ai-analysis-output ul,
 .ai-analysis-output ol {
-  margin: 0.5rem 0 0.6rem 1.15rem;
-  padding: 0;
+  margin: 0.8rem 0 0.8rem 1.2rem;
 }
 
 .ai-analysis-output li {
-  margin: 0.15rem 0;
+  margin: 0.4rem 0;
+  position: relative;
 }
 
 .ai-analysis-output strong {
-  color: #e6ebf2;
+  color: #fff;
+  font-weight: 700;
 }
 
-.ai-analysis-output hr {
-  border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  margin: 0.8rem 0;
+.ai-analysis-output blockquote {
+  border-left: 4px solid rgba(255, 255, 255, 0.2);
+  padding-left: 1rem;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 1rem 0;
 }
 
 .ai-analysis-output code {
-  background: rgba(255, 255, 255, 0.08);
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.4rem;
-  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.25rem;
+  font-family: monospace;
+  font-size: 0.9em;
 }
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
