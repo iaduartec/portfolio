@@ -10,7 +10,7 @@ import { ShieldCheck, Sparkles } from "lucide-react";
 
 const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Panel" },
-  { href: "/portfolio", label: "Portafolio" },
+  { href: "/portfolio", label: "Acciones" },
   { href: "/lab", label: "Lab Tecnico" },
   { href: "/upload", label: "Cargar CSV" },
 ];
