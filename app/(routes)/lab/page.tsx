@@ -1,8 +1,7 @@
 import { Shell } from "@/components/layout/Shell";
-import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
 import { PortfolioChartsGrid } from "@/components/charts/PortfolioChartsGrid";
 import { AITechnicalAnalysis } from "@/components/ai/AITechnicalAnalysis";
-import { Card } from "@/components/ui/card";
+import { LabGlobalAnalyzer } from "@/components/charts/LabGlobalAnalyzer";
 
 export default function PatternLabPage() {
   return (
@@ -17,14 +16,7 @@ export default function PatternLabPage() {
       </section>
 
       <div className="flex flex-col gap-10">
-        {/* Block 1: TradingView Advanced Chart */}
-        <Card
-          title="Analizador Global"
-          subtitle="Explora cualquier símbolo, añade indicadores y realiza tu propio análisis técnico."
-          className="p-0 overflow-hidden border-none bg-surface-muted/20"
-        >
-          <TradingViewAdvancedChart />
-        </Card>
+        <LabGlobalAnalyzer />
 
         {/* Block 2: Portfolio Analysis */}
         <section className="flex flex-col gap-4">
