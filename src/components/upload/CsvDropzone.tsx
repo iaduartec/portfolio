@@ -64,6 +64,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const DEFAULT_MARKET = "XETR";
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -105,7 +106,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
           if (ambiguous.length === 0) return {};
           const next: Record<string, string> = {};
           ambiguous.forEach((ticker) => {
-            if (prev[ticker]) next[ticker] = prev[ticker];
+            next[ticker] = prev[ticker] ?? DEFAULT_MARKET;
           });
           return next;
         });
@@ -215,7 +216,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         {success && <p className="text-xs text-success">{success}</p>}
         {ambiguousTickers.length > 0 && (
           <p className="text-xs text-warning">
-            Revisa tickers sin mercado definido (debes seleccionar uno para guardar):{" "}
+            Tickers sin mercado definido: se usara XETR por defecto (puedes cambiarlo):{" "}
             <span className="font-semibold text-text">
               {ambiguousTickers.slice(0, 8).join(", ")}
               {ambiguousTickers.length > 8 ? "…" : ""}

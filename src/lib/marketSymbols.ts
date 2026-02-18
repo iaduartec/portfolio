@@ -10,6 +10,9 @@ const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
   "VHM.MC": "SCYR.MC",
   REP: "REP.MC",
   "7LB": "7LB.SG",
+  EXW1: "EXW1.DE",
+  IS3K: "IS3K.DE",
+  XUCD: "XUCD.DE",
 };
 
 export const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
@@ -27,6 +30,9 @@ export const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
   AAPL: "NASDAQ:AAPL",
   MU: "NASDAQ:MU",
   GOOGL: "NASDAQ:GOOGL",
+  EXW1: "XETR:EXW1",
+  IS3K: "XETR:IS3K",
+  XUCD: "XETR:XUCD",
 };
 
 const TRADINGVIEW_SUFFIX_TO_EXCHANGE: Record<string, string> = {
