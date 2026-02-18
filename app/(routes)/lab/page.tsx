@@ -10,7 +10,7 @@ export default function PatternLabPage() {
         <p className="text-xs uppercase tracking-[0.08em] text-muted">Laboratorio Avanzado</p>
         <h1 className="text-3xl font-semibold tracking-tight text-text">Análisis Técnico y Estratégico</h1>
         <p className="text-sm text-muted max-w-2xl">
-          Herramientas profesionales para el análisis de mercados. Utiliza el gráfico avanzado para exploración libre,
+          Herramientas profesionales para el análisis de mercados. Busca cualquier ticker en el analizador global,
           revisa el estado técnico de tu cartera y obtén recomendaciones detalladas generadas por IA.
         </p>
       </section>

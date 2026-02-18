@@ -22,7 +22,7 @@ export function Footer() {
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Plataforma</h3>
             <ul className="space-y-2 text-sm text-muted">
               <li><Link href="/" className="transition-colors hover:text-primary">Panel Principal</Link></li>
-              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Mi Portafolio</Link></li>
+              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Cartera</Link></li>
               <li><Link href="/lab" className="transition-colors hover:text-primary">Laboratorio Tecnico</Link></li>
               <li><Link href="/ai-agents" className="transition-colors hover:text-primary">Agentes IA</Link></li>
             </ul>
