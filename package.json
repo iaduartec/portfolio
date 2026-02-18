@@ -13,32 +13,32 @@
     "analyze": "cross-env ANALYZE=true next build --webpack"
   },
   "dependencies": {
-    "@ai-sdk/google": "^2.0.52",
-    "@ai-sdk/openai": "^2.0.89",
-    "@ai-sdk/react": "^2.0.126",
+    "@ai-sdk/google": "^2.0.53",
+    "@ai-sdk/openai": "^2.0.91",
+    "@ai-sdk/react": "^2.0.137",
     "@radix-ui/react-slot": "^1.2.4",
-    "ai": "^5.0.124",
+    "ai": "^5.0.135",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.3.1",
     "lightweight-charts": "^4.2.3",
     "lucide-react": "^0.562.0",
-    "marked": "^17.0.1",
+    "marked": "^17.0.3",
     "next": "^16.1.6",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
     "recharts": "^2.15.4",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^2.6.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@next/bundle-analyzer": "^16.1.6",
-    "@types/node": "^22.19.7",
+    "@types/node": "^22.19.11",
     "@types/papaparse": "^5.5.2",
-    "@types/react": "^18.3.27",
+    "@types/react": "^18.3.28",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.24",
     "cross-env": "^10.1.0",
@@ -53,5 +53,5 @@
       "esbuild": "0.27.0"
     }
   },
-  "packageManager": "pnpm@10.28.2+sha512.41872f037ad22f7348e3b1debbaf7e867cfd448f2726d9cf74c08f19507c31d2c8e7a11525b983febc2df640b5438dee6023ebb1f84ed43cc2d654d2bc326264"
+  "packageManager": "pnpm@10.30.0+sha512.2b5753de015d480eeb88f5b5b61e0051f05b4301808a82ec8b840c9d2adf7748eb352c83f5c1593ca703ff1017295bc3fdd3119abb9686efc96b9fcb18200937"
 }

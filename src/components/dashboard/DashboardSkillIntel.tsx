@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 type Quote = {
-  ticker: string;
+  symbol: string;
   name?: string;
   price: number;
   dayChangePercent?: number;
@@ -92,13 +92,13 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       setLoading(true);
       try {
         const [quotesRes, polyRes] = await Promise.all([
-          fetch(`/api/quotes?tickers=${WATCHLIST.join(",")}`, { cache: "no-store" }),
+          fetch(`/api/yahoo?action=price&symbols=${WATCHLIST.join(",")}`, { cache: "no-store" }),
           fetch("/api/polymarket?limit=3", { cache: "no-store" }),
         ]);
-        const quotesData = (await quotesRes.json()) as { quotes?: Quote[] };
+        const quotesData = (await quotesRes.json()) as { data?: Quote[] };
         const polyData = (await polyRes.json()) as { markets?: PolymarketMarket[] };
         if (!cancelled) {
-          setQuotes(Array.isArray(quotesData.quotes) ? quotesData.quotes : []);
+          setQuotes(Array.isArray(quotesData.data) ? quotesData.data : []);
           setPolyMarkets(Array.isArray(polyData.markets) ? polyData.markets : []);
         }
       } catch {
@@ -151,7 +151,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
   }, [insiderTickers]);
 
   const quoteMap = useMemo(
-    () => new Map(quotes.map((quote) => [quote.ticker.toUpperCase(), quote])),
+    () => new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote])),
     [quotes]
   );
 
