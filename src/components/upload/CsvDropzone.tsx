@@ -1,6 +1,6 @@
 'use client';
 
-import { DragEvent, useRef, useState } from "react";
+import { DragEvent, KeyboardEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,6 +44,8 @@ const buildTransactionFingerprint = (tx: Transaction) =>
 export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const { currency, baseCurrency, fxRate } = useCurrency();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const dropzoneHelpId = "csv-dropzone-help";
+  const uploadStatusId = "csv-upload-status";
   const marketOptions = [
     { value: "XETR", label: "Xetra (XETR · Alemania)" },
     { value: "FRA", label: "Frankfurt (FRA · Alemania)" },
@@ -131,6 +133,11 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   };
 
   const onBrowse = () => inputRef.current?.click();
+  const handleDropzoneKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    onBrowse();
+  };
 
   const handleSave = () => {
     if (!transactions.length) return;
@@ -180,21 +187,33 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   return (
     <div className="rounded-xl border border-border bg-surface p-6 shadow-panel">
       <div
-        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 bg-surface-muted/50 px-6 py-10 text-center"
+        role="button"
+        tabIndex={0}
+        aria-describedby={dropzoneHelpId}
+        aria-busy={isParsing}
+        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 bg-surface-muted/50 px-6 py-10 text-center outline-none transition focus-visible:ring-2 focus-visible:ring-accent/70"
         onDragOver={(evt) => {
           evt.preventDefault();
           evt.stopPropagation();
         }}
         onDrop={onDrop}
         onClick={onBrowse}
+        onKeyDown={handleDropzoneKeyDown}
       >
         <p className="text-sm font-semibold text-text">Arrastra tu CSV aquí</p>
-        <p className="text-xs text-muted">Formato esperado: date, ticker, type (BUY/SELL), quantity, price, fee</p>
+        <p id={dropzoneHelpId} className="text-xs text-muted">
+          Formato esperado: date, ticker, type (BUY/SELL), quantity, price, fee
+        </p>
         <Badge tone="default" className="bg-surface text-text">
           Usa PapaParse en cliente para leer el CSV
         </Badge>
         <button
           type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onBrowse();
+          }}
           className="mt-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:brightness-110"
         >
           Buscar archivo
@@ -207,15 +226,23 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
           onChange={(evt) => handleFiles(evt.target.files)}
         />
         {fileName && (
-          <p className="text-xs text-muted">
+          <p id={uploadStatusId} role="status" aria-live="polite" className="text-xs text-muted">
             Seleccionado: <span className="font-semibold text-text">{fileName}</span>
             {isParsing && " · leyendo..."}
           </p>
         )}
-        {error && <p className="text-xs text-danger">{error}</p>}
-        {success && <p className="text-xs text-success">{success}</p>}
+        {error && (
+          <p role="alert" className="text-xs text-danger">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p role="status" aria-live="polite" className="text-xs text-success">
+            {success}
+          </p>
+        )}
         {ambiguousTickers.length > 0 && (
-          <p className="text-xs text-warning">
+          <p role="status" aria-live="polite" className="text-xs text-warning">
             Tickers sin mercado definido: se usara XETR por defecto (puedes cambiarlo):{" "}
             <span className="font-semibold text-text">
               {ambiguousTickers.slice(0, 8).join(", ")}
@@ -263,11 +290,12 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         <div className="mt-6 space-y-2 text-sm">
           <p className="text-xs uppercase tracking-[0.08em] text-muted">Vista previa (primeras filas)</p>
           <div className="overflow-hidden rounded-lg border border-border/70">
-            <table className="min-w-full divide-y divide-border/70 text-left text-xs">
+            <table aria-live="polite" className="min-w-full divide-y divide-border/70 text-left text-xs">
+              <caption className="sr-only">Preview de las 5 primeras transacciones detectadas</caption>
               <thead className="bg-surface-muted/50 text-muted">
                 <tr>
                   {Object.keys(preview[0] ?? {}).map((key) => (
-                    <th key={key} className="px-3 py-2 font-semibold">
+                    <th scope="col" key={key} className="px-3 py-2 font-semibold">
                       {key}
                     </th>
                   ))}

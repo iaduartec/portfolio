@@ -31,24 +31,31 @@ export default function UploadPage() {
   };
 
   return (
-    <Shell>
-      <div className="flex flex-col gap-2">
+    <Shell className="gap-8">
+      <section className="flex flex-col gap-2">
         <p className="text-xs uppercase tracking-[0.08em] text-muted">Datos</p>
         <h1 className="text-3xl font-semibold tracking-tight text-text">Cargar transacciones</h1>
         <p className="max-w-3xl text-sm text-muted">
-          Sube uno o varios CSV de transacciones para reconstruir el portafolio. Cada carga se anade y combina con lo que ya tengas en localStorage.
+          Sube uno o varios CSV de transacciones para reconstruir el portafolio. Cada carga se anade y combina con lo que ya tengas en localStorage al pulsar &quot;Anadir y combinar&quot;.
         </p>
         {sessionId && (
           <p className="text-xs text-muted">
             Sesión actual: <span className="font-semibold text-text">{sessionId}</span>
           </p>
         )}
-      </div>
+      </section>
+
       <CsvDropzone onSave={handleSave} />
-      <div className="flex flex-col gap-3">
-        <p className="text-xs uppercase tracking-[0.08em] text-muted">Transacciones guardadas</p>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.08em] text-muted">Transacciones guardadas</p>
+          <p className="text-xs text-muted">
+            Total: <span className="font-semibold text-text">{transactions.length}</span>
+          </p>
+        </div>
         <TransactionsTable transactions={transactions} />
-      </div>
+      </section>
     </Shell>
   );
 }

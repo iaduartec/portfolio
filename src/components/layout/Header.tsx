@@ -50,6 +50,7 @@ export function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
                       "rounded-lg border px-3 py-2 transition-all",
                       isActive
@@ -75,12 +76,17 @@ export function Header() {
               <span className="text-[11px] font-medium text-accent">Insights en vivo</span>
             </div>
 
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface/85 p-1">
+            <div
+              role="group"
+              aria-label="Moneda base"
+              className="flex items-center gap-1 rounded-lg border border-border bg-surface/85 p-1"
+            >
               {(["EUR", "USD"] as const).map((code) => (
                 <button
                   key={code}
                   type="button"
                   onClick={() => setCurrency(code)}
+                  aria-pressed={currency === code}
                   className={cn(
                     "rounded-md px-2.5 py-1 text-[11px] font-medium transition-all",
                     currency === code
@@ -105,6 +111,7 @@ export function Header() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "shrink-0 rounded-full border px-3 py-1.5 transition-all",
                   isActive

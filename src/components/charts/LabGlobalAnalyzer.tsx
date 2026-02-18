@@ -6,13 +6,31 @@ import { PortfolioValueChart } from "@/components/charts/PortfolioValueChart";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 
 const DEFAULT_TICKER = "NASDAQ:AAPL";
+const NO_MARKET = "NONE";
+const BASE_MARKETS = ["NASDAQ", "NYSE", "BME", "XETR", "MIL", "PAR", "AMS", "LSE"];
 
 const normalizeTickerInput = (value: string) =>
   value.trim().toUpperCase().replace(/\s+/g, "");
 
+const parseTicker = (rawTicker: string) => {
+  const normalized = normalizeTickerInput(rawTicker);
+  if (!normalized) return { market: "NASDAQ", symbol: "AAPL" };
+  if (!normalized.includes(":")) return { market: NO_MARKET, symbol: normalized };
+  const [market, symbol] = normalized.split(":", 2);
+  return {
+    market: market || NO_MARKET,
+    symbol: symbol || "",
+  };
+};
+
+const buildTicker = (market: string, symbol: string) =>
+  market === NO_MARKET ? symbol : `${market}:${symbol}`;
+
 export function LabGlobalAnalyzer() {
   const { holdings } = usePortfolioData();
-  const [inputValue, setInputValue] = useState(DEFAULT_TICKER);
+  const defaultParsedTicker = useMemo(() => parseTicker(DEFAULT_TICKER), []);
+  const [selectedMarket, setSelectedMarket] = useState(defaultParsedTicker.market);
+  const [symbolInput, setSymbolInput] = useState(defaultParsedTicker.symbol);
   const [selectedTicker, setSelectedTicker] = useState(DEFAULT_TICKER);
 
   const quickTickers = useMemo(() => {
@@ -23,17 +41,37 @@ export function LabGlobalAnalyzer() {
     return Array.from(new Set([...fromPortfolio, ...base])).slice(0, 8);
   }, [holdings]);
 
+  const marketOptions = useMemo(() => {
+    const marketsInPortfolio = holdings
+      .map((holding) => holding.ticker?.toUpperCase() ?? "")
+      .filter((ticker) => ticker.includes(":"))
+      .map((ticker) => ticker.split(":", 1)[0])
+      .filter(Boolean);
+    const merged = new Set([...BASE_MARKETS, ...marketsInPortfolio]);
+    return Array.from(merged);
+  }, [holdings]);
+
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalized = normalizeTickerInput(inputValue);
-    if (!normalized) return;
-    setSelectedTicker(normalized);
-    setInputValue(normalized);
+    const normalizedSymbol = normalizeTickerInput(symbolInput);
+    if (!normalizedSymbol) return;
+    if (normalizedSymbol.includes(":")) {
+      const parsed = parseTicker(normalizedSymbol);
+      if (!parsed.symbol) return;
+      setSelectedMarket(parsed.market);
+      setSymbolInput(parsed.symbol);
+      setSelectedTicker(buildTicker(parsed.market, parsed.symbol));
+      return;
+    }
+    setSelectedTicker(buildTicker(selectedMarket, normalizedSymbol));
+    setSymbolInput(normalizedSymbol);
   };
 
   const handleQuickSelect = (ticker: string) => {
+    const parsed = parseTicker(ticker);
     setSelectedTicker(ticker);
-    setInputValue(ticker);
+    setSelectedMarket(parsed.market);
+    setSymbolInput(parsed.symbol);
   };
 
   return (
@@ -47,15 +85,31 @@ export function LabGlobalAnalyzer() {
             </p>
           </div>
           <form onSubmit={handleSearch} className="flex w-full max-w-xl gap-2">
+            <label htmlFor="lab-global-market" className="sr-only">
+              Seleccionar mercado
+            </label>
+            <select
+              id="lab-global-market"
+              value={selectedMarket}
+              onChange={(event) => setSelectedMarket(event.target.value)}
+              className="h-10 min-w-[140px] rounded-lg border border-border/70 bg-surface-muted/45 px-2 text-sm text-text outline-none transition focus:border-accent/60"
+            >
+              <option value={NO_MARKET}>Sin mercado</option>
+              {marketOptions.map((market) => (
+                <option key={market} value={market}>
+                  {market}
+                </option>
+              ))}
+            </select>
             <label htmlFor="lab-global-ticker" className="sr-only">
               Buscar ticker
             </label>
             <input
               id="lab-global-ticker"
               type="text"
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              placeholder="Ej. NASDAQ:AAPL o BME:REP"
+              value={symbolInput}
+              onChange={(event) => setSymbolInput(event.target.value)}
+              placeholder="Ej. AAPL, REP, BTC-USD"
               className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-3 text-sm text-text outline-none transition focus:border-accent/60"
             />
             <button
