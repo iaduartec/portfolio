@@ -86,6 +86,18 @@ const toNumber = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const hasNumericMetrics = (point: FundamentalPoint | null) => {
+  if (!point) return false;
+  return (
+    Number.isFinite(point.pe) ||
+    Number.isFinite(point.ps) ||
+    Number.isFinite(point.pb) ||
+    Number.isFinite(point.evEbitda) ||
+    Number.isFinite(point.beta) ||
+    Number.isFinite(point.rsi)
+  );
+};
+
 const fetchFundamentals = async (
   ticker: string,
   symbol: string,
@@ -326,64 +338,73 @@ const fetchYahooFundamentals = async (
     Accept: "application/json",
     "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
   };
-  
+
+  const point: FundamentalPoint = { ticker, symbol };
+
   // 1. Try Quote API (v7) - lightweight and reliable for basic stats
   const quotePath = `/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-
   try {
     const { json: quoteJson } = await fetchYahooJson(quotePath, headers);
     const item = quoteJson?.quoteResponse?.result?.[0];
     if (item) {
-      console.log(`[Yahoo v7] Found data for ${ticker} (${symbol})`);
-      return {
-        ticker,
-        symbol,
-        pe: toNumber(item.trailingPE),
-        ps: toNumber(item.priceToSalesTrailing12Months),
-        pb: toNumber(item.priceToBook),
-        beta: toNumber(item.beta),
-        // eps: toNumber(item.epsTrailingTwelveMonths),
-      };
+      point.pe = toNumber(item.trailingPE);
+      point.ps = toNumber(item.priceToSalesTrailing12Months);
+      point.pb = toNumber(item.priceToBook);
+      point.beta = toNumber(item.beta);
     }
-  } catch (err) {
-    console.warn(`[Yahoo v7] Failed for ${ticker}:`, err);
+  } catch {
+    // ignore and continue with other Yahoo endpoints
   }
 
-  // 2. Fallback to Summary API (v10) - deeper data but sometimes rate-limited
+  // 2. Fallback/complement to Summary API (v10) - deeper data but sometimes rate-limited
   const summaryPath = `/v10/finance/quoteSummary/${encodeURIComponent(
     symbol
   )}?modules=summaryDetail,defaultKeyStatistics,financialData,assetProfile`;
-  
+
   try {
     const { json } = await fetchYahooJson(summaryPath, headers);
     const result = json?.quoteSummary?.result?.[0];
     if (result) {
-      console.log(`[Yahoo v10] Found summary for ${ticker} (${symbol})`);
       const summaryDetail = result.summaryDetail ?? {};
       const keyStats = result.defaultKeyStatistics ?? {};
       const financialData = result.financialData ?? {};
       const assetProfile = result.assetProfile ?? {};
-      return {
-        ticker,
-        symbol,
-        sector:
-          typeof assetProfile.sector === "string" && assetProfile.sector.trim()
-            ? assetProfile.sector
-            : undefined,
-        pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
-        ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
-        pb: toNumber(keyStats.priceToBook?.raw),
-        evEbitda: toNumber(
-          keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw
-        ),
-        beta: toNumber(keyStats.beta?.raw),
-      };
+      point.sector =
+        typeof assetProfile.sector === "string" && assetProfile.sector.trim()
+          ? assetProfile.sector
+          : point.sector;
+      point.pe = point.pe ?? toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw);
+      point.ps = point.ps ?? toNumber(summaryDetail.priceToSalesTrailing12Months?.raw);
+      point.pb = point.pb ?? toNumber(keyStats.priceToBook?.raw);
+      point.evEbitda =
+        point.evEbitda ??
+        toNumber(keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw);
+      point.beta = point.beta ?? toNumber(keyStats.beta?.raw);
     }
-  } catch (err) {
-    console.warn(`[Yahoo v10] Failed for ${ticker}:`, err);
+  } catch {
+    // ignore and continue with chart endpoint
   }
 
-  return null;
+  // 3. Get RSI from chart history (v8)
+  const chartPath = `/v8/finance/chart/${encodeURIComponent(
+    symbol
+  )}?range=3mo&interval=1d&includePrePost=false&events=div%2Csplits`;
+  try {
+    const { json } = await fetchYahooJson(chartPath, headers);
+    const closesRaw = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+    if (Array.isArray(closesRaw)) {
+      const closes = closesRaw
+        .map((value: unknown) => Number(value))
+        .filter((value: number) => Number.isFinite(value));
+      if (closes.length > 14) {
+        point.rsi = computeRsi(closes, 14);
+      }
+    }
+  } catch {
+    // ignore and return whatever fundamentals we have
+  }
+
+  return hasNumericMetrics(point) ? point : null;
 };
 
 // Helper to delay requests and avoid rate limits
@@ -412,9 +433,12 @@ export async function GET(req: Request) {
 
   for (const ticker of tickers) {
     const cached = getCached(ticker);
-    if (cached) {
+    if (cached && hasNumericMetrics(cached)) {
       results.push(cached);
       continue;
+    }
+    if (cached && !hasNumericMetrics(cached)) {
+      fundamentalsCache.delete(ticker);
     }
     const symbol = normalizeSymbolForFinnhub(ticker);
     try {
@@ -445,15 +469,7 @@ export async function GET(req: Request) {
       // 2. Try Finnhub if key exists and no data yet
       if (!dataFound && apiKey) {
         const data = await fetchFundamentals(ticker, symbol, apiKey);
-        const hasMetrics =
-          data !== null &&
-          (Number.isFinite(data.pe) ||
-            Number.isFinite(data.ps) ||
-            Number.isFinite(data.pb) ||
-            Number.isFinite(data.evEbitda) ||
-            Number.isFinite(data.beta) ||
-            Number.isFinite(data.rsi));
-        if (hasMetrics && data) {
+        if (hasNumericMetrics(data) && data) {
           setCached(ticker, data);
           results.push(data);
           dataFound = true;

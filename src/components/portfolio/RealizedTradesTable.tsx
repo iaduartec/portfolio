@@ -14,6 +14,10 @@ const tradeDateFormatter = new Intl.DateTimeFormat("es-ES", {
   month: "2-digit",
   year: "2-digit",
 });
+const quantityFormatter = new Intl.NumberFormat("es-ES", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
 
 const buildLocalDate = (year: number, month: number, day: number) => {
   const date = new Date(year, month - 1, day);
@@ -97,7 +101,9 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
                       {trade.name && <span className="text-xs text-muted">{trade.ticker}</span>}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">{trade.quantity}</td>
+                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                    {quantityFormatter.format(trade.quantity)}
+                  </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-right">
                     {formatCurrency(
                       convertCurrency(trade.entryPrice, currency, fxRate, baseCurrency),
