@@ -8,6 +8,7 @@ type MetricPayload = {
 type FundamentalPoint = {
   ticker: string;
   symbol: string;
+  sector?: string;
   pe?: number;
   ps?: number;
   pb?: number;
@@ -153,6 +154,7 @@ const fetchFmpStableProfile = async (
     data: {
       ticker,
       symbol,
+      sector: typeof row.sector === "string" ? row.sector : undefined,
       pe: toNumber(row.pe),
       beta: toNumber(row.beta),
     },
@@ -275,6 +277,7 @@ const fetchFmpStableFundamentals = async (
   const point: FundamentalPoint = {
     ticker,
     symbol,
+    sector: profile?.sector,
     pe: profile?.pe ?? ratios?.pe,
     beta: profile?.beta,
     ps: ratios?.ps,
@@ -349,7 +352,7 @@ const fetchYahooFundamentals = async (
   // 2. Fallback to Summary API (v10) - deeper data but sometimes rate-limited
   const summaryPath = `/v10/finance/quoteSummary/${encodeURIComponent(
     symbol
-  )}?modules=summaryDetail,defaultKeyStatistics,financialData`;
+  )}?modules=summaryDetail,defaultKeyStatistics,financialData,assetProfile`;
   
   try {
     const { json } = await fetchYahooJson(summaryPath, headers);
@@ -359,9 +362,14 @@ const fetchYahooFundamentals = async (
       const summaryDetail = result.summaryDetail ?? {};
       const keyStats = result.defaultKeyStatistics ?? {};
       const financialData = result.financialData ?? {};
+      const assetProfile = result.assetProfile ?? {};
       return {
         ticker,
         symbol,
+        sector:
+          typeof assetProfile.sector === "string" && assetProfile.sector.trim()
+            ? assetProfile.sector
+            : undefined,
         pe: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
         ps: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
         pb: toNumber(keyStats.priceToBook?.raw),

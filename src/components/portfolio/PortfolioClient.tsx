@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
 import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
@@ -14,10 +14,70 @@ import { cn } from "@/lib/utils";
 
 const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
 
+type SectorPoint = {
+  ticker: string;
+  sector?: string;
+};
+
+type AllocationItem = {
+  key: string;
+  label: string;
+  displayLabel: string;
+  value: number;
+  percent: number;
+};
+
+const groupResidualAllocation = (items: AllocationItem[]) => {
+  const major = items.filter((item) => item.percent >= RESIDUAL_ALLOCATION_THRESHOLD);
+  const residual = items.filter((item) => item.percent < RESIDUAL_ALLOCATION_THRESHOLD);
+
+  if (residual.length === 0) return items;
+
+  const residualValue = residual.reduce((sum, item) => sum + item.value, 0);
+  const residualPercent = residual.reduce((sum, item) => sum + item.percent, 0);
+
+  return [
+    ...major,
+    {
+      key: "OTHERS",
+      label: "Otros",
+      displayLabel: "Otros",
+      value: residualValue,
+      percent: residualPercent,
+    },
+  ];
+};
+
 export function PortfolioClient() {
   const { holdings, realizedTrades, summary } = usePortfolioData();
   const { currency, baseCurrency, fxRate } = useCurrency();
-  const allocation = useMemo(
+  const [sectorByTicker, setSectorByTicker] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const tickers = holdings.map((holding) => holding.ticker).filter(Boolean);
+    if (tickers.length === 0) return;
+
+    const controller = new AbortController();
+    fetch(`/api/fundamentals?tickers=${encodeURIComponent(tickers.join(","))}`, {
+      signal: controller.signal,
+    })
+      .then((res) => res.json())
+      .then((payload) => {
+        const data = Array.isArray(payload?.data) ? (payload.data as SectorPoint[]) : [];
+        const next: Record<string, string> = {};
+        data.forEach((item) => {
+          if (item?.ticker && item?.sector) {
+            next[item.ticker] = item.sector;
+          }
+        });
+        setSectorByTicker(next);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, [holdings]);
+
+  const assetAllocation = useMemo(
     () => {
       const items = holdings
         .map((holding) => ({
@@ -28,29 +88,34 @@ export function PortfolioClient() {
           percent: summary.totalValue > 0 ? holding.marketValue / summary.totalValue : 0,
         }))
         .sort((a, b) => b.value - a.value);
-
-      const major = items.filter((item) => item.percent >= RESIDUAL_ALLOCATION_THRESHOLD);
-      const residual = items.filter((item) => item.percent < RESIDUAL_ALLOCATION_THRESHOLD);
-
-      if (residual.length === 0) {
-        return items;
-      }
-
-      const residualValue = residual.reduce((sum, item) => sum + item.value, 0);
-      const residualPercent = residual.reduce((sum, item) => sum + item.percent, 0);
-
-      return [
-        ...major,
-        {
-          key: "OTHERS",
-          label: "Otros",
-          displayLabel: "Otros",
-          value: residualValue,
-          percent: residualPercent,
-        },
-      ];
+      return groupResidualAllocation(items);
     },
     [holdings, summary.totalValue]
+  );
+
+  const sectorAllocation = useMemo(
+    () => {
+      const sectorTotals = holdings.reduce(
+        (acc, holding) => {
+          const sector = sectorByTicker[holding.ticker] || "Sin sector";
+          acc[sector] = (acc[sector] ?? 0) + holding.marketValue;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      const items = Object.entries(sectorTotals)
+        .map(([sector, value]) => ({
+          key: sector,
+          label: sector,
+          displayLabel: sector,
+          value,
+          percent: summary.totalValue > 0 ? value / summary.totalValue : 0,
+        }))
+        .sort((a, b) => b.value - a.value);
+      return groupResidualAllocation(items);
+    },
+    [holdings, summary.totalValue, sectorByTicker]
   );
   const performanceSeries = useMemo(() => {
     const base = summary.totalValue || 1;
@@ -107,11 +172,11 @@ export function PortfolioClient() {
 
       <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
         <Card title="Distribucion" subtitle="Peso por activo (residuales agrupados en Otros)">
-          {allocation.length > 0 ? (
+          {assetAllocation.length > 0 ? (
             <>
-              <AllocationChart data={allocation} />
+              <AllocationChart data={assetAllocation} />
               <div className="mt-3 grid gap-1.5 text-xs">
-                {allocation.map((item, index) => (
+                {assetAllocation.map((item, index) => (
                   <div key={item.key} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span
@@ -133,6 +198,23 @@ export function PortfolioClient() {
                   </div>
                 ))}
               </div>
+              {sectorAllocation.length > 0 ? (
+                <div className="mt-5 border-t border-border/60 pt-4">
+                  <p className="mb-2 text-[11px] uppercase tracking-[0.08em] text-muted">
+                    Agrupado por sector
+                  </p>
+                  <div className="grid gap-1.5 text-xs">
+                    {sectorAllocation.map((item) => (
+                      <div key={item.key} className="flex items-center justify-between gap-2">
+                        <span className="truncate text-text" title={item.label}>
+                          {item.label}
+                        </span>
+                        <span className="text-muted">{formatPercent(item.percent)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </>
           ) : (
             <p className="text-sm text-muted">Sin allocation todavia.</p>
