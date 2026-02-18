@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope } from "next/font/google";
+import { Press_Start_2P, VT323 } from "next/font/google";
 import { ReactNode } from "react";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
@@ -9,10 +9,18 @@ import { CurrencyProvider } from "@/components/currency/CurrencyProvider";
 import { GridBackground } from "@/components/layout/GridBackground";
 import { getSiteUrl } from "@/lib/site";
 
-const manrope = Manrope({
+const pressStart = Press_Start_2P({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-manrope",
+  weight: "400",
+  variable: "--font-press-start",
+});
+
+const vt323 = VT323({
+  subsets: ["latin"],
+  display: "swap",
+  weight: "400",
+  variable: "--font-vt323",
 });
 
 const siteUrl = getSiteUrl();
@@ -67,14 +75,18 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#131722",
+  themeColor: "#09060f",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" className={manrope.variable} suppressHydrationWarning>
+    <html
+      lang="es"
+      className={`${pressStart.variable} ${vt323.variable}`}
+      suppressHydrationWarning
+    >
       <body
         className="flex min-h-screen flex-col bg-background text-text antialiased overflow-x-hidden"
         suppressHydrationWarning
