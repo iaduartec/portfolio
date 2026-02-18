@@ -12,12 +12,14 @@ import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
 
+const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
+
 export function PortfolioClient() {
   const { holdings, realizedTrades, summary } = usePortfolioData();
   const { currency, baseCurrency, fxRate } = useCurrency();
   const allocation = useMemo(
-    () =>
-      holdings
+    () => {
+      const items = holdings
         .map((holding) => ({
           key: holding.ticker,
           label: holding.ticker,
@@ -25,8 +27,29 @@ export function PortfolioClient() {
           value: holding.marketValue,
           percent: summary.totalValue > 0 ? holding.marketValue / summary.totalValue : 0,
         }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 6),
+        .sort((a, b) => b.value - a.value);
+
+      const major = items.filter((item) => item.percent >= RESIDUAL_ALLOCATION_THRESHOLD);
+      const residual = items.filter((item) => item.percent < RESIDUAL_ALLOCATION_THRESHOLD);
+
+      if (residual.length === 0) {
+        return items;
+      }
+
+      const residualValue = residual.reduce((sum, item) => sum + item.value, 0);
+      const residualPercent = residual.reduce((sum, item) => sum + item.percent, 0);
+
+      return [
+        ...major,
+        {
+          key: "OTHERS",
+          label: "Otros",
+          displayLabel: "Otros",
+          value: residualValue,
+          percent: residualPercent,
+        },
+      ];
+    },
     [holdings, summary.totalValue]
   );
   const performanceSeries = useMemo(() => {
@@ -83,7 +106,7 @@ export function PortfolioClient() {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-        <Card title="Distribucion" subtitle="Peso por ticker (top 6)">
+        <Card title="Distribucion" subtitle="Peso por activo (residuales agrupados en Otros)">
           {allocation.length > 0 ? (
             <>
               <AllocationChart data={allocation} />
