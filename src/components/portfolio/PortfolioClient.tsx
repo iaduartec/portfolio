@@ -7,7 +7,7 @@ import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { Card } from "@/components/ui/card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
-import { formatPercent, formatCurrency, convertCurrency } from "@/lib/formatters";
+import { formatPercent, formatCurrency, convertCurrency, convertCurrencyFrom } from "@/lib/formatters";
 import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
@@ -49,7 +49,7 @@ const groupResidualAllocation = (items: AllocationItem[]) => {
 };
 
 export function PortfolioClient() {
-  const { holdings, realizedTrades, summary } = usePortfolioData();
+  const { holdings, realizedTrades, summary, transactions } = usePortfolioData();
   const { currency, baseCurrency, fxRate } = useCurrency();
   const [sectorByTicker, setSectorByTicker] = useState<Record<string, string>>({});
 
@@ -132,6 +132,18 @@ export function PortfolioClient() {
       value: Number(point.value.toFixed(2)),
     }));
   }, [summary.totalValue]);
+
+  const dividendsCollected = useMemo(() => {
+    return transactions
+      .filter((tx) => tx.type === "DIVIDEND")
+      .reduce((sum, tx) => {
+        const txCurrency = tx.currency ?? baseCurrency;
+        const gross = tx.quantity !== 0 ? tx.quantity * tx.price : tx.price;
+        const net = gross - (tx.fee ?? 0);
+        const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
+        return sum + (Number.isFinite(amount) ? amount : 0);
+      }, 0);
+  }, [transactions, fxRate, baseCurrency]);
 
   return (
     <div className="flex flex-col gap-10">
@@ -220,9 +232,16 @@ export function PortfolioClient() {
             <p className="text-sm text-muted">Sin allocation todavia.</p>
           )}
         </Card>
-        <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado">
-          <RealizedTradesTable trades={realizedTrades} />
-        </Card>
+        <div className="flex flex-col gap-6">
+          <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado">
+            <RealizedTradesTable trades={realizedTrades} />
+          </Card>
+          <Card title="Dividendos cobrados" subtitle="Total acumulado de dividendos">
+            <p className="text-3xl font-bold text-success">
+              {formatCurrency(convertCurrency(dividendsCollected, currency, fxRate, baseCurrency), currency)}
+            </p>
+          </Card>
+        </div>
       </div>
 
       <Card title="Participaciones" subtitle="Solo posiciones abiertas">
