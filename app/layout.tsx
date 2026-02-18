@@ -99,7 +99,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <CurrencyProvider>
           <GridBackground />
           <div className="w-full border-b border-border/60 bg-surface/50 backdrop-blur-md sticky top-0 z-[100]">
-            <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="w-full px-0">
               <TradingViewTickerTape />
             </div>
           </div>

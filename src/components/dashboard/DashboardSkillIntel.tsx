@@ -30,6 +30,21 @@ type PolymarketMarket = {
   yesPrice?: number;
 };
 
+type YahooFundamentals = {
+  trailingPE?: number;
+  priceToBook?: number;
+  priceToSalesTtm?: number;
+};
+
+type YahooRatings = {
+  recommendationMean?: number;
+  recommendationKey?: string;
+};
+
+type YahooDividends = {
+  dividendYield?: number;
+};
+
 type InsiderResponse = {
   byTicker?: Record<string, InsiderTrade[]>;
 };
@@ -66,8 +81,12 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
   const [customTickerInput, setCustomTickerInput] = useState("");
   const [customTickers, setCustomTickers] = useState<string[]>([]);
   const [polyMarkets, setPolyMarkets] = useState<PolymarketMarket[]>([]);
+  const [yahooFundamentals, setYahooFundamentals] = useState<YahooFundamentals | null>(null);
+  const [yahooRatings, setYahooRatings] = useState<YahooRatings | null>(null);
+  const [yahooDividends, setYahooDividends] = useState<YahooDividends | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingInsider, setLoadingInsider] = useState(true);
+  const [loadingFocus, setLoadingFocus] = useState(true);
 
   const insiderTickers = useMemo(() => {
     const merged = Array.from(
@@ -150,12 +169,111 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     };
   }, [insiderTickers]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFocusData = async () => {
+      setLoadingFocus(true);
+      try {
+        const [fundRes, ratingsRes, divRes] = await Promise.all([
+          fetch(`/api/yahoo?action=fundamentals&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/yahoo?action=ratings&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/yahoo?action=dividends&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
+            cache: "no-store",
+          }),
+        ]);
+        const fundJson = (await fundRes.json()) as { data?: YahooFundamentals | null };
+        const ratingsJson = (await ratingsRes.json()) as { data?: YahooRatings | null };
+        const divJson = (await divRes.json()) as { data?: YahooDividends | null };
+
+        if (!cancelled) {
+          setYahooFundamentals(fundJson.data ?? null);
+          setYahooRatings(ratingsJson.data ?? null);
+          setYahooDividends(divJson.data ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setYahooFundamentals(null);
+          setYahooRatings(null);
+          setYahooDividends(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingFocus(false);
+        }
+      }
+    };
+
+    void loadFocusData();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedInsiderTicker]);
+
   const quoteMap = useMemo(
     () => new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote])),
     [quotes]
   );
 
-  const selectedInsiderTrades = insiderByTicker[selectedInsiderTicker] ?? [];
+  const selectedInsiderTrades = useMemo(
+    () => insiderByTicker[selectedInsiderTicker] ?? [],
+    [insiderByTicker, selectedInsiderTicker]
+  );
+
+  const signal = useMemo(() => {
+    let score = 0;
+
+    const buys = selectedInsiderTrades.filter((trade) =>
+      trade.tradeType.toLowerCase().startsWith("p")
+    ).length;
+    const sells = selectedInsiderTrades.filter((trade) =>
+      trade.tradeType.toLowerCase().startsWith("s")
+    ).length;
+    if (buys > sells) score += 1;
+    if (sells > buys) score -= 1;
+
+    const recMean = yahooRatings?.recommendationMean;
+    const recKey = (yahooRatings?.recommendationKey ?? "").toLowerCase();
+    if (
+      (recMean !== undefined && recMean <= 2.2) ||
+      recKey.includes("buy") ||
+      recKey.includes("strong_buy")
+    ) {
+      score += 1;
+    } else if (
+      (recMean !== undefined && recMean >= 3.2) ||
+      recKey.includes("sell") ||
+      recKey.includes("underperform")
+    ) {
+      score -= 1;
+    }
+
+    const pe = yahooFundamentals?.trailingPE;
+    const pb = yahooFundamentals?.priceToBook;
+    if (
+      (pe !== undefined && pe > 45) ||
+      (pb !== undefined && pb > 10)
+    ) {
+      score -= 1;
+    } else if (
+      (pe !== undefined && pe > 0 && pe < 18) ||
+      (pb !== undefined && pb > 0 && pb < 3)
+    ) {
+      score += 1;
+    }
+
+    if (score >= 2) {
+      return { label: "Alcista", tone: "success" as const, score };
+    }
+    if (score <= -2) {
+      return { label: "Bajista", tone: "danger" as const, score };
+    }
+    return { label: "Neutral", tone: "warning" as const, score };
+  }, [selectedInsiderTrades, yahooRatings, yahooFundamentals]);
 
   const addCustomTicker = (event: FormEvent) => {
     event.preventDefault();
@@ -173,14 +291,14 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       <div className="relative">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-primary/85">Skill Intelligence Layer</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-primary/85">Capa de Inteligencia de Skills</p>
             <h2 className="section-title mt-2 text-2xl font-semibold text-white">
               Senales accionables con tus nuevas skills
             </h2>
           </div>
           <Badge className="bg-surface-muted/60">
             <RefreshCw className="h-3.5 w-3.5" />
-            {loading || loadingInsider ? "Actualizando fuentes" : "Datos listos"}
+            {loading || loadingInsider || loadingFocus ? "Actualizando fuentes" : "Datos listos"}
           </Badge>
         </div>
 
@@ -214,6 +332,43 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   </div>
                 );
               })}
+            </div>
+            <div className="mt-3 rounded-xl border border-border/80 bg-surface-muted/30 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted">
+                  Ticker en foco: <span className="font-semibold text-text">{selectedInsiderTicker}</span>
+                </p>
+                <Badge tone={signal.tone}>{signal.label}</Badge>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                  <p className="text-muted">PE</p>
+                  <p className="font-semibold text-white">
+                    {yahooFundamentals?.trailingPE !== undefined ? yahooFundamentals.trailingPE.toFixed(2) : "N/D"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                  <p className="text-muted">P/B</p>
+                  <p className="font-semibold text-white">
+                    {yahooFundamentals?.priceToBook !== undefined ? yahooFundamentals.priceToBook.toFixed(2) : "N/D"}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                  <p className="text-muted">Rating</p>
+                  <p className="font-semibold text-white">{yahooRatings?.recommendationKey ?? "N/D"}</p>
+                </div>
+                <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                  <p className="text-muted">Yield</p>
+                  <p className="font-semibold text-white">
+                    {yahooDividends?.dividendYield !== undefined
+                      ? `${(yahooDividends.dividendYield * 100).toFixed(2)}%`
+                      : "N/D"}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted">
+                Semaforo = insiders recientes + rating de consenso + valuacion (PE/PB).
+              </p>
             </div>
           </Card>
 
