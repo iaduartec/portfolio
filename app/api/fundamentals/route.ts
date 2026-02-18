@@ -55,6 +55,18 @@ const exchangeYahooSuffixMap: Record<string, string> = {
   SWX: ".SW",
 };
 
+const exchangeStooqSuffixMap: Record<string, string> = {
+  NASDAQ: ".US",
+  NYSE: ".US",
+  AMEX: ".US",
+  BME: ".ES",
+  MIL: ".IT",
+  XETR: ".DE",
+  FRA: ".DE",
+  LSE: ".UK",
+  SWX: ".CH",
+};
+
 const normalizeSymbolForFinnhub = (ticker: string) => {
   const cleaned = ticker.trim().toUpperCase();
   const [exchange, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
@@ -66,6 +78,16 @@ const normalizeSymbolForFinnhub = (ticker: string) => {
 
 const normalizeSymbolForYahoo = (ticker: string) =>
   resolveYahooSymbol(ticker, exchangeYahooSuffixMap);
+
+const normalizeSymbolForStooq = (ticker: string) => {
+  const cleaned = ticker.trim().toUpperCase();
+  const [exchangeRaw, rawSymbol] = cleaned.includes(":") ? cleaned.split(":") : ["", cleaned];
+  if (!rawSymbol) return "";
+  if (rawSymbol.includes(".")) return rawSymbol.toLowerCase();
+  const exchange = exchangeRaw ? resolveExchange(exchangeRaw) : "";
+  const suffix = exchange ? exchangeStooqSuffixMap[exchange] ?? ".US" : ".US";
+  return `${rawSymbol}${suffix}`.toLowerCase();
+};
 
 const getCached = (key: string) => {
   const entry = fundamentalsCache.get(key);
@@ -238,6 +260,35 @@ const computeRsi = (closes: number[], period = 14) => {
   return 100 - 100 / (1 + rs);
 };
 
+const fetchStooqHistoryCloses = async (ticker: string): Promise<number[] | null> => {
+  const symbol = normalizeSymbolForStooq(ticker);
+  if (!symbol || !/^[a-z0-9.]+$/.test(symbol)) return null;
+  const url = `https://stooq.pl/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`;
+  try {
+    const res = await fetch(url, {
+      next: { revalidate: 3600 },
+      headers: { "User-Agent": "Mozilla/5.0", Accept: "text/csv" },
+    });
+    if (!res.ok) return null;
+    const raw = await res.text();
+    if (!raw || raw.includes("Brak danych")) return null;
+    const lines = raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (lines.length <= 1) return null;
+
+    const closes = lines
+      .slice(1)
+      .map((line) => line.split(",")[4])
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value));
+    return closes.length > 14 ? closes : null;
+  } catch {
+    return null;
+  }
+};
+
 const shouldSkipYahoo = (ticker: string) => {
   const key = ticker.toUpperCase();
   const until = yahooNegativeCache.get(key);
@@ -386,25 +437,61 @@ const fetchYahooFundamentals = async (
   }
 
   // 3. Get RSI from chart history (v8)
-  const chartPath = `/v8/finance/chart/${encodeURIComponent(
-    symbol
-  )}?range=3mo&interval=1d&includePrePost=false&events=div%2Csplits`;
-  try {
-    const { json } = await fetchYahooJson(chartPath, headers);
-    const closesRaw = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
-    if (Array.isArray(closesRaw)) {
-      const closes = closesRaw
-        .map((value: unknown) => Number(value))
-        .filter((value: number) => Number.isFinite(value));
-      if (closes.length > 14) {
-        point.rsi = computeRsi(closes, 14);
+  if (!Number.isFinite(point.rsi)) {
+    const chartPath = `/v8/finance/chart/${encodeURIComponent(
+      symbol
+    )}?range=3mo&interval=1d&includePrePost=false&events=div%2Csplits`;
+    try {
+      const { json } = await fetchYahooJson(chartPath, headers);
+      const closesRaw = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close;
+      if (Array.isArray(closesRaw)) {
+        const closes = closesRaw
+          .map((value: unknown) => Number(value))
+          .filter((value: number) => Number.isFinite(value));
+        if (closes.length > 14) {
+          point.rsi = computeRsi(closes, 14);
+        }
       }
+    } catch {
+      // ignore and try Stooq fallback
     }
-  } catch {
-    // ignore and return whatever fundamentals we have
+  }
+
+  // 4. RSI fallback via Stooq history when Yahoo chart is rate-limited
+  if (!Number.isFinite(point.rsi)) {
+    const stooqCloses = await fetchStooqHistoryCloses(ticker);
+    if (stooqCloses && stooqCloses.length > 14) {
+      point.rsi = computeRsi(stooqCloses, 14);
+    }
   }
 
   return hasNumericMetrics(point) ? point : null;
+};
+
+const enrichWithFallbackRsi = async (ticker: string, point: FundamentalPoint) => {
+  if (Number.isFinite(point.rsi)) return point;
+  if (shouldSkipYahoo(ticker) || isYahooDisabled()) {
+    const stooqCloses = await fetchStooqHistoryCloses(ticker);
+    if (stooqCloses && stooqCloses.length > 14) {
+      return { ...point, rsi: computeRsi(stooqCloses, 14) };
+    }
+    return point;
+  }
+
+  const yahooSymbol = normalizeSymbolForYahoo(ticker);
+  const yahooData = await fetchYahooFundamentals(ticker, yahooSymbol);
+  if (yahooData && Number.isFinite(yahooData.rsi)) {
+    return { ...point, rsi: yahooData.rsi };
+  }
+  if (!yahooData) {
+    markYahooMiss(ticker);
+  }
+
+  const stooqCloses = await fetchStooqHistoryCloses(ticker);
+  if (stooqCloses && stooqCloses.length > 14) {
+    return { ...point, rsi: computeRsi(stooqCloses, 14) };
+  }
+  return point;
 };
 
 // Helper to delay requests and avoid rate limits
@@ -433,11 +520,11 @@ export async function GET(req: Request) {
 
   for (const ticker of tickers) {
     const cached = getCached(ticker);
-    if (cached && hasNumericMetrics(cached)) {
+    if (cached && hasNumericMetrics(cached) && Number.isFinite(cached.rsi)) {
       results.push(cached);
       continue;
     }
-    if (cached && !hasNumericMetrics(cached)) {
+    if (cached && (!hasNumericMetrics(cached) || !Number.isFinite(cached.rsi))) {
       fundamentalsCache.delete(ticker);
     }
     const symbol = normalizeSymbolForFinnhub(ticker);
@@ -456,10 +543,11 @@ export async function GET(req: Request) {
             fmpLimited = true;
           }
           const rsi = history.data ? computeRsi(history.data) : undefined;
-          const merged: FundamentalPoint = {
+          const mergedBase: FundamentalPoint = {
             ...fmpResult.data,
             rsi,
           };
+          const merged = await enrichWithFallbackRsi(ticker, mergedBase);
           setCached(ticker, merged);
           results.push(merged);
           dataFound = true;
@@ -470,8 +558,9 @@ export async function GET(req: Request) {
       if (!dataFound && apiKey) {
         const data = await fetchFundamentals(ticker, symbol, apiKey);
         if (hasNumericMetrics(data) && data) {
-          setCached(ticker, data);
-          results.push(data);
+          const withRsi = await enrichWithFallbackRsi(ticker, data);
+          setCached(ticker, withRsi);
+          results.push(withRsi);
           dataFound = true;
         }
       }

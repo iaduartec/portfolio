@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Radar, CandlestickChart, Activity, ArrowRight, RefreshCw, Plus } from "lucide-react";
+import { Radar, CandlestickChart, ArrowRight, RefreshCw, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -22,12 +22,13 @@ type InsiderTrade = {
   value?: number;
 };
 
-type PolymarketMarket = {
-  id: string;
-  question: string;
-  endDate?: string;
-  volume24hr?: number;
-  yesPrice?: number;
+type InsiderSummary = {
+  totalTrades: number;
+  buyCount: number;
+  sellCount: number;
+  buyValue: number;
+  sellValue: number;
+  netValue: number;
 };
 
 type YahooFundamentals = {
@@ -47,6 +48,7 @@ type YahooDividends = {
 
 type InsiderResponse = {
   byTicker?: Record<string, InsiderTrade[]>;
+  summaryByTicker?: Record<string, InsiderSummary>;
 };
 
 type DashboardSkillIntelProps = {
@@ -54,10 +56,6 @@ type DashboardSkillIntelProps = {
 };
 
 const WATCHLIST = ["SPY", "NVDA", "BTC-USD"];
-const formatCompact = new Intl.NumberFormat("es-ES", {
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
 
 const normalizeInsiderTicker = (ticker: string) =>
   ticker
@@ -77,10 +75,13 @@ const changeTone = (value?: number) => {
 export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillIntelProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [insiderByTicker, setInsiderByTicker] = useState<Record<string, InsiderTrade[]>>({});
+  const [insiderSummaryByTicker, setInsiderSummaryByTicker] = useState<Record<string, InsiderSummary>>(
+    {}
+  );
   const [selectedInsiderTicker, setSelectedInsiderTicker] = useState("NVDA");
+  const [insiderWindowDays, setInsiderWindowDays] = useState<7 | 30 | 90>(30);
   const [customTickerInput, setCustomTickerInput] = useState("");
   const [customTickers, setCustomTickers] = useState<string[]>([]);
-  const [polyMarkets, setPolyMarkets] = useState<PolymarketMarket[]>([]);
   const [yahooFundamentals, setYahooFundamentals] = useState<YahooFundamentals | null>(null);
   const [yahooRatings, setYahooRatings] = useState<YahooRatings | null>(null);
   const [yahooDividends, setYahooDividends] = useState<YahooDividends | null>(null);
@@ -110,20 +111,16 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     const loadBaseData = async () => {
       setLoading(true);
       try {
-        const [quotesRes, polyRes] = await Promise.all([
-          fetch(`/api/yahoo?action=price&symbols=${WATCHLIST.join(",")}`, { cache: "no-store" }),
-          fetch("/api/polymarket?limit=3", { cache: "no-store" }),
-        ]);
+        const quotesRes = await fetch(`/api/yahoo?action=price&symbols=${WATCHLIST.join(",")}`, {
+          cache: "no-store",
+        });
         const quotesData = (await quotesRes.json()) as { data?: Quote[] };
-        const polyData = (await polyRes.json()) as { markets?: PolymarketMarket[] };
         if (!cancelled) {
           setQuotes(Array.isArray(quotesData.data) ? quotesData.data : []);
-          setPolyMarkets(Array.isArray(polyData.markets) ? polyData.markets : []);
         }
       } catch {
         if (!cancelled) {
           setQuotes([]);
-          setPolyMarkets([]);
         }
       } finally {
         if (!cancelled) {
@@ -145,16 +142,18 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       setLoadingInsider(true);
       try {
         const res = await fetch(
-          `/api/insider?tickers=${encodeURIComponent(insiderTickers.join(","))}&limit=3`,
+          `/api/insider?tickers=${encodeURIComponent(insiderTickers.join(","))}&limit=3&fd=${insiderWindowDays}`,
           { cache: "no-store" }
         );
         const data = (await res.json()) as InsiderResponse;
         if (!cancelled) {
           setInsiderByTicker(data.byTicker ?? {});
+          setInsiderSummaryByTicker(data.summaryByTicker ?? {});
         }
       } catch {
         if (!cancelled) {
           setInsiderByTicker({});
+          setInsiderSummaryByTicker({});
         }
       } finally {
         if (!cancelled) {
@@ -167,7 +166,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     return () => {
       cancelled = true;
     };
-  }, [insiderTickers]);
+  }, [insiderTickers, insiderWindowDays]);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,16 +222,24 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     () => insiderByTicker[selectedInsiderTicker] ?? [],
     [insiderByTicker, selectedInsiderTicker]
   );
+  const selectedInsiderSummary = useMemo(
+    () =>
+      insiderSummaryByTicker[selectedInsiderTicker] ?? {
+        totalTrades: selectedInsiderTrades.length,
+        buyCount: selectedInsiderTrades.filter((trade) => trade.tradeType.toLowerCase().startsWith("p")).length,
+        sellCount: selectedInsiderTrades.filter((trade) => trade.tradeType.toLowerCase().startsWith("s")).length,
+        buyValue: 0,
+        sellValue: 0,
+        netValue: 0,
+      },
+    [insiderSummaryByTicker, selectedInsiderTicker, selectedInsiderTrades]
+  );
 
   const signal = useMemo(() => {
     let score = 0;
 
-    const buys = selectedInsiderTrades.filter((trade) =>
-      trade.tradeType.toLowerCase().startsWith("p")
-    ).length;
-    const sells = selectedInsiderTrades.filter((trade) =>
-      trade.tradeType.toLowerCase().startsWith("s")
-    ).length;
+    const buys = selectedInsiderSummary.buyCount;
+    const sells = selectedInsiderSummary.sellCount;
     if (buys > sells) score += 1;
     if (sells > buys) score -= 1;
 
@@ -273,7 +280,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       return { label: "Bajista", tone: "danger" as const, score };
     }
     return { label: "Neutral", tone: "warning" as const, score };
-  }, [selectedInsiderTrades, yahooRatings, yahooFundamentals]);
+  }, [selectedInsiderSummary, yahooRatings, yahooFundamentals]);
 
   const addCustomTicker = (event: FormEvent) => {
     event.preventDefault();
@@ -302,7 +309,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
           </Badge>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2">
           <Card
             className="border-primary/30 bg-gradient-to-b from-primary/10 to-surface/60"
             title={
@@ -382,6 +389,22 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             }
             subtitle="Movimientos insider en cartera y tickers bajo analisis"
           >
+            <div className="mb-3 inline-flex rounded-full border border-border/80 bg-surface-muted/20 p-1">
+              {[7, 30, 90].map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => setInsiderWindowDays(days as 7 | 30 | 90)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                    insiderWindowDays === days
+                      ? "bg-accent/25 text-white"
+                      : "text-muted hover:text-text"
+                  }`}
+                >
+                  {days}d
+                </button>
+              ))}
+            </div>
             <div className="mb-3 flex flex-wrap gap-2">
               {insiderTickers.map((ticker) => (
                 <button
@@ -416,6 +439,31 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             </form>
 
             <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2 text-center">
+                  <p className="text-[11px] text-muted">Compras</p>
+                  <p className="text-sm font-semibold text-emerald-300">{selectedInsiderSummary.buyCount}</p>
+                </div>
+                <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2 text-center">
+                  <p className="text-[11px] text-muted">Ventas</p>
+                  <p className="text-sm font-semibold text-amber-300">{selectedInsiderSummary.sellCount}</p>
+                </div>
+                <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2 text-center">
+                  <p className="text-[11px] text-muted">Neto</p>
+                  <p
+                    className={`text-sm font-semibold ${
+                      selectedInsiderSummary.netValue > 0
+                        ? "text-emerald-300"
+                        : selectedInsiderSummary.netValue < 0
+                          ? "text-rose-300"
+                          : "text-white"
+                    }`}
+                  >
+                    {formatCurrency(selectedInsiderSummary.netValue, "USD")}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted">Ventana actual: ultimos {insiderWindowDays} dias.</p>
               {selectedInsiderTrades.length === 0 ? (
                 <p className="text-sm text-muted">Sin datos insider para {selectedInsiderTicker}.</p>
               ) : (
@@ -426,7 +474,15 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-semibold text-white">{trade.ticker}</span>
-                      <Badge tone={trade.tradeType.toLowerCase().startsWith("p") ? "success" : "warning"}>
+                      <Badge
+                        tone={
+                          trade.tradeType.toLowerCase().startsWith("p")
+                            ? "success"
+                            : trade.tradeType.toLowerCase().startsWith("s")
+                              ? "warning"
+                              : "default"
+                        }
+                      >
                         {trade.tradeType}
                       </Badge>
                     </div>
@@ -443,40 +499,6 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-accent transition-opacity hover:opacity-80"
             >
               Ejecutar flujo insider
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </Card>
-
-          <Card
-            className="border-emerald-400/25 bg-gradient-to-b from-emerald-400/10 to-surface/60"
-            title={
-              <span className="inline-flex items-center gap-2">
-                <Activity className="h-4 w-4 text-emerald-300" />
-                Polymarket Watch
-              </span>
-            }
-            subtitle="Conecta probabilidad de mercado con eventos macro"
-          >
-            <div className="space-y-2">
-              {polyMarkets.length === 0 ? (
-                <p className="text-sm text-muted">Sin mercados activos cargados.</p>
-              ) : (
-                polyMarkets.map((market) => (
-                  <div key={market.id} className="rounded-xl border border-border/80 bg-surface-muted/30 px-3 py-2">
-                    <p className="line-clamp-2 text-sm text-text">{market.question}</p>
-                    <div className="mt-1 flex items-center justify-between text-xs text-muted">
-                      <span>Yes: {market.yesPrice !== undefined ? `${(market.yesPrice * 100).toFixed(1)}%` : "N/D"}</span>
-                      <span>Vol 24h: {market.volume24hr !== undefined ? `$${formatCompact.format(market.volume24hr)}` : "N/D"}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <Link
-              href="/lab"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-emerald-300 transition-opacity hover:opacity-80"
-            >
-              Abrir laboratorio de escenarios
               <ArrowRight className="h-4 w-4" />
             </Link>
           </Card>

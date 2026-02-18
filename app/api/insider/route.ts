@@ -4,10 +4,21 @@ type InsiderTrade = {
   filingDate: string;
   tradeDate: string;
   ticker: string;
+  insiderName?: string;
+  title?: string;
   tradeType: string;
   price?: number;
   qty?: number;
   value?: number;
+};
+
+type InsiderSummary = {
+  totalTrades: number;
+  buyCount: number;
+  sellCount: number;
+  buyValue: number;
+  sellValue: number;
+  netValue: number;
 };
 
 const cleanHtml = (input: string) =>
@@ -22,6 +33,13 @@ const parseNumber = (raw: string) => {
   const cleaned = raw.replace(/[^0-9+-.]/g, "");
   const value = Number(cleaned);
   return Number.isFinite(value) ? value : undefined;
+};
+
+const normalizeTradeType = (raw: string) => {
+  const text = raw.toLowerCase();
+  if (text.includes("purchase") || /\b[p]\b/i.test(raw)) return "P";
+  if (text.includes("sale") || /\b[s]\b/i.test(raw)) return "S";
+  return raw.trim() || "UNKNOWN";
 };
 
 const parseOpenInsiderRows = (html: string, limit: number): InsiderTrade[] => {
@@ -43,7 +61,9 @@ const parseOpenInsiderRows = (html: string, limit: number): InsiderTrade[] => {
       filingDate: cells[1],
       tradeDate: cells[2],
       ticker,
-      tradeType: cells[6],
+      insiderName: cells[4] || undefined,
+      title: cells[5] || undefined,
+      tradeType: normalizeTradeType(cells[6]),
       price: parseNumber(cells[7]),
       qty: parseNumber(cells[8]),
       value: parseNumber(cells[11]),
@@ -53,6 +73,33 @@ const parseOpenInsiderRows = (html: string, limit: number): InsiderTrade[] => {
   }
 
   return trades;
+};
+
+const summarizeTrades = (trades: InsiderTrade[]): InsiderSummary => {
+  let buyCount = 0;
+  let sellCount = 0;
+  let buyValue = 0;
+  let sellValue = 0;
+
+  for (const trade of trades) {
+    const value = trade.value ?? 0;
+    if (trade.tradeType === "P") {
+      buyCount += 1;
+      buyValue += value;
+    } else if (trade.tradeType === "S") {
+      sellCount += 1;
+      sellValue += value;
+    }
+  }
+
+  return {
+    totalTrades: trades.length,
+    buyCount,
+    sellCount,
+    buyValue,
+    sellValue,
+    netValue: buyValue - sellValue,
+  };
 };
 
 export async function GET(request: Request) {
@@ -75,6 +122,8 @@ export async function GET(request: Request) {
   );
   const tickers = normalized.length > 0 ? normalized.slice(0, 8) : ["NVDA"];
   const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 5), 1), 20);
+  const fdParam = Number(searchParams.get("fd") ?? 30);
+  const fdDays = [7, 30, 90].includes(fdParam) ? fdParam : 30;
 
   try {
     const byTickerEntries = await Promise.all(
@@ -86,7 +135,7 @@ export async function GET(request: Request) {
           ph: "",
           ll: "",
           lh: "",
-          fd: "30",
+          fd: String(fdDays),
           fdr: "",
           td: "0",
           tdr: "",
@@ -111,28 +160,47 @@ export async function GET(request: Request) {
           page: "1",
         });
         const url = `http://openinsider.com/screener?${params.toString()}`;
-        const res = await fetch(url, { next: { revalidate: 300 } });
+        const res = await fetch(url, {
+          next: { revalidate: 300 },
+          headers: {
+            "User-Agent": "Mozilla/5.0",
+            Accept: "text/html",
+            "Accept-Language": "en-US,en;q=0.9",
+          },
+        });
         const html = await res.text();
         const trades = parseOpenInsiderRows(html, limit);
         return [ticker, trades] as const;
       })
     );
     const byTicker = Object.fromEntries(byTickerEntries);
+    const summaryByTicker = Object.fromEntries(
+      Object.entries(byTicker).map(([ticker, trades]) => [ticker, summarizeTrades(trades)])
+    );
     const firstTicker = tickers[0];
     return NextResponse.json({
       ticker: firstTicker,
+      fd: fdDays,
       trades: byTicker[firstTicker] ?? [],
       byTicker,
+      summary: summaryByTicker[firstTicker] ?? summarizeTrades([]),
+      summaryByTicker,
       source: "openinsider",
     });
   } catch {
     const emptyByTicker = Object.fromEntries(tickers.map((ticker) => [ticker, [] as InsiderTrade[]]));
+    const emptySummaryByTicker = Object.fromEntries(
+      tickers.map((ticker) => [ticker, summarizeTrades([])])
+    );
     const firstTicker = tickers[0];
     return NextResponse.json(
       {
         ticker: firstTicker,
+        fd: fdDays,
         trades: [],
         byTicker: emptyByTicker,
+        summary: emptySummaryByTicker[firstTicker],
+        summaryByTicker: emptySummaryByTicker,
         source: "openinsider",
       },
       { status: 200 }
