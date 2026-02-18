@@ -108,9 +108,11 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
     row,
     fieldAliases.quantity.map((a) => a.toLowerCase()),
   );
-  const priceEntry = pickFieldEntry(
+  const unitPriceRaw = pickField(row, ["price per share", "fill price", "price", "avg_price"]);
+  const totalAmountRaw = pickField(row, ["total amount", "cost"]);
+  const fallbackPriceEntry = pickFieldEntry(
     row,
-    fieldAliases.price.map((a) => a.toLowerCase()),
+    ["price", "fill price", "avg_price", "cost", "total amount"],
   );
   const feeRaw = pickField(
     row,
@@ -129,11 +131,22 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
   const ticker = tickerRaw ? normalizeTicker(String(tickerRaw)) : "";
   const type = typeRaw ? normalizeType(String(typeRaw).trim()) : "OTHER";
   const quantity = normalizeNumber(qtyRaw) ?? 0;
-  let price = normalizeNumber(priceEntry?.value) ?? 0;
-  if (priceEntry?.key === "total amount") {
+  const unitPrice = normalizeNumber(unitPriceRaw);
+  const totalAmount = normalizeNumber(totalAmountRaw);
+  let price = 0;
+
+  if (unitPrice !== null && Number.isFinite(unitPrice) && unitPrice !== 0) {
+    price = unitPrice;
+  } else if (totalAmount !== null && Number.isFinite(totalAmount)) {
     const qty = Math.abs(quantity);
-    if (Number.isFinite(qty) && qty > 0) {
-      price = price / qty;
+    price = qty > 0 ? totalAmount / qty : totalAmount;
+  } else {
+    price = normalizeNumber(fallbackPriceEntry?.value) ?? 0;
+    if (fallbackPriceEntry?.key === "total amount") {
+      const qty = Math.abs(quantity);
+      if (Number.isFinite(qty) && qty > 0) {
+        price = price / qty;
+      }
     }
   }
   const fee =
