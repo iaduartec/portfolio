@@ -5,53 +5,40 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="w-full border-t border-border/60 bg-surface/50 backdrop-blur-sm mt-auto">
-      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+    <footer className="mt-auto w-full border-t border-border/70 bg-surface/45 backdrop-blur-sm">
+      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8 md:py-12">
         <div className="grid gap-8 md:grid-cols-4 lg:gap-12">
           <div className="md:col-span-2">
-            <Link href="/" className="mb-4 flex items-center gap-2 text-lg font-bold tracking-tight">
-              <span className="text-accent">MyInvestView</span>
+            <Link href="/" className="mb-4 inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <span className="text-white">MyInvest</span>
+              <span className="text-primary">View</span>
             </Link>
-            <p className="max-w-xs text-sm text-muted">
-              Plataforma avanzada de análisis de portafolio potenciada por inteligencia artificial y datos de mercado en tiempo real.
+            <p className="max-w-sm text-sm leading-relaxed text-muted">
+              Plataforma de analisis de portafolio con IA, datos de mercado en tiempo real y visualizacion avanzada para tomar decisiones con mas claridad.
             </p>
           </div>
 
           <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text">Plataforma</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Plataforma</h3>
             <ul className="space-y-2 text-sm text-muted">
-              <li>
-                <Link href="/" className="hover:text-accent transition-colors">Panel Principal</Link>
-              </li>
-              <li>
-                <Link href="/portfolio" className="hover:text-accent transition-colors">Mi Portafolio</Link>
-              </li>
-              <li>
-                <Link href="/lab" className="hover:text-accent transition-colors">Laboratorio Técnico</Link>
-              </li>
-              <li>
-                <Link href="/ai-agents" className="hover:text-accent transition-colors">Agentes IA</Link>
-              </li>
+              <li><Link href="/" className="transition-colors hover:text-primary">Panel Principal</Link></li>
+              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Mi Portafolio</Link></li>
+              <li><Link href="/lab" className="transition-colors hover:text-primary">Laboratorio Tecnico</Link></li>
+              <li><Link href="/ai-agents" className="transition-colors hover:text-primary">Agentes IA</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-text">Legal</h3>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Legal</h3>
             <ul className="space-y-2 text-sm text-muted">
-              <li>
-                <Link href={{ pathname: "/legal/terminos" }} className="hover:text-accent transition-colors">Términos de servicio</Link>
-              </li>
-              <li>
-                <Link href={{ pathname: "/legal/privacidad" }} className="hover:text-accent transition-colors">Política de privacidad</Link>
-              </li>
-              <li>
-                <Link href={{ pathname: "/legal/riesgo" }} className="hover:text-accent transition-colors">Aviso de riesgo</Link>
-              </li>
+              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Terminos de servicio</Link></li>
+              <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Politica de privacidad</Link></li>
+              <li><Link href={{ pathname: "/legal/riesgo" }} className="transition-colors hover:text-primary">Aviso de riesgo</Link></li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-8 sm:flex-row">
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 border-t border-border/70 pt-8 sm:flex-row">
           <p className="text-xs text-muted">
             &copy; {currentYear} MyInvestView. Todos los derechos reservados.
           </p>
@@ -59,7 +46,7 @@ export function Footer() {
             {process.env.NEXT_PUBLIC_GITHUB_URL ? (
               <a
                 href={process.env.NEXT_PUBLIC_GITHUB_URL}
-                className="text-muted hover:text-accent transition-colors"
+                className="text-muted transition-colors hover:text-primary"
                 aria-label="GitHub"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -70,7 +57,7 @@ export function Footer() {
             {process.env.NEXT_PUBLIC_TWITTER_URL ? (
               <a
                 href={process.env.NEXT_PUBLIC_TWITTER_URL}
-                className="text-muted hover:text-accent transition-colors"
+                className="text-muted transition-colors hover:text-primary"
                 aria-label="Twitter"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -81,7 +68,7 @@ export function Footer() {
             {process.env.NEXT_PUBLIC_LINKEDIN_URL ? (
               <a
                 href={process.env.NEXT_PUBLIC_LINKEDIN_URL}
-                className="text-muted hover:text-accent transition-colors"
+                className="text-muted transition-colors hover:text-primary"
                 aria-label="LinkedIn"
                 target="_blank"
                 rel="noopener noreferrer"

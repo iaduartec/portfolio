@@ -219,10 +219,10 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface card-glow">
+    <div className="card-glow overflow-hidden rounded-xl border border-border/80 bg-surface/85">
       <div className="overflow-x-auto">
         <table className="w-full table-auto divide-y divide-border/70">
-          <thead className="bg-surface-muted/50 text-xs uppercase tracking-[0.08em] text-muted">
+          <thead className="bg-surface-muted/60 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
               {columns.map((column) => {
                 const isActive = sort.key === column.key;
@@ -275,8 +275,8 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                   <tr
                     key={holding.ticker}
                     className={cn(
-                      "cursor-pointer hover:bg-surface-muted/50",
-                      isSelected && "bg-surface-muted/70"
+                      "cursor-pointer hover:bg-surface-muted/45",
+                      isSelected && "bg-surface-muted/70 ring-1 ring-primary/20"
                     )}
                     onClick={() => onSelect?.(holding.ticker)}
                   >

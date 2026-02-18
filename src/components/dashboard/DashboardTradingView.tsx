@@ -44,7 +44,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
         <section ref={containerRef} aria-labelledby="tradingview-title">
             <Card
                 title={<span id="tradingview-title">TradingView</span>}
-                subtitle="Panel financiero completo estilo TradingView"
+                subtitle="Panel financiero completo con analisis tecnico y noticias"
             >
                 {selectedHolding ? (
                     <div className="tv-dark-scope mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">
@@ -75,8 +75,8 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                             </div>
                         )}
 
-                        <footer className="md:col-span-2 rounded-lg border border-border/60 bg-surface-muted/50 p-4 text-sm text-muted">
-                            <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Con tecnologia TradingView</p>
+                        <footer className="md:col-span-2 rounded-xl border border-border/70 bg-surface-muted/45 p-4 text-sm text-muted">
+                            <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Tecnologia TradingView</p>
                             <p>
                                 Graficos e informacion financiera proporcionados por TradingView. Explora mas{" "}
                                 <a

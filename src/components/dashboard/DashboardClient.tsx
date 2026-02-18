@@ -56,9 +56,9 @@ export function DashboardClient() {
         </section>
 
         <section id="holdings-section" className="scroll-mt-20">
-          <div className="flex items-center gap-2 mb-6">
+          <div className="mb-6 flex items-center gap-2">
             <div className="h-6 w-1 rounded-full bg-primary" />
-            <h2 className="retro-title text-sm text-white md:text-base">Tu Cartera</h2>
+            <h2 className="section-title text-xl font-semibold text-white">Tu cartera</h2>
           </div>
           <DashboardHoldings
             holdings={holdings}
@@ -68,7 +68,7 @@ export function DashboardClient() {
           />
         </section>
 
-        <section className="min-h-[600px] overflow-hidden rounded-xl border border-primary/25 bg-surface/70 p-1">
+        <section className="min-h-[600px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1">
           <DashboardTradingView selectedHolding={selectedHolding} />
         </section>
       </div>

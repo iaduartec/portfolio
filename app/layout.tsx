@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Press_Start_2P, VT323 } from "next/font/google";
+import { IBM_Plex_Mono, Sora } from "next/font/google";
 import { ReactNode } from "react";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
@@ -9,18 +9,17 @@ import { CurrencyProvider } from "@/components/currency/CurrencyProvider";
 import { GridBackground } from "@/components/layout/GridBackground";
 import { getSiteUrl } from "@/lib/site";
 
-const pressStart = Press_Start_2P({
+const sora = Sora({
   subsets: ["latin"],
   display: "swap",
-  weight: "400",
-  variable: "--font-press-start",
+  variable: "--font-sora",
 });
 
-const vt323 = VT323({
+const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
   display: "swap",
-  weight: "400",
-  variable: "--font-vt323",
+  weight: ["400", "500"],
+  variable: "--font-plex-mono",
 });
 
 const siteUrl = getSiteUrl();
@@ -84,7 +83,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="es"
-      className={`${pressStart.variable} ${vt323.variable}`}
+      className={`${sora.variable} ${plexMono.variable}`}
       suppressHydrationWarning
     >
       <body

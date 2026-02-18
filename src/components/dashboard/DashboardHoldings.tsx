@@ -22,7 +22,7 @@ export function DashboardHoldings({ holdings, activeTicker, onSelectTicker, isLo
                             isLoading={isLoading}
                         />
                     ) : (
-                        <p className="text-sm text-muted">
+                        <p className="text-sm leading-relaxed text-muted">
                             No hay posiciones abiertas todavia. Sube un CSV para calcularlas.
                         </p>
                     )}

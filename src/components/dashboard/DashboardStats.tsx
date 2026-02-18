@@ -17,7 +17,7 @@ export function DashboardStats({
     isLoading
 }: DashboardStatsProps) {
     return (
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Valor total" value={summary.totalValue} isLoading={isLoading} />
             <StatCard
                 label="P&L día"
