@@ -9,6 +9,7 @@ import { DashboardStats } from "./DashboardStats";
 import { DashboardAIPulse } from "./DashboardAIPulse";
 import { DashboardHoldings } from "./DashboardHoldings";
 import { DashboardTradingView } from "./DashboardTradingView";
+import { DashboardSkillIntel } from "./DashboardSkillIntel";
 
 export function DashboardClient() {
   const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
@@ -53,6 +54,10 @@ export function DashboardClient() {
 
         <section>
           <DashboardAIPulse />
+        </section>
+
+        <section>
+          <DashboardSkillIntel portfolioTickers={holdings.map((holding) => holding.ticker)} />
         </section>
 
         <section id="holdings-section" className="scroll-mt-20">
