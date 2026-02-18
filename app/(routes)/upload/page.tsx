@@ -36,7 +36,7 @@ export default function UploadPage() {
         <p className="text-xs uppercase tracking-[0.08em] text-muted">Datos</p>
         <h1 className="text-3xl font-semibold tracking-tight text-text">Cargar transacciones</h1>
         <p className="max-w-3xl text-sm text-muted">
-          Sube tu CSV de transacciones para reconstruir el portafolio. Usa PapaParse en cliente; guarda en localStorage + sesión del navegador.
+          Sube uno o varios CSV de transacciones para reconstruir el portafolio. Cada carga se anade y combina con lo que ya tengas en localStorage.
         </p>
         {sessionId && (
           <p className="text-xs text-muted">

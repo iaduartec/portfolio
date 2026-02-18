@@ -8,7 +8,7 @@ import {
   formatCurrency,
   inferCurrencyFromTicker,
 } from "@/lib/formatters";
-import { SESSION_ID_KEY, persistTransactions } from "@/lib/storage";
+import { SESSION_ID_KEY, loadStoredTransactions, persistTransactions } from "@/lib/storage";
 import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import {
@@ -23,6 +23,23 @@ interface CsvDropzoneProps {
   // eslint-disable-next-line no-unused-vars
   onSave?: (rows: Transaction[]) => void;
 }
+
+const toFixedNumberKey = (value?: number) => {
+  if (!Number.isFinite(value)) return "";
+  return Number(value).toFixed(8);
+};
+
+const buildTransactionFingerprint = (tx: Transaction) =>
+  [
+    tx.date?.trim() ?? "",
+    tx.ticker?.trim().toUpperCase() ?? "",
+    tx.type ?? "",
+    toFixedNumberKey(tx.quantity),
+    toFixedNumberKey(tx.price),
+    toFixedNumberKey(tx.fee),
+    tx.currency ?? "",
+    tx.name?.trim() ?? "",
+  ].join("|");
 
 export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   const { currency, baseCurrency, fxRate } = useCurrency();
@@ -137,15 +154,26 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
       }
       return tx;
     });
-    const saved = persistTransactions(normalized);
+    const existing = loadStoredTransactions();
+    const seen = new Set(existing.map((tx) => buildTransactionFingerprint(tx)));
+    const appended = normalized.filter((tx) => {
+      const key = buildTransactionFingerprint(tx);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const merged = [...existing, ...appended];
+    const saved = persistTransactions(merged);
     if (!saved) {
       setError("No se pudieron guardar en localStorage.");
       return;
     }
     const sessionId = new Date().toISOString();
     window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
-    onSave?.(normalized);
-    setSuccess(`Guardadas ${normalized.length} transacciones en local (sesión ${sessionId}).`);
+    onSave?.(merged);
+    setSuccess(
+      `Anadidas ${appended.length} transacciones nuevas. Total guardadas: ${merged.length} (sesion ${sessionId}).`
+    );
   };
 
   return (
@@ -312,7 +340,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
           disabled={!transactions.length}
           className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Guardar en local
+          Anadir y combinar
         </button>
       </div>
     </div>
