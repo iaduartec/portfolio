@@ -69,6 +69,7 @@ export function DashboardClient() {
             holdings={holdings}
             activeTicker={activeTicker}
             onSelectTicker={setSelectedTicker}
+            fundTotal={summary.totalValue}
             isLoading={isLoading}
           />
         </section>
