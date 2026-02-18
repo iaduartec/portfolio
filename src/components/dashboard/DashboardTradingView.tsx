@@ -44,7 +44,13 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
         <section ref={containerRef} aria-labelledby="tradingview-title">
             <Card
                 title={<span id="tradingview-title">TradingView</span>}
-                subtitle="Panel financiero completo con analisis tecnico y noticias"
+                subtitle={
+                    selectedHolding
+                        ? `${selectedHolding.name || selectedHolding.ticker}${
+                              selectedHolding.name ? ` (${selectedHolding.ticker})` : ""
+                          } · Panel financiero completo con analisis tecnico y noticias`
+                        : "Panel financiero completo con analisis tecnico y noticias"
+                }
             >
                 {selectedHolding ? (
                     <div className="tv-dark-scope mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">

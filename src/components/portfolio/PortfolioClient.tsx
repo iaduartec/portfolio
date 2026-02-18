@@ -19,7 +19,9 @@ export function PortfolioClient() {
     () =>
       holdings
         .map((holding) => ({
+          key: holding.ticker,
           label: holding.ticker,
+          displayLabel: holding.name || holding.ticker,
           value: holding.marketValue,
           percent: summary.totalValue > 0 ? holding.marketValue / summary.totalValue : 0,
         }))
@@ -87,15 +89,22 @@ export function PortfolioClient() {
               <AllocationChart data={allocation} />
               <div className="mt-3 grid gap-1.5 text-xs">
                 {allocation.map((item, index) => (
-                  <div key={item.label} className="flex items-center justify-between gap-2">
+                  <div key={item.key} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span
                         className="h-2.5 w-2.5 rounded-full"
                         style={{ backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length] }}
                       />
-                      <span className="truncate text-text" title={item.label}>
-                        {item.label}
-                      </span>
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-text" title={item.displayLabel}>
+                          {item.displayLabel}
+                        </span>
+                        {item.displayLabel !== item.label ? (
+                          <span className="truncate text-[11px] text-muted" title={item.label}>
+                            {item.label}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
                     <span className="text-muted">{formatPercent(item.percent)}</span>
                   </div>

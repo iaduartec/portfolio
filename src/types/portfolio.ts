@@ -29,6 +29,7 @@ export interface PortfolioSummary {
 export interface RealizedTrade {
   id: string;
   ticker: string;
+  name?: string;
   currency: CurrencyCode;
   date: string;
   quantity: number;

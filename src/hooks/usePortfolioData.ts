@@ -126,10 +126,14 @@ export function usePortfolioData() {
   
   const summary = useMemo(() => computeSummary(holdings), [holdings]);
   
-  const realizedTrades = useMemo(
-    () => computeRealizedTrades(transactions, fxRate, baseCurrency),
-    [transactions, fxRate, baseCurrency]
-  );
+  const realizedTrades = useMemo(() => {
+    const baseTrades = computeRealizedTrades(transactions, fxRate, baseCurrency);
+    return baseTrades.map((trade) => {
+      const quoteName = priceMap[trade.ticker.toUpperCase()]?.name;
+      if (trade.name || !quoteName) return trade;
+      return { ...trade, name: quoteName };
+    });
+  }, [transactions, fxRate, baseCurrency, priceMap]);
 
   const hasTransactions = transactions.length > 0;
 

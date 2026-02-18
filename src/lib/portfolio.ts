@@ -159,6 +159,13 @@ export const computeRealizedTrades = (
   });
   
   const realized: RealizedTrade[] = [];
+  const tickerNameMap = new Map<string, string>();
+
+  ordered.forEach((tx) => {
+    if (tx.ticker && tx.name?.trim()) {
+      tickerNameMap.set(tx.ticker, tx.name.trim());
+    }
+  });
 
   ordered.forEach((tx, idx) => {
     if (!tx.ticker) return;
@@ -192,6 +199,7 @@ export const computeRealizedTrades = (
         realized.push({
           id: `${tx.ticker}-${tx.date}-${idx}`,
           ticker: tx.ticker,
+          name: tickerNameMap.get(tx.ticker) ?? tx.name,
           currency,
           date: tx.date,
           quantity: soldQuantity,
