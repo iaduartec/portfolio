@@ -138,7 +138,15 @@ export function PortfolioClient() {
       .filter((tx) => tx.type === "DIVIDEND")
       .reduce((sum, tx) => {
         const txCurrency = tx.currency ?? baseCurrency;
-        const gross = tx.quantity !== 0 ? tx.quantity * tx.price : tx.price;
+        const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
+        const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
+        const gross = hasQty && hasPrice
+          ? tx.quantity * tx.price
+          : hasPrice
+            ? tx.price
+            : hasQty
+              ? tx.quantity
+              : 0;
         const net = gross - (tx.fee ?? 0);
         const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
         return sum + (Number.isFinite(amount) ? amount : 0);
