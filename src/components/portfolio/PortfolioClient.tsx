@@ -60,8 +60,13 @@ const extractCoreTicker = (rawTicker: string) => {
   return withoutExchange.includes(".") ? withoutExchange.split(".", 2)[0] : withoutExchange;
 };
 
-const isRoboadvisorTicker = (ticker: string) =>
-  ROBOADVISOR_ETF_SYMBOLS.has(extractCoreTicker(ticker));
+const isRoboadvisorTicker = (ticker: string) => {
+  const cleaned = (ticker ?? "").trim().toUpperCase();
+  if (!cleaned) return false;
+  if (cleaned.startsWith("XETR:")) return true;
+  if (cleaned.endsWith(".DE")) return true;
+  return ROBOADVISOR_ETF_SYMBOLS.has(extractCoreTicker(cleaned));
+};
 
 const computeSummaryFromHoldings = (subset: Holding[]) => {
   const totalValue = subset.reduce((sum, holding) => sum + holding.marketValue, 0);
