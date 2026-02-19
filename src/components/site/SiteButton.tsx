@@ -45,13 +45,12 @@ export function SiteButton(props: SiteButtonProps) {
     className,
     variant = "primary",
     size = "md",
-    ariaLabel,
   } = props;
 
   const composedClassName = cn(sharedClassName, variants[variant], sizes[size], className);
 
   if ("href" in props && props.href) {
-    const { href, ...anchorProps } = props;
+    const { href, ariaLabel, ...anchorProps } = props;
     return (
       <a href={href} className={composedClassName} aria-label={ariaLabel} {...anchorProps}>
         {children}
@@ -59,7 +58,7 @@ export function SiteButton(props: SiteButtonProps) {
     );
   }
 
-  const { type = "button", ...buttonProps } = props as SiteButtonAsButton;
+  const { type = "button", ariaLabel, ...buttonProps } = props as SiteButtonAsButton;
 
   return (
     <button type={type} {...buttonProps} aria-label={ariaLabel} className={composedClassName}>
