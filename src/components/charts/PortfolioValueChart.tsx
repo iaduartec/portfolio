@@ -20,6 +20,7 @@ interface PortfolioValueChartProps {
   ticker: string;
   name?: string;
   showProjectionInsights?: boolean;
+  chartHeight?: number;
 }
 
 type SignalDirection = "bullish" | "bearish";
@@ -130,6 +131,7 @@ export function PortfolioValueChart({
   ticker,
   name,
   showProjectionInsights = false,
+  chartHeight = 500,
 }: PortfolioValueChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>({
@@ -140,6 +142,7 @@ export function PortfolioValueChart({
   const [aiResult, setAiResult] = useState<AiAuditResult | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const safeChartHeight = clamp(Math.round(chartHeight), 360, 980);
 
   useEffect(() => {
     let ignore = false;
@@ -338,7 +341,7 @@ export function PortfolioValueChart({
 
     containerRef.current.innerHTML = "";
     const chart = createChart(containerRef.current, {
-      height: 500,
+      height: safeChartHeight,
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#cfd6e6",
@@ -498,7 +501,7 @@ export function PortfolioValueChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [status, liveSeries, analysis, patternsForChart, technicalOutlook, showProjectionInsights]);
+  }, [status, liveSeries, analysis, patternsForChart, technicalOutlook, showProjectionInsights, safeChartHeight]);
 
   const displayPatterns = useMemo(() => {
     const combined = [
@@ -550,14 +553,16 @@ export function PortfolioValueChart({
       className="overflow-hidden"
     >
       {status === "loading" && (
-        <div className="flex h-[500px] items-center justify-center text-xs text-muted">Cargando...</div>
+        <div style={{ height: safeChartHeight }} className="flex items-center justify-center text-xs text-muted">
+          Cargando...
+        </div>
       )}
       {status === "error" && (
-        <div className="flex h-[500px] items-center justify-center text-xs text-danger">
+        <div style={{ height: safeChartHeight }} className="flex items-center justify-center text-xs text-danger">
           Error al cargar datos
         </div>
       )}
-      <div ref={containerRef} className="h-[500px] w-full" />
+      <div ref={containerRef} style={{ height: safeChartHeight }} className="w-full" />
 
       {showProjectionInsights && status === "idle" && (
         <div className="mt-4 rounded-xl border border-border/60 bg-surface/35 p-3">

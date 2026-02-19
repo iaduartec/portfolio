@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { Route } from "next";
 import { Github, Twitter, Linkedin } from "lucide-react";
 
 export function Footer() {
@@ -22,7 +21,6 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Plataforma</h3>
             <ul className="space-y-2 text-sm text-muted">
-              <li><Link href={{ pathname: "/empresa" as Route }} className="transition-colors hover:text-primary">Empresa</Link></li>
               <li><Link href="/" className="transition-colors hover:text-primary">Panel Principal</Link></li>
               <li><Link href="/portfolio" className="transition-colors hover:text-primary">Cartera</Link></li>
               <li><Link href="/lab" className="transition-colors hover:text-primary">Laboratorio Tecnico</Link></li>
