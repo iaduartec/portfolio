@@ -331,6 +331,10 @@ export function PortfolioClient() {
         })),
     [etfHoldings, etfSummary.totalValue]
   );
+  const maxEtfPercent = useMemo(
+    () => etfAllocation.reduce((max, holding) => Math.max(max, holding.percent), 0),
+    [etfAllocation]
+  );
 
   return (
     <div className="relative flex flex-col gap-10">
@@ -523,7 +527,7 @@ export function PortfolioClient() {
             <Card
               className="bg-gradient-to-b from-surface-muted/38 to-surface/92"
               title={`${ROBOADVISOR_NAME} · Desglose`}
-              subtitle="Distribución por ETF/Fondo"
+              subtitle="Peso por ETF/Fondo (barra relativa, % real a la derecha)"
             >
               {etfAllocation.length ? (
                 <div className="space-y-3">
@@ -540,7 +544,10 @@ export function PortfolioClient() {
                         <div
                           className="h-full rounded-full"
                           style={{
-                            width: `${Math.max(2, holding.percent * 100)}%`,
+                            width: `${Math.max(
+                              4,
+                              maxEtfPercent > 0 ? (holding.percent / maxEtfPercent) * 100 : 0
+                            )}%`,
                             backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length],
                           }}
                         />
