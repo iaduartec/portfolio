@@ -7,12 +7,20 @@ import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { Card } from "@/components/ui/card";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
-import { formatPercent, formatCurrency, convertCurrency, convertCurrencyFrom } from "@/lib/formatters";
+import {
+  formatPercent,
+  formatCurrency,
+  convertCurrency,
+  convertCurrencyFrom,
+  inferCurrencyFromTicker,
+  type CurrencyCode,
+} from "@/lib/formatters";
 import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
 import { isFundTicker } from "@/lib/portfolioGroups";
 import type { Holding } from "@/types/portfolio";
+import type { Transaction } from "@/types/transactions";
 
 const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
 const ROBOADVISOR_NAME = "Roboadvisor Revolut";
@@ -33,6 +41,108 @@ type AllocationItem = {
 };
 
 type PortfolioTab = "stocks" | "etf";
+type PerformancePoint = { label: string; value: number };
+
+const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+const toTimestamp = (value: string) => {
+  const parsed = Date.parse(value);
+  if (Number.isFinite(parsed)) return parsed;
+  const isoDate = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!isoDate) return null;
+  const [, year, month, day] = isoDate;
+  return Date.UTC(Number(year), Number(month) - 1, Number(day));
+};
+
+const getMonthStart = (timestamp: number) => {
+  const date = new Date(timestamp);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1);
+};
+
+const getNextMonthStart = (monthStart: number) => {
+  const date = new Date(monthStart);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
+};
+
+const getMonthEnd = (monthStart: number) => getNextMonthStart(monthStart) - 1;
+
+const formatMonthLabel = (monthStart: number, includeYear: boolean) => {
+  const date = new Date(monthStart);
+  const month = MONTH_LABELS[date.getUTCMonth()];
+  if (!includeYear) return month;
+  return `${month} ${String(date.getUTCFullYear()).slice(-2)}`;
+};
+
+const buildPerformanceSeries = (
+  transactions: Transaction[],
+  fxRate: number,
+  baseCurrency: CurrencyCode,
+  latestValue: number
+): PerformancePoint[] => {
+  const ordered = transactions
+    .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL"))
+    .map((tx) => {
+      const timestamp = toTimestamp(tx.date);
+      if (!Number.isFinite(timestamp)) return null;
+      return { tx, timestamp: timestamp as number };
+    })
+    .filter((entry): entry is { tx: Transaction; timestamp: number } => entry !== null)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  if (ordered.length === 0) {
+    const fallback = Number.isFinite(latestValue) && latestValue > 0 ? Number(latestValue.toFixed(2)) : 0;
+    return fallback > 0 ? [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: fallback }] : [];
+  }
+
+  const startMonth = getMonthStart(ordered[0].timestamp);
+  const lastMonth = getMonthStart(ordered[ordered.length - 1].timestamp);
+  const nowMonth = getMonthStart(Date.now());
+  const endMonth = Math.max(lastMonth, nowMonth);
+  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(endMonth).getUTCFullYear();
+
+  const positions = new Map<string, { quantity: number; lastPrice: number }>();
+  const points: PerformancePoint[] = [];
+  let txIndex = 0;
+
+  for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
+    const monthEnd = getMonthEnd(month);
+    while (txIndex < ordered.length && ordered[txIndex].timestamp <= monthEnd) {
+      const { tx } = ordered[txIndex];
+      const entry = positions.get(tx.ticker) ?? { quantity: 0, lastPrice: 0 };
+      const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+      if (Number.isFinite(tx.price) && tx.price > 0) {
+        entry.lastPrice = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+      }
+      const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
+      if (tx.type === "BUY") {
+        entry.quantity += quantity;
+      } else if (tx.type === "SELL") {
+        entry.quantity = Math.max(0, entry.quantity - quantity);
+      }
+      positions.set(tx.ticker, entry);
+      txIndex += 1;
+    }
+
+    const value = Array.from(positions.values()).reduce((sum, position) => {
+      if (position.quantity <= 0 || position.lastPrice <= 0) return sum;
+      return sum + position.quantity * position.lastPrice;
+    }, 0);
+
+    points.push({
+      label: formatMonthLabel(month, includeYear),
+      value: Number(value.toFixed(2)),
+    });
+  }
+
+  if (points.length > 0 && Number.isFinite(latestValue) && latestValue > 0) {
+    points[points.length - 1] = {
+      ...points[points.length - 1],
+      value: Number(latestValue.toFixed(2)),
+    };
+  }
+
+  return points;
+};
 
 const groupResidualAllocation = (items: AllocationItem[]) => {
   const major = items.filter((item) => item.percent >= RESIDUAL_ALLOCATION_THRESHOLD);
@@ -81,6 +191,10 @@ export function PortfolioClient() {
   const stockTrades = useMemo(
     () => realizedTrades.filter((trade) => !isFundTicker(trade.ticker)),
     [realizedTrades]
+  );
+  const stockTransactions = useMemo(
+    () => transactions.filter((tx) => !isFundTicker(tx.ticker)),
+    [transactions]
   );
   const etfTransactions = useMemo(
     () => transactions.filter((tx) => isFundTicker(tx.ticker)),
@@ -152,24 +266,11 @@ export function PortfolioClient() {
     [stockHoldings, stockSummary.totalValue, sectorByTicker]
   );
   const performanceSeries = useMemo(() => {
-    const base = stockSummary.totalValue || 1;
-    const points = [
-      { label: "Ene", value: base * 0.82 },
-      { label: "Feb", value: base * 0.9 },
-      { label: "Mar", value: base * 0.88 },
-      { label: "Abr", value: base * 0.95 },
-      { label: "May", value: base * 1.02 },
-      { label: "Jun", value: base * 1.08 },
-    ];
-    return points.map((point) => ({
-      ...point,
-      value: Number(point.value.toFixed(2)),
-    }));
-  }, [stockSummary.totalValue]);
+    return buildPerformanceSeries(stockTransactions, fxRate, baseCurrency, stockSummary.totalValue);
+  }, [stockTransactions, fxRate, baseCurrency, stockSummary.totalValue]);
 
   const dividendsCollected = useMemo(() => {
-    return transactions
-      .filter((tx) => !isFundTicker(tx.ticker))
+    return stockTransactions
       .filter((tx) => tx.type === "DIVIDEND")
       .reduce((sum, tx) => {
         const txCurrency = tx.currency ?? baseCurrency;
@@ -186,7 +287,7 @@ export function PortfolioClient() {
         const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
         return sum + (Number.isFinite(amount) ? amount : 0);
       }, 0);
-  }, [transactions, fxRate, baseCurrency]);
+  }, [stockTransactions, fxRate, baseCurrency]);
 
   const etfDividendsCollected = useMemo(() => {
     return etfTransactions
@@ -304,7 +405,7 @@ export function PortfolioClient() {
           <Card
             className="border-primary/20 bg-gradient-to-b from-surface-muted/45 to-surface/90"
             title="Rendimiento de la cartera"
-            subtitle="Evolución del valor (mock hasta tener histórico)"
+            subtitle="Evolución mensual estimada por operaciones y valoración actual"
           >
             <PortfolioPerformanceChart data={performanceSeries} />
           </Card>

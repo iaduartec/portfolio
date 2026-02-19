@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -23,13 +24,36 @@ interface PortfolioPerformanceChartProps {
 
 export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartProps) {
   const { currency, baseCurrency, fxRate } = useCurrency();
-  const first = data[0]?.value ?? 0;
-  const last = data[data.length - 1]?.value ?? 0;
+  const chartData = useMemo(
+    () =>
+      data.map((point) => ({
+        ...point,
+        convertedValue: convertCurrency(point.value, currency, fxRate, baseCurrency),
+      })),
+    [data, currency, fxRate, baseCurrency]
+  );
+  const first = chartData[0]?.convertedValue ?? 0;
+  const last = chartData[chartData.length - 1]?.convertedValue ?? 0;
   const delta = last - first;
   const deltaPercent = first !== 0 ? (delta / first) * 100 : 0;
   const isPositive = delta >= 0;
-  const rangeStart = data[0]?.label ?? "";
-  const rangeEnd = data[data.length - 1]?.label ?? "";
+  const rangeStart = chartData[0]?.label ?? "";
+  const rangeEnd = chartData[chartData.length - 1]?.label ?? "";
+  const yDomain = useMemo<[number, number]>(() => {
+    if (chartData.length === 0) return [0, 1];
+    const values = chartData
+      .map((point) => point.convertedValue)
+      .filter((value) => Number.isFinite(value));
+    if (values.length === 0) return [0, 1];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) {
+      const padding = Math.max(Math.abs(max) * 0.08, 1);
+      return [Math.max(0, min - padding), max + padding];
+    }
+    const padding = (max - min) * 0.12;
+    return [Math.max(0, min - padding), max + padding];
+  }, [chartData]);
 
   return (
     <div className="w-full">
@@ -47,7 +71,7 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
       </div>
       <div className="h-64 rounded-2xl border border-border bg-surface-muted/30 p-3">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="perfGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#2962ff" stopOpacity={0.35} />
@@ -68,10 +92,8 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
               tickLine={false}
               axisLine={false}
               fontSize={11}
-              tickFormatter={(value) =>
-                formatCurrency(convertCurrency(Number(value), currency, fxRate, baseCurrency), currency)
-              }
-              domain={[0, 1200]}
+              tickFormatter={(value) => formatCurrency(Number(value), currency)}
+              domain={yDomain}
               tickCount={5}
             />
             <Tooltip
@@ -82,13 +104,11 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
                 borderRadius: 10,
                 color: "#d1d4dc",
               }}
-              formatter={(value: number) =>
-                formatCurrency(convertCurrency(value, currency, fxRate, baseCurrency), currency)
-              }
+              formatter={(value: number) => formatCurrency(value, currency)}
             />
             <Area
               type="monotone"
-              dataKey="value"
+              dataKey="convertedValue"
               stroke="#2962ff"
               strokeWidth={2}
               fill="url(#perfGradient)"
