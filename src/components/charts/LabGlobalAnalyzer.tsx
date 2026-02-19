@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { PortfolioValueChart } from "@/components/charts/PortfolioValueChart";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { isFundTicker } from "@/lib/portfolioGroups";
 
 const DEFAULT_TICKER = "NASDAQ:AAPL";
 const NO_MARKET = "NONE";
@@ -33,11 +34,21 @@ export function LabGlobalAnalyzer() {
   const [symbolInput, setSymbolInput] = useState(defaultParsedTicker.symbol);
   const [selectedTicker, setSelectedTicker] = useState(DEFAULT_TICKER);
 
-  const quickTickers = useMemo(() => {
+  const stockQuickTickers = useMemo(() => {
     const fromPortfolio = holdings
+      .filter((holding) => !isFundTicker(holding.ticker))
       .map((holding) => holding.ticker?.toUpperCase())
       .filter((ticker): ticker is string => Boolean(ticker));
     const base = ["NASDAQ:AAPL", "NASDAQ:NVDA", "SPY", "BTC-USD"];
+    return Array.from(new Set([...fromPortfolio, ...base])).slice(0, 8);
+  }, [holdings]);
+
+  const fundQuickTickers = useMemo(() => {
+    const fromPortfolio = holdings
+      .filter((holding) => isFundTicker(holding.ticker))
+      .map((holding) => holding.ticker?.toUpperCase())
+      .filter((ticker): ticker is string => Boolean(ticker));
+    const base = ["XETR:EXW1", "XETR:IS3K", "XETR:XUCD"];
     return Array.from(new Set([...fromPortfolio, ...base])).slice(0, 8);
   }, [holdings]);
 
@@ -125,21 +136,48 @@ export function LabGlobalAnalyzer() {
           </form>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {quickTickers.map((ticker) => (
-            <button
-              key={ticker}
-              type="button"
-              onClick={() => handleQuickSelect(ticker)}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                ticker === selectedTicker
-                  ? "border-accent/70 bg-accent/20 text-white"
-                  : "border-border/70 bg-surface-muted/35 text-muted hover:border-accent/50 hover:text-text"
-              }`}
-            >
-              {ticker}
-            </button>
-          ))}
+        <div className="mt-4 space-y-3">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Acciones</p>
+            <div className="flex flex-wrap gap-2">
+              {stockQuickTickers.map((ticker) => (
+                <button
+                  key={ticker}
+                  type="button"
+                  onClick={() => handleQuickSelect(ticker)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                    ticker === selectedTicker
+                      ? "border-accent/70 bg-accent/20 text-white"
+                      : "border-border/70 bg-surface-muted/35 text-muted hover:border-accent/50 hover:text-text"
+                  }`}
+                >
+                  {ticker}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {fundQuickTickers.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Fondos y ETFs</p>
+              <div className="flex flex-wrap gap-2">
+                {fundQuickTickers.map((ticker) => (
+                  <button
+                    key={ticker}
+                    type="button"
+                    onClick={() => handleQuickSelect(ticker)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                      ticker === selectedTicker
+                        ? "border-accent/70 bg-accent/20 text-white"
+                        : "border-border/70 bg-surface-muted/35 text-muted hover:border-accent/50 hover:text-text"
+                    }`}
+                  >
+                    {ticker}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

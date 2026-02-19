@@ -11,11 +11,11 @@ import { formatPercent, formatCurrency, convertCurrency, convertCurrencyFrom } f
 import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
+import { isFundTicker } from "@/lib/portfolioGroups";
 import type { Holding } from "@/types/portfolio";
 
 const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
 const ROBOADVISOR_NAME = "Roboadvisor Revolut";
-const ROBOADVISOR_ETF_SYMBOLS = new Set(["EXW1", "IS3K", "XUCD"]);
 
 type SectorPoint = {
   ticker: string;
@@ -53,21 +53,6 @@ const groupResidualAllocation = (items: AllocationItem[]) => {
   ];
 };
 
-const extractCoreTicker = (rawTicker: string) => {
-  const cleaned = (rawTicker ?? "").trim().toUpperCase();
-  if (!cleaned) return "";
-  const withoutExchange = cleaned.includes(":") ? cleaned.split(":", 2)[1] : cleaned;
-  return withoutExchange.includes(".") ? withoutExchange.split(".", 2)[0] : withoutExchange;
-};
-
-const isRoboadvisorTicker = (ticker: string) => {
-  const cleaned = (ticker ?? "").trim().toUpperCase();
-  if (!cleaned) return false;
-  if (cleaned.startsWith("XETR:")) return true;
-  if (cleaned.endsWith(".DE")) return true;
-  return ROBOADVISOR_ETF_SYMBOLS.has(extractCoreTicker(cleaned));
-};
-
 const computeSummaryFromHoldings = (subset: Holding[]) => {
   const totalValue = subset.reduce((sum, holding) => sum + holding.marketValue, 0);
   const totalPnl = subset.reduce((sum, holding) => sum + holding.pnlValue, 0);
@@ -82,21 +67,21 @@ export function PortfolioClient() {
   const [activeTab, setActiveTab] = useState<PortfolioTab>("stocks");
 
   const stockHoldings = useMemo(
-    () => holdings.filter((holding) => !isRoboadvisorTicker(holding.ticker)),
+    () => holdings.filter((holding) => !isFundTicker(holding.ticker)),
     [holdings]
   );
   const etfHoldings = useMemo(
-    () => holdings.filter((holding) => isRoboadvisorTicker(holding.ticker)),
+    () => holdings.filter((holding) => isFundTicker(holding.ticker)),
     [holdings]
   );
   const stockSummary = useMemo(() => computeSummaryFromHoldings(stockHoldings), [stockHoldings]);
   const etfSummary = useMemo(() => computeSummaryFromHoldings(etfHoldings), [etfHoldings]);
   const stockTrades = useMemo(
-    () => realizedTrades.filter((trade) => !isRoboadvisorTicker(trade.ticker)),
+    () => realizedTrades.filter((trade) => !isFundTicker(trade.ticker)),
     [realizedTrades]
   );
   const etfTransactions = useMemo(
-    () => transactions.filter((tx) => isRoboadvisorTicker(tx.ticker)),
+    () => transactions.filter((tx) => isFundTicker(tx.ticker)),
     [transactions]
   );
 
@@ -182,7 +167,7 @@ export function PortfolioClient() {
 
   const dividendsCollected = useMemo(() => {
     return transactions
-      .filter((tx) => !isRoboadvisorTicker(tx.ticker))
+      .filter((tx) => !isFundTicker(tx.ticker))
       .filter((tx) => tx.type === "DIVIDEND")
       .reduce((sum, tx) => {
         const txCurrency = tx.currency ?? baseCurrency;
