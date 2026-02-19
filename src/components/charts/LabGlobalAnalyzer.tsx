@@ -9,6 +9,15 @@ import { isFundTicker } from "@/lib/portfolioGroups";
 const DEFAULT_TICKER = "NASDAQ:AAPL";
 const NO_MARKET = "NONE";
 const BASE_MARKETS = ["NASDAQ", "NYSE", "BME", "XETR", "MIL", "PAR", "AMS", "LSE"];
+const RANGE_OPTIONS = [
+  { value: "1y", label: "1Y" },
+  { value: "3y", label: "3Y" },
+  { value: "5y", label: "5Y" },
+  { value: "10y", label: "10Y" },
+  { value: "max", label: "MAX" },
+] as const;
+
+type HistoryRange = (typeof RANGE_OPTIONS)[number]["value"];
 
 const normalizeTickerInput = (value: string) =>
   value.trim().toUpperCase().replace(/\s+/g, "");
@@ -33,6 +42,7 @@ export function LabGlobalAnalyzer() {
   const [selectedMarket, setSelectedMarket] = useState(defaultParsedTicker.market);
   const [symbolInput, setSymbolInput] = useState(defaultParsedTicker.symbol);
   const [selectedTicker, setSelectedTicker] = useState(DEFAULT_TICKER);
+  const [selectedRange, setSelectedRange] = useState<HistoryRange>("3y");
 
   const stockQuickTickers = useMemo(() => {
     const fromPortfolio = holdings
@@ -138,6 +148,26 @@ export function LabGlobalAnalyzer() {
 
         <div className="mt-4 space-y-3">
           <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Histórico visible</p>
+            <div className="inline-flex flex-wrap rounded-full border border-border/80 bg-surface-muted/20 p-1">
+              {RANGE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setSelectedRange(option.value)}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                    selectedRange === option.value
+                      ? "bg-accent/25 text-white"
+                      : "text-muted hover:text-text"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Acciones</p>
             <div className="flex flex-wrap gap-2">
               {stockQuickTickers.map((ticker) => (
@@ -181,7 +211,7 @@ export function LabGlobalAnalyzer() {
         </div>
       </div>
 
-      <PortfolioValueChart ticker={selectedTicker} showProjectionInsights />
+      <PortfolioValueChart ticker={selectedTicker} showProjectionInsights range={selectedRange} />
     </section>
   );
 }

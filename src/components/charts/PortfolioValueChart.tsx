@@ -21,6 +21,7 @@ interface PortfolioValueChartProps {
   name?: string;
   showProjectionInsights?: boolean;
   chartHeight?: number;
+  range?: "3mo" | "6mo" | "1y" | "2y" | "3y" | "5y" | "10y" | "ytd" | "max";
 }
 
 type SignalDirection = "bullish" | "bearish";
@@ -132,6 +133,7 @@ export function PortfolioValueChart({
   name,
   showProjectionInsights = false,
   chartHeight = 500,
+  range = "1y",
 }: PortfolioValueChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>({
@@ -151,7 +153,9 @@ export function PortfolioValueChart({
       setAiResult(null);
       setAiError(null);
       try {
-        const res = await fetch(`/api/market/ohlc?symbol=${ticker}&range=1y`);
+        const res = await fetch(
+          `/api/market/ohlc?symbol=${encodeURIComponent(ticker)}&range=${encodeURIComponent(range)}`
+        );
         const payload = await res.json();
         if (!res.ok || !Array.isArray(payload.candles)) {
           throw new Error("No data");
@@ -168,7 +172,7 @@ export function PortfolioValueChart({
     return () => {
       ignore = true;
     };
-  }, [ticker]);
+  }, [ticker, range]);
 
   const handleAiAudit = async () => {
     if (liveSeries.candles.length === 0) return;
