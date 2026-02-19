@@ -237,6 +237,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     className={cn(
                       "cursor-pointer px-4 py-3.5 text-left font-semibold",
                       column.align === "right" && "text-right",
+                      column.key === "ticker" && "w-[320px] max-w-[320px]",
                       isActive && "text-text"
                     )}
                     onClick={() => handleSort(column.key)}
@@ -283,13 +284,15 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     )}
                     onClick={() => onSelect?.(holding.ticker)}
                   >
-                    <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-text">
-                      <div className="flex flex-col">
-                        <span className="text-base text-text">
+                    <td className="w-[320px] max-w-[320px] whitespace-nowrap px-4 py-3.5 font-semibold text-text">
+                      <div className="min-w-0 flex flex-col">
+                        <span className="block truncate text-base text-text" title={holding.name || holding.ticker}>
                           {holding.name || holding.ticker}
                         </span>
                         {holding.name && (
-                          <span className="text-xs text-muted font-normal">{holding.ticker}</span>
+                          <span className="block truncate text-xs text-muted font-normal" title={holding.ticker}>
+                            {holding.ticker}
+                          </span>
                         )}
                       </div>
                     </td>

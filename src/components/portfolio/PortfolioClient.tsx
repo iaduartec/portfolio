@@ -418,7 +418,7 @@ export function PortfolioClient() {
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
+          <div className="flex flex-col gap-6">
             <Card
               className="bg-gradient-to-b from-surface-muted/38 to-surface/92"
               title={`${ROBOADVISOR_NAME} · Desglose`}
@@ -455,7 +455,7 @@ export function PortfolioClient() {
                 <p className="text-sm text-muted">No hay posiciones de ETFs/fondos en el robadvisor.</p>
               )}
             </Card>
-            <div className="flex flex-col gap-6">
+            <div className="grid gap-6 lg:grid-cols-2">
               <Card
                 className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
                 title="Movimientos del Roboadvisor"
