@@ -16,6 +16,8 @@ import type { Holding } from "@/types/portfolio";
 
 const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
 const ROBOADVISOR_NAME = "Roboadvisor Revolut";
+const METRIC_CARD_CLASS =
+  "flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-gradient-to-b from-surface-muted/55 to-surface/85 py-8 shadow-panel backdrop-blur-xl";
 
 type SectorPoint = {
   ticker: string;
@@ -230,59 +232,68 @@ export function PortfolioClient() {
   );
 
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col items-center text-center gap-4 py-6 md:py-10">
-        <div className="flex flex-col gap-3">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-accent/80">Gestión de Inversiones</p>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text">
+    <div className="relative flex flex-col gap-10">
+      <div className="pointer-events-none absolute inset-x-0 -top-10 -z-10 h-[360px] rounded-[40px] bg-[radial-gradient(circle_at_top,rgba(62,199,255,0.22),rgba(7,11,20,0)_66%)]" />
+      <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(22,34,57,0.82),rgba(10,16,28,0.9))] px-5 py-8 shadow-panel backdrop-blur-xl md:px-10 md:py-12">
+        <div className="absolute -top-20 right-[-72px] h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute -bottom-24 left-[-72px] h-60 w-60 rounded-full bg-accent/15 blur-3xl" />
+        <div className="relative flex flex-col items-center gap-4 text-center">
+          <div className="inline-flex items-center rounded-full border border-primary/35 bg-primary/10 px-3 py-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/90">Gestión de inversiones</p>
+          </div>
+          <h1 className="text-4xl font-extrabold tracking-tight text-text md:text-6xl">
             {activeTab === "stocks" ? "Acciones" : "ETFs y Fondos"}
           </h1>
-          <p className="max-w-2xl text-lg text-muted mx-auto leading-relaxed">
+          <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted md:text-lg">
             {activeTab === "stocks"
               ? "Consulte la distribución de sus acciones, el rendimiento histórico y el detalle de sus posiciones abiertas."
               : "Vista específica del robadvisor con ETFs/fondos y su desglose de posiciones."}
           </p>
+          <div className="mt-1 inline-flex rounded-xl border border-border/70 bg-background/45 p-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab("stocks")}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-semibold transition",
+                activeTab === "stocks"
+                  ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
+                  : "text-muted hover:text-text"
+              )}
+            >
+              Acciones
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("etf")}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-semibold transition",
+                activeTab === "etf"
+                  ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
+                  : "text-muted hover:text-text"
+              )}
+            >
+              ETFs/Fondos
+            </button>
+          </div>
         </div>
-        <div className="mt-2 inline-flex rounded-xl border border-border/70 bg-surface/70 p-1">
-          <button
-            type="button"
-            onClick={() => setActiveTab("stocks")}
-            className={cn(
-              "rounded-lg px-4 py-2 text-sm font-semibold transition",
-              activeTab === "stocks" ? "bg-primary text-background" : "text-muted hover:text-text"
-            )}
-          >
-            Acciones
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("etf")}
-            className={cn(
-              "rounded-lg px-4 py-2 text-sm font-semibold transition",
-              activeTab === "etf" ? "bg-primary text-background" : "text-muted hover:text-text"
-            )}
-          >
-            ETFs/Fondos
-          </button>
-        </div>
-      </div>
+      </section>
 
       {activeTab === "stocks" ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="flex flex-col items-center justify-center py-8 bg-accent/5 border-accent/10">
+            <Card className={cn(METRIC_CARD_CLASS, "border-primary/20 from-primary/10 to-surface/90")}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">Valor de Cartera</p>
               <p className="text-3xl font-bold text-text">
                 {formatCurrency(convertCurrency(stockSummary.totalValue, currency, fxRate, baseCurrency), currency)}
               </p>
             </Card>
-            <Card className="flex flex-col items-center justify-center py-8">
+            <Card className={METRIC_CARD_CLASS}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Diario</p>
               <p className={cn("text-3xl font-bold", stockSummary.dailyPnl >= 0 ? "text-success" : "text-danger")}>
                 {formatCurrency(convertCurrency(stockSummary.dailyPnl, currency, fxRate, baseCurrency), currency)}
               </p>
             </Card>
-            <Card className="flex flex-col items-center justify-center py-8">
+            <Card className={METRIC_CARD_CLASS}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Total</p>
               <p className={cn("text-3xl font-bold", stockSummary.totalPnl >= 0 ? "text-success" : "text-danger")}>
                 {formatCurrency(convertCurrency(stockSummary.totalPnl, currency, fxRate, baseCurrency), currency)}
@@ -290,12 +301,20 @@ export function PortfolioClient() {
             </Card>
           </div>
 
-          <Card title="Rendimiento de la cartera" subtitle="Evolución del valor (mock hasta tener histórico)">
+          <Card
+            className="border-primary/20 bg-gradient-to-b from-surface-muted/45 to-surface/90"
+            title="Rendimiento de la cartera"
+            subtitle="Evolución del valor (mock hasta tener histórico)"
+          >
             <PortfolioPerformanceChart data={performanceSeries} />
           </Card>
 
           <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-            <Card title="Distribucion" subtitle="Peso por activo (residuales agrupados en Otros)">
+            <Card
+              className="bg-gradient-to-b from-surface-muted/38 to-surface/92"
+              title="Distribucion"
+              subtitle="Peso por activo (residuales agrupados en Otros)"
+            >
               {assetAllocation.length > 0 ? (
                 <>
                   <AllocationChart data={assetAllocation} />
@@ -345,10 +364,18 @@ export function PortfolioClient() {
               )}
             </Card>
             <div className="flex flex-col gap-6">
-              <Card title="Ventas cerradas" subtitle="Entradas, salidas y P&amp;L realizado">
+              <Card
+                className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
+                title="Ventas cerradas"
+                subtitle="Entradas, salidas y P&amp;L realizado"
+              >
                 <RealizedTradesTable trades={stockTrades} />
               </Card>
-              <Card title="Dividendos cobrados" subtitle="Total acumulado de dividendos">
+              <Card
+                className="border-success/25 bg-gradient-to-b from-success/10 to-surface/90"
+                title="Dividendos cobrados"
+                subtitle="Total acumulado de dividendos"
+              >
                 <p className="text-3xl font-bold text-success">
                   {formatCurrency(convertCurrency(dividendsCollected, currency, fxRate, baseCurrency), currency)}
                 </p>
@@ -356,7 +383,11 @@ export function PortfolioClient() {
             </div>
           </div>
 
-          <Card title="Participaciones" subtitle="Solo posiciones abiertas">
+          <Card
+            className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
+            title="Participaciones"
+            subtitle="Solo posiciones abiertas"
+          >
             {stockHoldings.length ? (
               <HoldingsTable holdings={stockHoldings} />
             ) : (
@@ -367,19 +398,19 @@ export function PortfolioClient() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="flex flex-col items-center justify-center py-8 bg-accent/5 border-accent/10">
+            <Card className={cn(METRIC_CARD_CLASS, "border-primary/20 from-primary/10 to-surface/90")}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">Valor {ROBOADVISOR_NAME}</p>
               <p className="text-3xl font-bold text-text">
                 {formatCurrency(convertCurrency(etfSummary.totalValue, currency, fxRate, baseCurrency), currency)}
               </p>
             </Card>
-            <Card className="flex flex-col items-center justify-center py-8">
+            <Card className={METRIC_CARD_CLASS}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Total</p>
               <p className={cn("text-3xl font-bold", etfSummary.totalPnl >= 0 ? "text-success" : "text-danger")}>
                 {formatCurrency(convertCurrency(etfSummary.totalPnl, currency, fxRate, baseCurrency), currency)}
               </p>
             </Card>
-            <Card className="flex flex-col items-center justify-center py-8">
+            <Card className={cn(METRIC_CARD_CLASS, "border-success/25 from-success/10 to-surface/90")}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">Dividendos ETFs/Fondos</p>
               <p className="text-3xl font-bold text-success">
                 {formatCurrency(convertCurrency(etfDividendsCollected, currency, fxRate, baseCurrency), currency)}
@@ -388,11 +419,18 @@ export function PortfolioClient() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-            <Card title={`${ROBOADVISOR_NAME} · Desglose`} subtitle="Distribución por ETF/Fondo">
+            <Card
+              className="bg-gradient-to-b from-surface-muted/38 to-surface/92"
+              title={`${ROBOADVISOR_NAME} · Desglose`}
+              subtitle="Distribución por ETF/Fondo"
+            >
               {etfAllocation.length ? (
                 <div className="space-y-3">
                   {etfAllocation.map((holding, index) => (
-                    <div key={holding.ticker} className="rounded-lg border border-border/60 bg-surface-muted/30 p-3">
+                    <div
+                      key={holding.ticker}
+                      className="rounded-xl border border-border/60 bg-surface-muted/35 p-3.5 shadow-[0_14px_32px_rgba(2,8,20,0.34)]"
+                    >
                       <div className="mb-2 flex items-center justify-between gap-2 text-sm">
                         <span className="font-semibold text-text">{holding.name || holding.ticker}</span>
                         <span className="text-muted">{formatPercent(holding.percent)}</span>
@@ -418,7 +456,11 @@ export function PortfolioClient() {
               )}
             </Card>
             <div className="flex flex-col gap-6">
-              <Card title="Movimientos del Roboadvisor" subtitle="Actividad detectada en tus CSV">
+              <Card
+                className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
+                title="Movimientos del Roboadvisor"
+                subtitle="Actividad detectada en tus CSV"
+              >
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
                     <p className="text-xs uppercase tracking-[0.08em] text-muted">Compras</p>
@@ -434,7 +476,11 @@ export function PortfolioClient() {
                   </div>
                 </div>
               </Card>
-              <Card title="Participaciones ETFs/Fondos" subtitle={`Posiciones abiertas en ${ROBOADVISOR_NAME}`}>
+              <Card
+                className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
+                title="Participaciones ETFs/Fondos"
+                subtitle={`Posiciones abiertas en ${ROBOADVISOR_NAME}`}
+              >
                 {etfHoldings.length ? (
                   <HoldingsTable holdings={etfHoldings} />
                 ) : (

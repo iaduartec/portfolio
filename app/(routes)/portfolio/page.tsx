@@ -3,7 +3,7 @@ import { PortfolioClient } from "@/components/portfolio/PortfolioClient";
 
 export default function PortfolioPage() {
   return (
-    <Shell>
+    <Shell className="max-w-[1320px]">
       <PortfolioClient />
     </Shell>
   );

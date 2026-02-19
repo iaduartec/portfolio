@@ -43,6 +43,8 @@ type FundamentalPoint = {
 };
 
 type BadgeTone = "default" | "success" | "danger" | "warning";
+type SignalInfo = { label: string; tone: BadgeTone } | null;
+type TechnicalSignalInfo = { label: string; hint: string; tone: BadgeTone } | null;
 
 const formatMetric = (value?: number, digits = 2, fallback = "—") => {
   if (!Number.isFinite(value)) return fallback;
@@ -52,12 +54,13 @@ const formatMetric = (value?: number, digits = 2, fallback = "—") => {
 const getFinancialInfo = (
   fundamental?: FundamentalPoint,
   fmpLimited?: boolean
-): { label: string; tone: BadgeTone } => {
+): SignalInfo => {
   const pe = fundamental?.pe;
+  if (pe === undefined && fmpLimited) return null;
   const tone =
     pe === undefined ? "default" : pe >= 30 ? "danger" : pe >= 22 ? "warning" : "success";
   return {
-    label: `P/E ${formatMetric(pe, 2, fmpLimited ? "Cuota FMP alcanzada" : "—")}`,
+    label: `P/E ${formatMetric(pe, 2)}`,
     tone,
   };
 };
@@ -65,12 +68,13 @@ const getFinancialInfo = (
 const getRiskInfo = (
   fundamental?: FundamentalPoint,
   fmpLimited?: boolean
-): { label: string; tone: BadgeTone } => {
+): SignalInfo => {
   const beta = fundamental?.beta;
+  if (beta === undefined && fmpLimited) return null;
   const tone =
     beta === undefined ? "default" : beta >= 1.3 ? "danger" : beta >= 1.1 ? "warning" : "success";
   return {
-    label: `Beta ${formatMetric(beta, 2, fmpLimited ? "Cuota FMP alcanzada" : "—")}`,
+    label: `Beta ${formatMetric(beta, 2)}`,
     tone,
   };
 };
@@ -78,8 +82,9 @@ const getRiskInfo = (
 const getTechnicalInfo = (
   fundamental?: FundamentalPoint,
   fmpLimited?: boolean
-): { label: string; hint: string; tone: BadgeTone } => {
+): TechnicalSignalInfo => {
   const rsi = fundamental?.rsi;
+  if (rsi === undefined && fmpLimited) return null;
   const isMissing = rsi === undefined;
   const tone =
     isMissing
@@ -91,16 +96,14 @@ const getTechnicalInfo = (
           : "default";
   const hint =
     isMissing
-      ? fmpLimited
-        ? ""
-        : "Sin datos"
+      ? "Sin datos"
       : rsi >= 70
         ? "Sobrecompra"
         : rsi <= 30
           ? "Sobreventa"
           : "Neutral";
   return {
-    label: `RSI ${formatMetric(rsi, 0, fmpLimited ? "Cuota FMP alcanzada" : "—")}`,
+    label: `RSI ${formatMetric(rsi, 0)}`,
     hint,
     tone,
   };
@@ -219,10 +222,10 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
   };
 
   return (
-    <div className="card-glow overflow-hidden rounded-xl border border-border/80 bg-surface/85">
+    <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/35 to-surface/90 shadow-panel">
       <div className="overflow-x-auto">
-        <table className="w-full table-auto divide-y divide-border/70">
-          <thead className="bg-surface-muted/60 text-xs uppercase tracking-[0.08em] text-muted">
+        <table className="min-w-[980px] w-full table-auto divide-y divide-border/70">
+          <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
               {columns.map((column) => {
                 const isActive = sort.key === column.key;
@@ -232,7 +235,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     key={column.key}
                     scope="col"
                     className={cn(
-                      "cursor-pointer px-4 py-3 text-left font-semibold",
+                      "cursor-pointer px-4 py-3.5 text-left font-semibold",
                       column.align === "right" && "text-right",
                       isActive && "text-text"
                     )}
@@ -247,20 +250,20 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                   </th>
                 );
               })}
-              <th className="px-4 py-3 text-left font-semibold">Señales</th>
+              <th className="px-4 py-3.5 text-left font-semibold">Señales</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60 text-sm">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={`skeleton-${i}`}>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-12" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-20 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-20 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-16 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-16 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-5 w-24 ml-auto" /></td>
-                  <td className="px-4 py-3" colSpan={3}><Skeleton className="h-5 w-full" /></td>
+                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-12" /></td>
+                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-20 ml-auto" /></td>
+                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 ml-auto" /></td>
+                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 ml-auto" /></td>
+                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-24 ml-auto" /></td>
+                  <td className="px-4 py-3.5" colSpan={3}><Skeleton className="h-5 w-full" /></td>
                 </tr>
               ))
             ) : (
@@ -275,12 +278,12 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                   <tr
                     key={holding.ticker}
                     className={cn(
-                      "cursor-pointer hover:bg-surface-muted/45",
-                      isSelected && "bg-surface-muted/70 ring-1 ring-primary/20"
+                      "cursor-pointer transition-colors hover:bg-surface-muted/45",
+                      isSelected && "bg-primary/10 ring-1 ring-primary/25"
                     )}
                     onClick={() => onSelect?.(holding.ticker)}
                   >
-                    <td className="whitespace-nowrap px-4 py-3 font-semibold text-text">
+                    <td className="whitespace-nowrap px-4 py-3.5 font-semibold text-text">
                       <div className="flex flex-col">
                         <span className="text-base text-text">
                           {holding.name || holding.ticker}
@@ -290,7 +293,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         )}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-muted">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-muted">
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-base font-semibold text-text">
                           {formatCurrency(holding.averageBuyPrice, "EUR")}
@@ -303,7 +306,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         </span>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-text">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-text">
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-base font-semibold text-text">
                           {formatCurrency(holding.currentPrice, "EUR")}
@@ -316,12 +319,12 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         </span>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       <Badge tone={isPositive ? "success" : "danger"}>
                         {formatPercent(holding.pnlPercent / 100)}
                       </Badge>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       {holding.dayChangePercent !== undefined ? (
                         <Badge tone={holding.dayChangePercent >= 0 ? "success" : "danger"}>
                           {formatPercent(holding.dayChangePercent / 100)}
@@ -330,7 +333,7 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         <span className="text-xs text-muted">—</span>
                       )}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-text">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right font-medium text-text">
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-base font-semibold text-text">
                           {formatCurrency(holding.marketValue, "EUR")}
@@ -343,18 +346,20 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge tone={financialInfo.tone}>{financialInfo.label}</Badge>
-                        <Badge tone={riskInfo.tone}>{riskInfo.label}</Badge>
-                        <Badge tone={technicalInfo.tone}>
-                          {technicalInfo.label}
-                          {technicalInfo.hint ? (
-                            <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
-                              {technicalInfo.hint}
-                            </span>
-                          ) : null}
-                        </Badge>
+                        {financialInfo ? <Badge tone={financialInfo.tone}>{financialInfo.label}</Badge> : null}
+                        {riskInfo ? <Badge tone={riskInfo.tone}>{riskInfo.label}</Badge> : null}
+                        {technicalInfo ? (
+                          <Badge tone={technicalInfo.tone}>
+                            {technicalInfo.label}
+                            {technicalInfo.hint ? (
+                              <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
+                                {technicalInfo.hint}
+                              </span>
+                            ) : null}
+                          </Badge>
+                        ) : null}
                       </div>
                     </td>
                   </tr>

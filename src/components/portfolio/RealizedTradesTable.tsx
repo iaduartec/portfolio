@@ -74,49 +74,49 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
   };
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface card-glow">
+    <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/30 to-surface/90 shadow-panel">
       <div className="overflow-x-auto">
-        <table className="w-full table-auto divide-y divide-border/70 text-left text-sm">
-          <thead className="bg-surface-muted/60 text-xs uppercase tracking-[0.08em] text-muted">
+        <table className="min-w-[720px] w-full table-auto divide-y divide-border/70 text-left text-sm">
+          <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
-              <th className="px-3 py-2.5 font-semibold">Fecha</th>
-              <th className="px-3 py-2.5 font-semibold">Activo</th>
-              <th className="px-3 py-2.5 font-semibold text-right">Cantidad</th>
-              <th className="px-3 py-2.5 font-semibold text-right">Entrada</th>
-              <th className="px-3 py-2.5 font-semibold text-right">Salida</th>
-              <th className="px-3 py-2.5 font-semibold text-right">P&amp;L</th>
+              <th className="px-3 py-3 font-semibold">Fecha</th>
+              <th className="px-3 py-3 font-semibold">Activo</th>
+              <th className="px-3 py-3 font-semibold text-right">Cantidad</th>
+              <th className="px-3 py-3 font-semibold text-right">Entrada</th>
+              <th className="px-3 py-3 font-semibold text-right">Salida</th>
+              <th className="px-3 py-3 font-semibold text-right">P&amp;L</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70 text-text">
             {trades.map((trade) => {
               const isPositive = trade.pnlValue >= 0;
               return (
-                <tr key={trade.id} className="hover:bg-surface-muted/40">
-                  <td className="whitespace-nowrap px-3 py-2.5 text-muted">
+                <tr key={trade.id} className="transition-colors hover:bg-surface-muted/40">
+                  <td className="whitespace-nowrap px-3 py-3 text-muted">
                     {formatTradeDate(trade.date)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
+                  <td className="whitespace-nowrap px-3 py-3">
                     <div className="flex flex-col">
                       <span className="font-semibold text-text">{trade.name || trade.ticker}</span>
                       {trade.name && <span className="text-xs text-muted">{trade.ticker}</span>}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
                     {quantityFormatter.format(trade.quantity)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
                     {formatCurrency(
                       convertCurrency(trade.entryPrice, currency, fxRate, baseCurrency),
                       currency
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
                     {formatCurrency(
                       convertCurrency(trade.exitPrice, currency, fxRate, baseCurrency),
                       currency
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2.5 text-right">
+                  <td className="whitespace-nowrap px-3 py-3 text-right">
                     <Badge tone={isPositive ? "success" : "danger"}>
                       {formatCurrency(
                         convertCurrency(trade.pnlValue, currency, fxRate, baseCurrency),
