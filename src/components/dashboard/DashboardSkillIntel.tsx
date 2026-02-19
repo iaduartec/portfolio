@@ -56,6 +56,8 @@ type DashboardSkillIntelProps = {
 };
 
 const WATCHLIST = ["SPY", "NVDA", "BTC-USD"];
+const SIGNAL_MIN = -3;
+const SIGNAL_MAX = 3;
 
 const normalizeInsiderTicker = (ticker: string) =>
   ticker
@@ -71,6 +73,8 @@ const changeTone = (value?: number) => {
   if (value < 0) return "danger";
   return "warning";
 };
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillIntelProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -282,6 +286,37 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     return { label: "Neutral", tone: "warning" as const, score };
   }, [selectedInsiderSummary, yahooRatings, yahooFundamentals]);
 
+  const predictionMeter = useMemo(() => {
+    const clampedScore = clamp(signal.score, SIGNAL_MIN, SIGNAL_MAX);
+    const meterPercent = ((clampedScore - SIGNAL_MIN) / (SIGNAL_MAX - SIGNAL_MIN)) * 100;
+
+    if (clampedScore >= 2) {
+      return {
+        action: "BUY" as const,
+        tone: "success" as const,
+        confidence: Math.round((Math.abs(clampedScore) / SIGNAL_MAX) * 100),
+        scoreText: `+${clampedScore}`,
+        meterPercent,
+      };
+    }
+    if (clampedScore <= -2) {
+      return {
+        action: "SELL" as const,
+        tone: "danger" as const,
+        confidence: Math.round((Math.abs(clampedScore) / SIGNAL_MAX) * 100),
+        scoreText: `${clampedScore}`,
+        meterPercent,
+      };
+    }
+    return {
+      action: "HOLD" as const,
+      tone: "warning" as const,
+      confidence: Math.round((Math.abs(clampedScore) / SIGNAL_MAX) * 100),
+      scoreText: `${clampedScore > 0 ? "+" : ""}${clampedScore}`,
+      meterPercent,
+    };
+  }, [signal.score]);
+
   const addCustomTicker = (event: FormEvent) => {
     event.preventDefault();
     const normalized = normalizeInsiderTicker(customTickerInput);
@@ -376,6 +411,31 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               <p className="mt-2 text-[11px] text-muted">
                 Semaforo = insiders recientes + rating de consenso + valuacion (PE/PB).
               </p>
+              <div className="mt-3 rounded-xl border border-border/80 bg-background/35 p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Prediction Meter</p>
+                  <Badge tone={predictionMeter.tone}>Action: {predictionMeter.action}</Badge>
+                </div>
+                <div className="relative">
+                  <div className="grid h-3 grid-cols-3 overflow-hidden rounded-full border border-border/70">
+                    <div className="bg-rose-500/45" />
+                    <div className="bg-amber-500/45" />
+                    <div className="bg-emerald-500/45" />
+                  </div>
+                  <span
+                    className="absolute top-1/2 h-4 w-4 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-background bg-white shadow-[0_0_18px_rgba(255,255,255,0.45)]"
+                    style={{ left: `${predictionMeter.meterPercent}%` }}
+                  />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10px] font-semibold tracking-[0.08em]">
+                  <span className="text-rose-300">SELL</span>
+                  <span className="text-amber-300">HOLD</span>
+                  <span className="text-emerald-300">BUY</span>
+                </div>
+                <p className="mt-2 text-[11px] text-muted">
+                  Score {predictionMeter.scoreText}/{SIGNAL_MAX} · Confianza {predictionMeter.confidence}%
+                </p>
+              </div>
             </div>
           </Card>
 
