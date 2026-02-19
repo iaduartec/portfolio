@@ -84,7 +84,10 @@ export function LabGlobalAnalyzer() {
               Busca cualquier ticker y analiza su gráfico con detección de patrones y auditoría IA.
             </p>
           </div>
-          <form onSubmit={handleSearch} className="flex w-full max-w-xl gap-2">
+          <form
+            onSubmit={handleSearch}
+            className="grid w-full max-w-xl grid-cols-1 gap-2 sm:grid-cols-[150px_minmax(0,1fr)_auto]"
+          >
             <label htmlFor="lab-global-market" className="sr-only">
               Seleccionar mercado
             </label>
@@ -92,7 +95,7 @@ export function LabGlobalAnalyzer() {
               id="lab-global-market"
               value={selectedMarket}
               onChange={(event) => setSelectedMarket(event.target.value)}
-              className="h-10 min-w-[140px] rounded-lg border border-border/70 bg-surface-muted/45 px-2 text-sm text-text outline-none transition focus:border-accent/60"
+              className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-2 text-sm text-text outline-none transition focus:border-accent/60"
             >
               <option value={NO_MARKET}>Sin mercado</option>
               {marketOptions.map((market) => (
@@ -114,7 +117,7 @@ export function LabGlobalAnalyzer() {
             />
             <button
               type="submit"
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-accent/50 bg-accent/20 px-4 text-sm font-semibold text-accent transition hover:bg-accent/30"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-accent/50 bg-accent/20 px-4 text-sm font-semibold text-accent transition hover:bg-accent/30"
             >
               <Search size={14} />
               Buscar

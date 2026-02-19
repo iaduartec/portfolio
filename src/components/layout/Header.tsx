@@ -103,7 +103,7 @@ export function Header() {
 
         <nav
           aria-label="Navegación móvil"
-          className="mt-3 flex items-center gap-2 overflow-x-auto pb-1 text-xs font-medium text-muted md:hidden"
+          className="mt-3 flex flex-wrap items-center gap-2 pb-1 text-xs font-medium text-muted md:hidden"
         >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
