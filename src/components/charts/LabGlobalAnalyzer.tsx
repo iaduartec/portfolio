@@ -181,7 +181,7 @@ export function LabGlobalAnalyzer() {
         </div>
       </div>
 
-      <PortfolioValueChart ticker={selectedTicker} />
+      <PortfolioValueChart ticker={selectedTicker} showProjectionInsights />
     </section>
   );
 }
