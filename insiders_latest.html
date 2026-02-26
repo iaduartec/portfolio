@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Informe CNMV PDMR 2026-02-26</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #18212f;
+      --muted: #5c6777;
+      --accent: #1248a8;
+      --buy: #0b8a44;
+      --sell: #b42318;
+      --other: #5b6470;
+      --line: #d8dee8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, #e5eefb 0%, var(--bg) 40%);
+      color: var(--text);
+      font: 15px/1.45 "Segoe UI", "Inter", "Roboto", Arial, sans-serif;
+    }
+    .wrap { max-width: 1120px; margin: 24px auto; padding: 0 14px 30px; }
+    .hero {
+      background: linear-gradient(120deg, #0f356f, #1d64c2);
+      color: #fff;
+      border-radius: 16px;
+      padding: 20px 22px;
+      box-shadow: 0 10px 24px rgba(15,53,111,.25);
+    }
+    h1 { margin: 0 0 6px; font-size: 28px; line-height: 1.2; }
+    .sub { margin: 0; opacity: .92; }
+    .meta { margin-top: 12px; padding-left: 18px; }
+    .meta li { margin: 4px 0; }
+    .kpis {
+      display: grid; gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      margin: 16px 0 10px;
+    }
+    .kpi {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+    .kpi-title { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    .kpi-value { font-weight: 700; margin-top: 6px; font-size: 19px; }
+    .kpi.buy .kpi-value { color: var(--buy); }
+    .kpi.sell .kpi-value { color: var(--sell); }
+    .section {
+      margin-top: 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .section h2 { margin: 0 0 10px; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; overflow-x: auto; display: block; }
+    thead th {
+      text-align: left;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--line);
+      padding: 8px 8px;
+      white-space: nowrap;
+    }
+    tbody td {
+      border-bottom: 1px solid #eef1f5;
+      padding: 8px 8px;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .badge, .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-buy-strong { background: #e9f9ef; color: #0b8a44; }
+    .badge-buy-repeat { background: #eef4ff; color: #1248a8; }
+    .tag-buy { background: #e9f9ef; color: #0b8a44; }
+    .tag-sale { background: #fdecec; color: #b42318; }
+    .tag-other { background: #f1f3f5; color: #4b5565; }
+    .footer-note { margin-top: 14px; color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Informe Diario Insiders España (2026-02-26)</h1>
+      <p class="sub">Fuente: CNMV (PDMR) · Generado: 2026-02-26T15:23:58Z</p>
+      <ul class="meta">
+        <li><strong>Corte del informe:</strong> nuevas operaciones detectadas en la última ejecución</li>
+        <li><strong>Última ejecución ingest:</strong> run_id=24 | started_at=2026-02-26T15:23:57Z | scraped=194 | generated=244 | inserted=2</li>
+      </ul>
+    </section>
+
+    <section class="kpis">
+      <div class="kpi neutral"><div class="kpi-title">Operaciones analizadas</div><div class="kpi-value">2</div></div>
+      <div class="kpi buy"><div class="kpi-title">Compras</div><div class="kpi-value">1 · 1.031,40 EUR</div></div>
+      <div class="kpi sell"><div class="kpi-title">Ventas</div><div class="kpi-value">0 · 0,00 EUR</div></div>
+      <div class="kpi neutral"><div class="kpi-title">Otros / No clasificadas</div><div class="kpi-value">1</div></div>
+    </section>
+
+    <section class="section">
+      <h2>Señales Relevantes</h2>
+      <table><thead><tr><th>Señal</th><th>Fecha</th><th>Empresa</th><th>Directivo</th><th>Importe</th><th>Compras 90d</th><th>Score</th></tr></thead><tbody><tr><td><span class='badge badge-buy-repeat'>COMPRA_REPETIDA</span></td><td>2026-02-25</td><td>RENTA 4 BANCO, S.A.</td><td>CARTERA DE DIRECTIVOS 2024, S.A.</td><td>1.031,40 EUR</td><td>11</td><td>23.42</td></tr></tbody></table>
+    </section>
+
+    <section class="section">
+      <h2>Top Compras</h2>
+      <table><thead><tr><th>Fecha</th><th>Empresa</th><th>Directivo</th><th>Títulos</th><th>Precio</th><th>Importe</th></tr></thead><tbody><tr><td>2026-02-25</td><td>RENTA 4 BANCO, S.A.</td><td>CARTERA DE DIRECTIVOS 2024, S.A.</td><td>54</td><td>19,10 EUR</td><td>1.031,40 EUR</td></tr></tbody></table>
+    </section>
+
+    <section class="section">
+      <h2>Top Ventas</h2>
+      <table><thead><tr><th>Fecha</th><th>Empresa</th><th>Directivo</th><th>Títulos</th><th>Precio</th><th>Importe</th></tr></thead><tbody><tr><td colspan='99'>Sin datos</td></tr></tbody></table>
+    </section>
+
+    <section class="section">
+      <h2>Últimos Movimientos</h2>
+      <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Empresa</th><th>Directivo</th><th>Importe</th></tr></thead><tbody><tr><td>2026-02-25</td><td><span class='tag tag-buy'>COMPRA</span></td><td>RENTA 4 BANCO, S.A.</td><td>CARTERA DE DIRECTIVOS 2024, S.A.</td><td>1.031,40 EUR</td></tr><tr><td>2026-02-25</td><td><span class='tag tag-other'>OTROS</span></td><td>GRUPO EZENTIS, S.A.</td><td>ELÉCTRICA NURIEL, S.L.U.</td><td>1.571.428,56 EUR</td></tr></tbody></table>
+    </section>
+
+    <section class="section">
+      <h2>Conclusión</h2>
+      <p>Se detectan 1 señales relevantes (umbral compra fuerte: 100.000,00 EUR).</p>
+      <p class="footer-note">Informe generado automáticamente por CNMV PDMR.</p>
+    </section>
+  </div>
+</body>
+</html>
