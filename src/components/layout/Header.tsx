@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { ShieldCheck, Sparkles } from "lucide-react";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Panel" },
   { href: "/portfolio", label: "Cartera" },
@@ -27,7 +29,7 @@ export function Header() {
             <div className="relative">
               <div className="absolute inset-0 rounded-xl bg-primary/20 blur-md opacity-0 transition-opacity group-hover:opacity-100" />
               <Image
-                src="/myinvestor.png"
+                src={`${basePath}/myinvestor.png`}
                 alt="MyInvestView Logo"
                 width={40}
                 height={40}
