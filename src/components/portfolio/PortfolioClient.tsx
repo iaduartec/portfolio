@@ -22,6 +22,8 @@ import { isFundTicker } from "@/lib/portfolioGroups";
 import type { Holding } from "@/types/portfolio";
 import type { Transaction } from "@/types/transactions";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { Route } from "next";
 
 const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
 const ROBOADVISOR_NAME = "Roboadvisor Revolut";
@@ -176,8 +178,18 @@ const computeSummaryFromHoldings = (subset: Holding[]) => {
 export function PortfolioClient() {
   const { holdings, realizedTrades, transactions } = usePortfolioData();
   const { currency, baseCurrency, fxRate } = useCurrency();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sectorByTicker, setSectorByTicker] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<PortfolioTab>("stocks");
+  const activeTab: PortfolioTab = searchParams.get("tab") === "etf" ? "etf" : "stocks";
+
+  const handleTabChange = (tab: PortfolioTab) => {
+    if (tab === activeTab) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("tab", tab);
+    router.replace(`${pathname}?${next.toString()}` as Route, { scroll: false });
+  };
 
   const stockHoldings = useMemo(
     () => holdings.filter((holding) => !isFundTicker(holding.ticker)),
@@ -364,7 +376,7 @@ export function PortfolioClient() {
           <div className="mt-1 inline-flex rounded-xl border border-border/70 bg-background/45 p-1.5">
             <button
               type="button"
-              onClick={() => setActiveTab("stocks")}
+              onClick={() => handleTabChange("stocks")}
               className={cn(
                 "rounded-lg px-4 py-2 text-sm font-semibold transition",
                 activeTab === "stocks"
@@ -376,7 +388,7 @@ export function PortfolioClient() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("etf")}
+              onClick={() => handleTabChange("etf")}
               className={cn(
                 "rounded-lg px-4 py-2 text-sm font-semibold transition",
                 activeTab === "etf"
@@ -472,7 +484,7 @@ export function PortfolioClient() {
                   ) : null}
                 </>
               ) : (
-                <p className="text-sm text-muted">Sin allocation todavia.</p>
+                <p className="text-sm text-muted">Sin asignación todavía.</p>
               )}
             </Card>
             <div className="flex flex-col gap-6">
@@ -503,7 +515,7 @@ export function PortfolioClient() {
             {stockHoldings.length ? (
               <HoldingsTable holdings={stockHoldings} />
             ) : (
-              <p className="text-sm text-muted">No hay posiciones abiertas todavia.</p>
+              <p className="text-sm text-muted">No hay posiciones abiertas todavía.</p>
             )}
           </Card>
         </>
@@ -560,7 +572,7 @@ export function PortfolioClient() {
                         />
                       </div>
                       <div className="mt-2 flex items-center justify-between text-xs text-muted">
-                        <span>{holding.totalQuantity.toFixed(4)} participaciones</span>
+                        <span className="tabular-nums">{holding.totalQuantity.toFixed(4)} participaciones</span>
                         <span>{formatCurrency(convertCurrency(holding.marketValue, currency, fxRate, baseCurrency), currency)}</span>
                       </div>
                     </div>

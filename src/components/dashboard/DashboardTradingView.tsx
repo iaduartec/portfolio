@@ -87,7 +87,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                                 Graficos e informacion financiera proporcionados por TradingView. Explora mas{" "}
                                 <a
                                     href="https://www.tradingview.com/features/"
-                                    className="text-accent hover:underline focus:outline-none focus:ring-2 focus:ring-accent"
+                                    className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                     target="_blank"
                                     rel="noopener nofollow"
                                 >
@@ -96,7 +96,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                                 o{" "}
                                 <a
                                     href="https://www.tradingview.com/widget/"
-                                    className="text-accent hover:underline focus:outline-none focus:ring-2 focus:ring-accent"
+                                    className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                                     target="_blank"
                                     rel="noopener nofollow"
                                 >

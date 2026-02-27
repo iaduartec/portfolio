@@ -180,7 +180,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
     window.sessionStorage.setItem(SESSION_ID_KEY, sessionId);
     onSave?.(merged);
     setSuccess(
-      `Anadidas ${appended.length} transacciones nuevas. Total guardadas: ${merged.length} (sesion ${sessionId}).`
+      `Añadidas ${appended.length} transacciones nuevas. Total guardadas: ${merged.length} (sesión ${sessionId}).`
     );
   };
 
@@ -376,7 +376,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
           disabled={!transactions.length}
           className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Anadir y combinar
+          Añadir y combinar
         </button>
       </div>
     </div>

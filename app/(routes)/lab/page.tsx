@@ -8,10 +8,10 @@ export default function PatternLabPage() {
   return (
     <Shell>
       <section className="flex flex-col gap-2 mb-8">
-        <p className="text-xs uppercase tracking-[0.08em] text-muted">Laboratorio de investigacion</p>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight text-text">Lab de Analisis Tecnico y Estrategico</h1>
+        <p className="text-xs uppercase tracking-[0.08em] text-muted">Laboratorio de investigación</p>
+        <h1 className="text-balance text-3xl font-semibold tracking-tight text-text">Lab de Análisis Técnico y Estratégico</h1>
         <p className="text-sm text-muted max-w-2xl">
-          Explora hipotesis con datos de mercado y deteccion de patrones. Usa este espacio para investigar y luego pasar a ejecucion en Portfolio.
+          Explora hipótesis con datos de mercado y detección de patrones. Usa este espacio para investigar y luego pasar a ejecución en Portfolio.
         </p>
         <div>
           <Link

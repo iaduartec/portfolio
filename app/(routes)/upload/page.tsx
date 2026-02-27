@@ -37,7 +37,7 @@ export default function UploadPage() {
         <p className="text-xs uppercase tracking-[0.08em] text-muted">Datos</p>
         <h1 className="text-balance text-3xl font-semibold tracking-tight text-text">Importar movimientos de cartera</h1>
         <p className="max-w-3xl text-sm text-muted">
-          Flujo recomendado: 1) subir CSV, 2) validar tickers/mercados, 3) combinar datos. Cada carga se integra con tu sesion local.
+          Flujo recomendado: 1) subir CSV, 2) validar tickers/mercados, 3) combinar datos. Cada carga se integra con tu sesión local.
         </p>
         {sessionId && (
           <p className="text-xs text-muted">

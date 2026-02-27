@@ -14,11 +14,11 @@ export function DashboardHero() {
 
         <h1 className="section-title text-balance text-3xl font-semibold leading-tight text-white md:text-5xl">
           Convierte datos dispersos en
-          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> decisiones de inversion con contexto IA</span>
+          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> decisiones de inversión con contexto IA</span>
         </h1>
 
         <p className="max-w-2xl text-balance text-base leading-relaxed text-muted md:text-lg">
-          Consolida posiciones, rendimiento y senales de mercado en un solo panel para actuar con mas confianza y menos friccion.
+          Consolida posiciones, rendimiento y señales de mercado en un solo panel para actuar con más confianza y menos fricción.
         </p>
       </div>
 
@@ -45,7 +45,7 @@ export function DashboardHero() {
           Rendimiento diario y acumulado
         </div>
         <span className="h-1 w-1 rounded-full bg-border" />
-        <div className="inline-flex items-center gap-2 text-accent">Analisis AI + TradingView</div>
+        <div className="inline-flex items-center gap-2 text-accent">Análisis IA + TradingView</div>
       </div>
     </section>
   );
