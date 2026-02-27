@@ -483,17 +483,23 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             </div>
 
             <form onSubmit={addCustomTicker} className="mb-3 flex gap-2">
+              <label htmlFor="insider-custom-ticker" className="sr-only">
+                Ticker personalizado
+              </label>
               <input
+                id="insider-custom-ticker"
+                name="insider_ticker"
+                autoComplete="off"
                 value={customTickerInput}
                 onChange={(event) => setCustomTickerInput(event.target.value)}
-                placeholder="Ticker a analizar (ej. TSLA)"
-                className="h-9 w-full rounded-lg border border-border/80 bg-surface-muted/30 px-3 text-xs text-text outline-none focus:border-accent/60"
+                placeholder="Ticker a analizar (ej. TSLA)…"
+                className="h-9 w-full rounded-lg border border-border/80 bg-surface-muted/30 px-3 text-xs text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
               />
               <button
                 type="submit"
-                className="inline-flex h-9 items-center gap-1 rounded-lg border border-border/80 bg-surface-muted/40 px-3 text-xs text-text hover:border-accent/50"
+                className="inline-flex h-9 items-center gap-1 rounded-lg border border-border/80 bg-surface-muted/40 px-3 text-xs text-text transition-colors duration-200 hover:border-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                 Agregar
               </button>
             </form>

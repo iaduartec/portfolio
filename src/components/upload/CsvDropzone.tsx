@@ -189,9 +189,10 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
       <div
         role="button"
         tabIndex={0}
+        aria-label="Zona para importar archivo CSV"
         aria-describedby={dropzoneHelpId}
         aria-busy={isParsing}
-        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 bg-surface-muted/50 px-6 py-10 text-center outline-none transition focus-visible:ring-2 focus-visible:ring-accent/70"
+        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 bg-surface-muted/50 px-6 py-10 text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
         onDragOver={(evt) => {
           evt.preventDefault();
           evt.stopPropagation();
@@ -220,7 +221,10 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         </button>
         <input
           ref={inputRef}
+          id="csv-upload-input"
           type="file"
+          name="transactions_csv"
+          aria-label="Seleccionar archivo CSV de transacciones"
           accept=".csv,text/csv"
           className="hidden"
           onChange={(evt) => handleFiles(evt.target.files)}
@@ -228,7 +232,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         {fileName && (
           <p id={uploadStatusId} role="status" aria-live="polite" className="text-xs text-muted">
             Seleccionado: <span className="font-semibold text-text">{fileName}</span>
-            {isParsing && " · leyendo..."}
+            {isParsing && " · leyendo…"}
           </p>
         )}
         {error && (
@@ -264,6 +268,9 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
               >
                 <span className="font-semibold text-text">{ticker}</span>
                 <select
+                  id={`market-${ticker.toLowerCase()}`}
+                  name={`market_${ticker.toLowerCase()}`}
+                  aria-label={`Mercado para ${ticker}`}
                   value={marketSelections[ticker] ?? ""}
                   onChange={(event) =>
                     setMarketSelections((prev) => ({
@@ -271,7 +278,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
                       [ticker]: event.target.value,
                     }))
                   }
-                  className="min-w-[220px] rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text"
+                  className="min-w-[220px] rounded-md border border-border/60 bg-surface px-2 py-1 text-xs text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
                 >
                   <option value="">Selecciona mercado</option>
                   {marketOptions.map((option) => (

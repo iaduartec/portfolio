@@ -74,7 +74,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09060f",
+  themeColor: "#070b14",
   width: "device-width",
   initialScale: 1,
 };
@@ -87,7 +87,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <body
-        className="flex min-h-screen flex-col bg-background text-text antialiased overflow-x-hidden"
+        className="flex min-h-screen flex-col overflow-x-hidden bg-background text-text antialiased"
         suppressHydrationWarning
       >
         <a
@@ -104,7 +104,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <Header />
-          <main id="main-content" className="w-full flex-1" tabIndex={-1}>
+          <main
+            id="main-content"
+            className="w-full flex-1 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            tabIndex={-1}
+          >
             {children}
           </main>
           <Footer />

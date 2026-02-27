@@ -49,12 +49,12 @@ export function ScenarioBuilder() {
                 <Button
                     onClick={handleSimulate}
                     disabled={loading || !scenario}
-                    className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl h-10 shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl h-10 shadow-lg shadow-purple-500/20 transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
                     {loading ? (
                         <>
                             <Loader2 size={16} className="mr-2 animate-spin" />
-                            PROCESANDO...
+                            PROCESANDO…
                         </>
                     ) : (
                         "SIMULAR IMPACTO"

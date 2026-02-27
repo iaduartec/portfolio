@@ -42,7 +42,7 @@ export function MarketPulse({ sentiment, score, insight }: MarketPulseProps) {
                 <div className="space-y-1.5">
                     <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
                         <div
-                            className="bg-gradient-to-r from-primary to-cyan-400 h-full rounded-full transition-all duration-1000 ease-out"
+                            className="bg-gradient-to-r from-primary to-cyan-400 h-full rounded-full transition-[width] duration-1000 ease-out"
                             style={{ width: `${normalizedScore}%` }}
                         />
                     </div>

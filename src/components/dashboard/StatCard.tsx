@@ -32,7 +32,7 @@ export function StatCard({
   const isPositive = (change ?? 0) >= 0;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border/80 bg-surface/80 p-5 backdrop-blur-md transition-all hover:border-primary/45 hover:bg-surface">
+    <div className="group relative overflow-hidden rounded-2xl border border-border/80 bg-surface/80 p-5 backdrop-blur-md transition-colors duration-200 hover:border-primary/45 hover:bg-surface">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-80" />
 
       <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{label}</p>

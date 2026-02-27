@@ -114,9 +114,10 @@ export function LabGlobalAnalyzer() {
             </label>
             <select
               id="lab-global-market"
+              name="market"
               value={selectedMarket}
               onChange={(event) => setSelectedMarket(event.target.value)}
-              className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-2 text-sm text-text outline-none transition focus:border-accent/60"
+              className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-2 text-sm text-text transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             >
               <option value={NO_MARKET}>Sin mercado</option>
               {marketOptions.map((market) => (
@@ -131,16 +132,18 @@ export function LabGlobalAnalyzer() {
             <input
               id="lab-global-ticker"
               type="text"
+              name="ticker"
+              autoComplete="off"
               value={symbolInput}
               onChange={(event) => setSymbolInput(event.target.value)}
-              placeholder="Ej. AAPL, REP, BTC-USD"
-              className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-3 text-sm text-text outline-none transition focus:border-accent/60"
+              placeholder="Ej. AAPL, REP, BTC-USD…"
+              className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-3 text-sm text-text transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             />
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-accent/50 bg-accent/20 px-4 text-sm font-semibold text-accent transition hover:bg-accent/30"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-accent/50 bg-accent/20 px-4 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
             >
-              <Search size={14} />
+              <Search size={14} aria-hidden="true" />
               Buscar
             </button>
           </form>
@@ -155,7 +158,7 @@ export function LabGlobalAnalyzer() {
                   key={option.value}
                   type="button"
                   onClick={() => setSelectedRange(option.value)}
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 ${
                     selectedRange === option.value
                       ? "bg-accent/25 text-white"
                       : "text-muted hover:text-text"
@@ -175,7 +178,7 @@ export function LabGlobalAnalyzer() {
                   key={ticker}
                   type="button"
                   onClick={() => handleQuickSelect(ticker)}
-                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 ${
                     ticker === selectedTicker
                       ? "border-accent/70 bg-accent/20 text-white"
                       : "border-border/70 bg-surface-muted/35 text-muted hover:border-accent/50 hover:text-text"
@@ -196,7 +199,7 @@ export function LabGlobalAnalyzer() {
                     key={ticker}
                     type="button"
                     onClick={() => handleQuickSelect(ticker)}
-                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 ${
                       ticker === selectedTicker
                         ? "border-accent/70 bg-accent/20 text-white"
                         : "border-border/70 bg-surface-muted/35 text-muted hover:border-accent/50 hover:text-text"

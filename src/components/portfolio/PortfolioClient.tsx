@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { isFundTicker } from "@/lib/portfolioGroups";
 import type { Holding } from "@/types/portfolio";
 import type { Transaction } from "@/types/transactions";
+import Link from "next/link";
 
 const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
 const ROBOADVISOR_NAME = "Roboadvisor Revolut";
@@ -351,9 +352,15 @@ export function PortfolioClient() {
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted md:text-lg">
             {activeTab === "stocks"
-              ? "Consulte la distribución de sus acciones, el rendimiento histórico y el detalle de sus posiciones abiertas."
-              : "Vista específica del robadvisor con ETFs/fondos y su desglose de posiciones."}
+              ? "Opera con una vista ejecutiva de distribucion, rendimiento historico y detalle de posiciones abiertas."
+              : "Supervisa tu bloque de ETFs/Fondos con contexto de rendimiento y composicion en una sola vista."}
           </p>
+          <Link
+            href="/lab"
+            className="inline-flex items-center gap-2 rounded-lg border border-accent/45 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors duration-200 hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
+          >
+            Analizar en Lab
+          </Link>
           <div className="mt-1 inline-flex rounded-xl border border-border/70 bg-background/45 p-1.5">
             <button
               type="button"

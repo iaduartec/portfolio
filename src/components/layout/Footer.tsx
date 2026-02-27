@@ -3,6 +3,11 @@ import { Github, Twitter, Linkedin } from "lucide-react";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
+  const lastUpdated = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date());
 
   return (
     <footer className="mt-auto w-full border-t border-border/70 bg-surface/45 backdrop-blur-sm">
@@ -14,16 +19,16 @@ export function Footer() {
               <span className="text-primary">View</span>
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-muted">
-              Plataforma de analisis de portafolio con IA, datos de mercado en tiempo real y visualizacion avanzada para tomar decisiones con mas claridad.
+              Convierte datos dispersos en decisiones de inversion con contexto IA y visualizacion financiera de nivel profesional.
             </p>
           </div>
 
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Plataforma</h3>
             <ul className="space-y-2 text-sm text-muted">
-              <li><Link href="/" className="transition-colors hover:text-primary">Panel Principal</Link></li>
-              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Cartera</Link></li>
-              <li><Link href="/lab" className="transition-colors hover:text-primary">Laboratorio Tecnico</Link></li>
+              <li><Link href="/" className="transition-colors hover:text-primary">Inicio</Link></li>
+              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Portfolio</Link></li>
+              <li><Link href="/lab" className="transition-colors hover:text-primary">Lab</Link></li>
               <li><Link href="/ai-agents" className="transition-colors hover:text-primary">Agentes IA</Link></li>
             </ul>
           </div>
@@ -31,8 +36,8 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Legal</h3>
             <ul className="space-y-2 text-sm text-muted">
-              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Terminos de servicio</Link></li>
-              <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Politica de privacidad</Link></li>
+              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Terminos de Servicio</Link></li>
+              <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Politica de Privacidad</Link></li>
               <li><Link href={{ pathname: "/legal/riesgo" }} className="transition-colors hover:text-primary">Aviso de riesgo</Link></li>
             </ul>
           </div>
@@ -42,6 +47,7 @@ export function Footer() {
           <p className="text-xs text-muted">
             &copy; {currentYear} MyInvestView. Todos los derechos reservados.
           </p>
+          <p className="text-xs text-muted">Estado de datos: Actualizado {lastUpdated}</p>
           <div className="flex gap-4">
             {process.env.NEXT_PUBLIC_GITHUB_URL ? (
               <a

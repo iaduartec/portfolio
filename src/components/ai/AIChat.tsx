@@ -43,10 +43,10 @@ export function AIChat() {
       <button
         type="button"
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-5 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(41,98,255,0.2)] backdrop-blur-xl transition-all hover:scale-105 active:scale-95 sm:bottom-6 sm:right-6"
+        className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-5 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(41,98,255,0.2)] backdrop-blur-xl transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 sm:bottom-6 sm:right-6"
         aria-label="Abrir chat de Gemini"
       >
-        <Sparkles size={18} className="text-primary animate-pulse" />
+        <Sparkles size={18} className="text-primary animate-pulse" aria-hidden="true" />
         Consultar IA
       </button>
     );
@@ -74,9 +74,10 @@ export function AIChat() {
         <button
           type="button"
           onClick={() => setIsMinimized(true)}
-          className="rounded-xl border border-white/5 bg-white/5 p-2 text-white/60 transition-all hover:bg-white/10 hover:text-white"
+          className="rounded-xl border border-white/5 bg-white/5 p-2 text-white/60 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
+          aria-label="Minimizar chat"
         >
-          <Minus size={18} />
+          <Minus size={18} aria-hidden="true" />
         </button>
       </div>
 
@@ -97,8 +98,9 @@ export function AIChat() {
                 {["¿Cómo va mi cartera hoy?", "¿Es buen momento para comprar AAPL?", "Analiza mi exposición al riesgo"].map((q) => (
                   <button
                     key={q}
+                    type="button"
                     onClick={() => sendMessage({ text: q })}
-                    className="text-left py-2 px-3 rounded-lg bg-white/5 border border-white/5 text-[11px] text-white/70 hover:bg-white/10 hover:border-white/10 transition-all"
+                    className="text-left py-2 px-3 rounded-lg bg-white/5 border border-white/5 text-[11px] text-white/70 transition-colors duration-200 hover:bg-white/10 hover:border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
                   >
                     {q}
                   </button>
@@ -245,9 +247,12 @@ function MessageInput({
       <Input
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="¿Consutar a Gemini?"
+        placeholder="¿Consultar a Gemini?"
         className="flex-1 bg-surface border-white/10 rounded-xl focus-visible:ring-primary h-12"
         disabled={isLoading}
+        name="gemini_prompt"
+        autoComplete="off"
+        aria-label="Mensaje para el asistente IA"
       />
       <Button
         type="submit"

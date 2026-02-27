@@ -8,34 +8,34 @@ export function DashboardHero() {
 
       <div className="mx-auto flex max-w-4xl flex-col items-center gap-5">
         <div className="inline-flex items-center gap-2 rounded-full border border-primary/35 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-          <Sparkles className="h-3.5 w-3.5" />
-          Inteligencia de mercado en tiempo real
+          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          Control operativo en tiempo real
         </div>
 
-        <h1 className="section-title text-3xl font-semibold leading-tight text-white md:text-5xl">
-          Visualiza tu cartera con una
-          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> UI clara, moderna y accionable</span>
+        <h1 className="section-title text-balance text-3xl font-semibold leading-tight text-white md:text-5xl">
+          Convierte datos dispersos en
+          <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent"> decisiones de inversion con contexto IA</span>
         </h1>
 
         <p className="max-w-2xl text-balance text-base leading-relaxed text-muted md:text-lg">
-          Consolida posiciones, rendimiento y senales de mercado en un solo panel para tomar decisiones con mas contexto y menos friccion.
+          Consolida posiciones, rendimiento y senales de mercado en un solo panel para actuar con mas confianza y menos friccion.
         </p>
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         <Link
-          href="/upload"
-          className="group inline-flex items-center gap-2 rounded-xl border border-primary/45 bg-primary/15 px-6 py-3 text-sm font-semibold text-primary transition-all hover:-translate-y-0.5 hover:bg-primary/20"
+          href="/portfolio"
+          className="group inline-flex items-center gap-2 rounded-xl border border-primary/45 bg-primary/15 px-6 py-3 text-sm font-semibold text-primary transition-transform duration-200 hover:-translate-y-0.5 hover:bg-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
         >
-          <Upload className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" />
-          Cargar transacciones
+          <Upload className="h-4 w-4 transition-transform group-hover:-translate-y-0.5" aria-hidden="true" />
+          Ver mi portfolio
         </Link>
         <Link
-          href="#holdings-section"
-          className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/70 px-6 py-3 text-sm font-semibold text-text transition-all hover:-translate-y-0.5 hover:border-accent/45 hover:text-white"
+          href="/upload"
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/70 px-6 py-3 text-sm font-semibold text-text transition-transform duration-200 hover:-translate-y-0.5 hover:border-accent/45 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
         >
-          <List className="h-4 w-4" />
-          Ver posiciones
+          <List className="h-4 w-4" aria-hidden="true" />
+          Importar movimientos
         </Link>
       </div>
 
