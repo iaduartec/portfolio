@@ -53,7 +53,7 @@ export function DashboardClient() {
         </section>
 
         <section>
-          <DashboardAIPulse />
+          <DashboardAIPulse holdings={holdings} summary={summary} />
         </section>
 
         <section>

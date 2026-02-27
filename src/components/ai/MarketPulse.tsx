@@ -1,10 +1,14 @@
 import { Card } from "@/components/ui/card";
 import { Activity, Zap } from "lucide-react";
 
-export function MarketPulse() {
-    // Static data for now, would be dynamic with AI
-    const sentiment = "Optimismo cauteloso";
-    const score = 65; // 0-100
+type MarketPulseProps = {
+    sentiment: string;
+    score: number;
+    insight: string;
+};
+
+export function MarketPulse({ sentiment, score, insight }: MarketPulseProps) {
+    const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
 
     return (
         <Card className="relative overflow-hidden border-white/5 bg-surface/30 backdrop-blur-md p-5 group">
@@ -30,7 +34,7 @@ export function MarketPulse() {
                         <span className="text-xl font-bold text-white group-hover:text-primary transition-colors">{sentiment}</span>
                     </div>
                     <div className="text-right">
-                        <span className="text-2xl font-black text-primary">{score}</span>
+                        <span className="text-2xl font-black text-primary">{normalizedScore}</span>
                         <span className="text-[10px] text-muted-foreground font-bold ml-1">/100</span>
                     </div>
                 </div>
@@ -39,7 +43,7 @@ export function MarketPulse() {
                     <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
                         <div
                             className="bg-gradient-to-r from-primary to-cyan-400 h-full rounded-full transition-all duration-1000 ease-out"
-                            style={{ width: `${score}%` }}
+                            style={{ width: `${normalizedScore}%` }}
                         />
                     </div>
                     <div className="flex justify-between text-[9px] font-black text-muted-foreground/40 uppercase tracking-tighter">
@@ -52,7 +56,7 @@ export function MarketPulse() {
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
                     <Zap size={12} className="text-primary" />
                     <p className="text-[10px] text-primary/80 leading-tight font-medium">
-                        Alta correlación detectada con movimientos de bonos.
+                        {insight}
                     </p>
                 </div>
             </div>
