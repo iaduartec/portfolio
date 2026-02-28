@@ -1,13 +1,20 @@
 {
-  "generatedAt": "2026-02-28T01:56:32.472Z",
+  "generatedAt": "2026-02-28T03:01:25.793Z",
   "sampleCount": 216,
   "baselineCoverage": 1,
   "calibratedCoverage": 1,
   "coverageDelta": 0,
   "highBandLift": 0.06360035211267606,
   "gates": {
-    "coverageWithin10Percent": true,
-    "highBandLiftNonNegative": true,
+    "minimumSampleSize200": true,
+    "coverageWithin2Percent": true,
+    "highBandLiftAtLeast2Percent": true,
+    "calibratedHighBeatsMediumBy1Percent": true,
+    "calibratedHighHasAtLeast50Samples": true,
+    "majorityScenariosHaveNonNegativeLift": true,
+    "scenarioLiftPassCount": 6,
+    "scenarioLiftRequiredPassCount": 5,
+    "scenarioCount": 6,
     "pass": true
   },
   "rawBands": {
@@ -37,5 +44,241 @@
       "count": 16,
       "hitRate": 0.8125
     }
-  }
+  },
+  "scenarioStats": [
+    {
+      "scenarioId": "steady-uptrend",
+      "label": "Steady uptrend",
+      "drift": 0.0015,
+      "volatility": 0.018,
+      "sampleCount": 59,
+      "baselineCoverage": 1,
+      "calibratedCoverage": 1,
+      "coverageDelta": 0,
+      "highBandLift": 0,
+      "rawBands": {
+        "high": {
+          "count": 4,
+          "hitRate": 0.25
+        },
+        "medium": {
+          "count": 53,
+          "hitRate": 0.18867924528301888
+        },
+        "low": {
+          "count": 2,
+          "hitRate": 1
+        }
+      },
+      "calibratedBands": {
+        "high": {
+          "count": 4,
+          "hitRate": 0.25
+        },
+        "medium": {
+          "count": 50,
+          "hitRate": 0.14
+        },
+        "low": {
+          "count": 5,
+          "hitRate": 1
+        }
+      }
+    },
+    {
+      "scenarioId": "steady-downtrend",
+      "label": "Steady downtrend",
+      "drift": -0.0012,
+      "volatility": 0.02,
+      "sampleCount": 22,
+      "baselineCoverage": 1,
+      "calibratedCoverage": 1,
+      "coverageDelta": 0,
+      "highBandLift": 0,
+      "rawBands": {
+        "high": {
+          "count": 6,
+          "hitRate": 0.3333333333333333
+        },
+        "medium": {
+          "count": 16,
+          "hitRate": 0.3125
+        },
+        "low": {
+          "count": 0,
+          "hitRate": 0
+        }
+      },
+      "calibratedBands": {
+        "high": {
+          "count": 6,
+          "hitRate": 0.3333333333333333
+        },
+        "medium": {
+          "count": 14,
+          "hitRate": 0.35714285714285715
+        },
+        "low": {
+          "count": 2,
+          "hitRate": 0
+        }
+      }
+    },
+    {
+      "scenarioId": "volatile-uptrend",
+      "label": "Volatile uptrend",
+      "drift": 0.0004,
+      "volatility": 0.035,
+      "sampleCount": 34,
+      "baselineCoverage": 1,
+      "calibratedCoverage": 1,
+      "coverageDelta": 0,
+      "highBandLift": 0.14285714285714285,
+      "rawBands": {
+        "high": {
+          "count": 6,
+          "hitRate": 0
+        },
+        "medium": {
+          "count": 28,
+          "hitRate": 0.4642857142857143
+        },
+        "low": {
+          "count": 0,
+          "hitRate": 0
+        }
+      },
+      "calibratedBands": {
+        "high": {
+          "count": 7,
+          "hitRate": 0.14285714285714285
+        },
+        "medium": {
+          "count": 24,
+          "hitRate": 0.375
+        },
+        "low": {
+          "count": 3,
+          "hitRate": 1
+        }
+      }
+    },
+    {
+      "scenarioId": "volatile-downtrend",
+      "label": "Volatile downtrend",
+      "drift": -0.0003,
+      "volatility": 0.032,
+      "sampleCount": 78,
+      "baselineCoverage": 1,
+      "calibratedCoverage": 1,
+      "coverageDelta": 0,
+      "highBandLift": 0.10411899313501144,
+      "rawBands": {
+        "high": {
+          "count": 46,
+          "hitRate": 0.3695652173913043
+        },
+        "medium": {
+          "count": 32,
+          "hitRate": 0.65625
+        },
+        "low": {
+          "count": 0,
+          "hitRate": 0
+        }
+      },
+      "calibratedBands": {
+        "high": {
+          "count": 38,
+          "hitRate": 0.47368421052631576
+        },
+        "medium": {
+          "count": 38,
+          "hitRate": 0.47368421052631576
+        },
+        "low": {
+          "count": 2,
+          "hitRate": 1
+        }
+      }
+    },
+    {
+      "scenarioId": "low-vol-uptrend",
+      "label": "Low-vol uptrend",
+      "drift": 0.0018,
+      "volatility": 0.014,
+      "sampleCount": 4,
+      "baselineCoverage": 1,
+      "calibratedCoverage": 1,
+      "coverageDelta": 0,
+      "highBandLift": 0,
+      "rawBands": {
+        "high": {
+          "count": 0,
+          "hitRate": 0
+        },
+        "medium": {
+          "count": 4,
+          "hitRate": 1
+        },
+        "low": {
+          "count": 0,
+          "hitRate": 0
+        }
+      },
+      "calibratedBands": {
+        "high": {
+          "count": 0,
+          "hitRate": 0
+        },
+        "medium": {
+          "count": 4,
+          "hitRate": 1
+        },
+        "low": {
+          "count": 0,
+          "hitRate": 0
+        }
+      }
+    },
+    {
+      "scenarioId": "choppy-range",
+      "label": "Choppy range",
+      "drift": 0,
+      "volatility": 0.038,
+      "sampleCount": 19,
+      "baselineCoverage": 1,
+      "calibratedCoverage": 1,
+      "coverageDelta": 0,
+      "highBandLift": 0,
+      "rawBands": {
+        "high": {
+          "count": 9,
+          "hitRate": 0.1111111111111111
+        },
+        "medium": {
+          "count": 9,
+          "hitRate": 0.4444444444444444
+        },
+        "low": {
+          "count": 1,
+          "hitRate": 1
+        }
+      },
+      "calibratedBands": {
+        "high": {
+          "count": 9,
+          "hitRate": 0.1111111111111111
+        },
+        "medium": {
+          "count": 6,
+          "hitRate": 0.3333333333333333
+        },
+        "low": {
+          "count": 4,
+          "hitRate": 0.75
+        }
+      }
+    }
+  ]
 }

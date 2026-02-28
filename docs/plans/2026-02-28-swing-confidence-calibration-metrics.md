@@ -1,6 +1,6 @@
 # Swing Confidence Calibration Metrics
 
-- Generated: 2026-02-28T02:59:02.663Z
+- Generated: 2026-02-28T03:01:25.793Z
 - Samples: 216
 - Baseline coverage (raw >= 0.55): 100.00%
 - Calibrated coverage (>= 0.55): 100.00%
