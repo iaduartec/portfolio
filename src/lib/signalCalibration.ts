@@ -1,4 +1,5 @@
 import type { CandlePoint, Pattern } from "@/lib/technical-analysis";
+import { reportCalibrationTelemetry } from "@/lib/signalCalibrationTelemetry";
 
 export type SwingRegimeTrend = "bullish" | "bearish" | "sideways";
 export type SwingRegimeVolatility = "low" | "medium" | "high";
@@ -216,6 +217,15 @@ const calibratePattern = (pattern: Pattern, candles: CandlePoint[], regime: Swin
   const confidenceBand = getBand(calibratedConfidence);
   const calibrationReason =
     reasons.length > 0 ? reasons.slice(0, 3).join(" · ") : "calibración base por régimen";
+
+  reportCalibrationTelemetry({
+    patternKind: pattern.kind,
+    rawConfidence,
+    calibratedConfidence,
+    confidenceBand,
+    calibrationReason,
+    regime,
+  });
 
   return {
     ...pattern,
