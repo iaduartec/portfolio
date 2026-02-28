@@ -1,4 +1,9 @@
 import type { IncrementalEngineMetrics } from "@/lib/incrementalTechnicalEngine";
+import type {
+  IndicatorBundle,
+  IndicatorComputationFilters,
+  IndicatorEngineMetrics,
+} from "@/lib/indicatorAnalysis";
 import type { AnalysisResult, CandlePoint, VolumePoint } from "@/lib/technical-analysis";
 
 export const TECHNICAL_WORKER_MESSAGE_TYPE = {
@@ -16,11 +21,14 @@ export type AnalysisRunPayload = {
   timeframe: string;
   candles: CandlePoint[];
   volumes: VolumePoint[];
+  indicatorFilters: IndicatorComputationFilters;
 };
 
 export type AnalysisResultPayload = {
   analysis: AnalysisResult;
   metrics: IncrementalEngineMetrics;
+  indicatorBundle: IndicatorBundle;
+  indicatorMetrics: IndicatorEngineMetrics;
 };
 
 export type AnalysisErrorPayload = {
