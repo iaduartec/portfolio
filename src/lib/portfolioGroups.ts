@@ -1,4 +1,12 @@
 const ROBOADVISOR_ETF_SYMBOLS = new Set(["EXW1", "IS3K", "XUCD"]);
+const NON_INVESTMENT_TICKERS = new Set([
+  "CASH",
+  "EUR",
+  "USD",
+  "LIQUIDITY",
+  "BALANCE",
+  "ACCOUNT",
+]);
 
 const extractCoreTicker = (rawTicker: string) => {
   const cleaned = (rawTicker ?? "").trim().toUpperCase();
@@ -13,4 +21,14 @@ export const isFundTicker = (ticker: string) => {
   if (cleaned.startsWith("XETR:")) return true;
   if (cleaned.endsWith(".DE")) return true;
   return ROBOADVISOR_ETF_SYMBOLS.has(extractCoreTicker(cleaned));
+};
+
+export const isNonInvestmentTicker = (ticker: string) => {
+  const core = extractCoreTicker(ticker);
+  if (!core) return true;
+  if (NON_INVESTMENT_TICKERS.has(core)) return true;
+  if (core.startsWith("CASH")) return true;
+  if (core.startsWith("BALANCE")) return true;
+  if (core.startsWith("LIQ")) return true;
+  return false;
 };

@@ -18,7 +18,7 @@ import {
 import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
-import { isFundTicker } from "@/lib/portfolioGroups";
+import { isFundTicker, isNonInvestmentTicker } from "@/lib/portfolioGroups";
 import type { Holding } from "@/types/portfolio";
 import type { Transaction } from "@/types/transactions";
 import Link from "next/link";
@@ -192,7 +192,10 @@ export function PortfolioClient() {
   };
 
   const stockHoldings = useMemo(
-    () => holdings.filter((holding) => !isFundTicker(holding.ticker)),
+    () =>
+      holdings.filter(
+        (holding) => !isFundTicker(holding.ticker) && !isNonInvestmentTicker(holding.ticker)
+      ),
     [holdings]
   );
   const etfHoldings = useMemo(
@@ -202,11 +205,17 @@ export function PortfolioClient() {
   const stockSummary = useMemo(() => computeSummaryFromHoldings(stockHoldings), [stockHoldings]);
   const etfSummary = useMemo(() => computeSummaryFromHoldings(etfHoldings), [etfHoldings]);
   const stockTrades = useMemo(
-    () => realizedTrades.filter((trade) => !isFundTicker(trade.ticker)),
+    () =>
+      realizedTrades.filter(
+        (trade) => !isFundTicker(trade.ticker) && !isNonInvestmentTicker(trade.ticker)
+      ),
     [realizedTrades]
   );
   const stockTransactions = useMemo(
-    () => transactions.filter((tx) => !isFundTicker(tx.ticker)),
+    () =>
+      transactions.filter(
+        (tx) => !isFundTicker(tx.ticker) && !isNonInvestmentTicker(tx.ticker)
+      ),
     [transactions]
   );
   const etfTransactions = useMemo(
