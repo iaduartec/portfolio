@@ -136,6 +136,7 @@ export function PortfolioValueChart({
   chartHeight = 500,
   range = "1y",
 }: PortfolioValueChartProps) {
+  const calibrationMode = process.env.NEXT_PUBLIC_SIGNAL_CALIBRATION_MODE ?? "full";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>({
     candles: [],
@@ -237,10 +238,13 @@ export function PortfolioValueChart({
     return [...analysis.patterns, ...aiChartPatterns].map((pattern) => {
       const times = pattern.lines.flatMap((line) => line.points.map((point) => String(point.time)));
       const lastTime = [...times].sort().reverse()[0] || "";
-      const confidence = pattern.confidence;
+      const confidence =
+        "kind" in pattern && calibrationMode === "shadow"
+          ? ((pattern as Pattern).rawConfidence ?? pattern.confidence)
+          : pattern.confidence;
       return { ...pattern, confidence, lastTime };
     });
-  }, [analysis.patterns, aiChartPatterns]);
+  }, [analysis.patterns, aiChartPatterns, calibrationMode]);
 
   const technicalOutlook = useMemo<TechnicalOutlook | null>(() => {
     if (!showProjectionInsights || liveSeries.candles.length < 20) return null;
@@ -252,9 +256,13 @@ export function PortfolioValueChart({
           inferDirectionFromProjection(pattern.projection, lastPrice) ??
           inferDirectionFromKind(pattern.kind);
         if (!direction) return null;
+        const usedConfidence =
+          calibrationMode === "shadow"
+            ? (pattern.rawConfidence ?? pattern.confidence)
+            : patternConfidence(pattern);
         return {
           name: pattern.name,
-          confidence: clamp(patternConfidence(pattern), 0.5, 0.99),
+          confidence: clamp(usedConfidence, 0.5, 0.99),
           direction,
           projection: pattern.projection,
           stopLoss: pattern.stopLoss,
@@ -340,7 +348,7 @@ export function PortfolioValueChart({
       .map((signal) => signal.name);
 
     return { direction, probability, target, stopLoss, lastPrice, riskReward, reasons };
-  }, [showProjectionInsights, liveSeries.candles, analysis.patterns, aiResult]);
+  }, [showProjectionInsights, liveSeries.candles, analysis.patterns, aiResult, calibrationMode]);
 
   useEffect(() => {
     if (!containerRef.current || status !== "idle" || liveSeries.candles.length === 0) return;
@@ -513,9 +521,13 @@ export function PortfolioValueChart({
     const combined = [
       ...analysis.patterns.map((pattern) => {
         const times = pattern.lines.flatMap((line) => line.points.map((point) => String(point.time)));
+        const confidence =
+          calibrationMode === "shadow"
+            ? (pattern.rawConfidence ?? pattern.confidence)
+            : patternConfidence(pattern);
         return {
           name: pattern.name,
-          confidence: patternConfidence(pattern),
+          confidence,
           description: pattern.description,
           isAi: false,
           lastTime: [...times].sort().reverse()[0] || "",
@@ -540,7 +552,7 @@ export function PortfolioValueChart({
       .filter((pattern) => pattern.confidence > 0.85)
       .sort((a, b) => b.confidence - a.confidence);
     return [latest, ...others].slice(0, 3);
-  }, [analysis.patterns, aiResult]);
+  }, [analysis.patterns, aiResult, calibrationMode]);
 
   return (
     <Card

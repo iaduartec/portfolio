@@ -45,6 +45,7 @@ import {
 
 
 export function PatternAnalysisLab() {
+  const calibrationMode = process.env.NEXT_PUBLIC_SIGNAL_CALIBRATION_MODE ?? "full";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [ticker, setTicker] = useState("AAPL");
   const [timeframe, setTimeframe] = useState("1d");
@@ -943,6 +944,8 @@ export function PatternAnalysisLab() {
               activePatterns.map((pattern) => {
                 const confidence = pattern.calibratedConfidence ?? pattern.confidence;
                 const band = pattern.confidenceBand ?? (confidence >= 0.82 ? "high" : confidence >= 0.66 ? "medium" : "low");
+                const rawConfidence = pattern.rawConfidence ?? pattern.confidence;
+                const displayConfidence = calibrationMode === "shadow" ? rawConfidence : confidence;
                 return (
                   <div
                     key={pattern.kind}
@@ -951,11 +954,17 @@ export function PatternAnalysisLab() {
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-text">{pattern.name}</p>
                     <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs">
-                      {confidenceLabel(confidence)} ({Math.round(confidence * 100)}%) · {band.toUpperCase()}
+                      {confidenceLabel(displayConfidence)} ({Math.round(displayConfidence * 100)}%)
+                      {calibrationMode !== "shadow" ? ` · ${band.toUpperCase()}` : ""}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted">{pattern.description}</p>
-                  {pattern.calibrationReason ? (
+                  {calibrationMode === "dual" ? (
+                    <p className="mt-1 text-[11px] text-accent/90">
+                      Raw: {Math.round(rawConfidence * 100)}% · Calibrada: {Math.round(confidence * 100)}%
+                    </p>
+                  ) : null}
+                  {calibrationMode !== "shadow" && pattern.calibrationReason ? (
                     <p className="mt-1 text-[11px] text-accent/90">
                       Calibración swing: {pattern.calibrationReason}
                     </p>
