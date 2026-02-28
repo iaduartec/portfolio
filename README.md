@@ -66,6 +66,24 @@ NEXT_PUBLIC_EXCHANGERATE_HOST_KEY=tu_clave_exchangerate_host_opcional
 pnpm dev
 ```
 
+### 5. Backtest de calibración swing
+
+```bash
+pnpm backtest:calibration
+```
+
+El comando genera:
+- `docs/plans/2026-02-28-swing-confidence-calibration-metrics.md`
+- `docs/plans/2026-02-28-swing-confidence-calibration-metrics.json`
+
+Modos de visualización de confianza (`Pattern Lab` / `Portfolio Charts`):
+- `NEXT_PUBLIC_SIGNAL_CALIBRATION_MODE=full` (default)
+- `NEXT_PUBLIC_SIGNAL_CALIBRATION_MODE=dual`
+- `NEXT_PUBLIC_SIGNAL_CALIBRATION_MODE=shadow`
+
+Telemetry opcional de calibración:
+- `NEXT_PUBLIC_SIGNAL_CALIBRATION_TELEMETRY=1` o `SIGNAL_CALIBRATION_TELEMETRY=1`
+
 ---
 
 ## 📁 Estructura del Proyecto
