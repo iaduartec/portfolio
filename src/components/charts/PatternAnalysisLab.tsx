@@ -13,12 +13,21 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import { computeIncrementalTechnicalAnalysis } from "@/lib/incrementalTechnicalEngine";
+import {
+  DEFAULT_INDICATOR_FILTERS,
+  DEFAULT_PATTERN_FILTERS,
+  INDICATOR_FILTER_OPTIONS,
+  PATTERN_FILTER_OPTIONS,
+  STRATEGY_PRESETS,
+  type IndicatorFilterKey,
+  type PatternFilterKey,
+} from "@/data/strategyPresets";
 import {
   type CandlePoint,
   type VolumePoint,
   type PatternLine,
   type IndicatorSummary,
-  buildAnalysis,
   normalizeLineWidth,
   computeSma,
   computeEma,
@@ -50,46 +59,9 @@ export function PatternAnalysisLab() {
   const [ticker, setTicker] = useState("AAPL");
   const [timeframe, setTimeframe] = useState("1d");
   const [searchValue, setSearchValue] = useState("");
-  const [filters, setFilters] = useState({
-    "double-top": true,
-    "double-bottom": true,
-    "triple-top": true,
-    "triple-bottom": true,
-    "head-shoulders": true,
-    "inverse-head-shoulders": true,
-    "rising-wedge": true,
-    "falling-wedge": true,
-    "bullish-flag": true,
-    "bearish-flag": true,
-    "bullish-pennant": true,
-    "bearish-pennant": true,
-    "rectangle": true,
-    "cup-handle": true,
-    "ascending-triangle": true,
-    "descending-triangle": true,
-    "symmetrical-triangle": true,
-    "rising-channel": true,
-    "falling-channel": true,
-    "bullish-engulfing": true,
-    "bearish-engulfing": true,
-    "doji": true,
-    "hammer": true,
-    "hanging-man": true,
-    "shooting-star": true,
-    "inverted-hammer": true,
-  });
-  const [indicatorFilters, setIndicatorFilters] = useState({
-    sma20: true,
-    ema50: true,
-    ema200: true,
-    bollinger: true,
-    vwap: true,
-    atrBands: false,
-    pivots: true,
-    supertrend: true,
-    ichimoku: true,
-    macd: true,
-  });
+  const [filters, setFilters] = useState(DEFAULT_PATTERN_FILTERS);
+  const [indicatorFilters, setIndicatorFilters] = useState(DEFAULT_INDICATOR_FILTERS);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const { holdings } = usePortfolioData();
   const portfolioTickers = useMemo(() => {
     const symbols = holdings.map((holding) => holding.ticker.toUpperCase()).filter(Boolean);
@@ -110,12 +82,56 @@ export function PatternAnalysisLab() {
   const [liveStatus, setLiveStatus] = useState<"idle" | "loading" | "error">("idle");
   const [liveError, setLiveError] = useState<string | null>(null);
   const series = liveSeries;
-  const analysis = useMemo(() => buildAnalysis(series.candles, series.volumes), [series]);
+  const analysisEngine = useMemo(
+    () =>
+      computeIncrementalTechnicalAnalysis({
+        symbol: selected.symbol,
+        timeframe,
+        candles: series.candles,
+        volumes: series.volumes,
+      }),
+    [selected.symbol, timeframe, series]
+  );
+  const analysis = analysisEngine.analysis;
 
   const activePatterns = useMemo(
     () => analysis.patterns.filter((pattern) => filters[pattern.kind]),
     [analysis.patterns, filters]
   );
+  const presetLookup = useMemo(
+    () => Object.fromEntries(STRATEGY_PRESETS.map((preset) => [preset.id, preset])),
+    []
+  );
+
+  const buildPresetState = <T extends string>(
+    keys: readonly T[],
+    selected: readonly T[]
+  ): Record<T, boolean> =>
+    keys.reduce(
+      (acc, key) => ({
+        ...acc,
+        [key]: selected.includes(key),
+      }),
+      {} as Record<T, boolean>
+    );
+
+  const applyPreset = (presetId: string) => {
+    const preset = presetLookup[presetId];
+    if (!preset) return;
+    setIndicatorFilters(
+      buildPresetState(
+        INDICATOR_FILTER_OPTIONS.map((item) => item.id),
+        preset.indicators
+      ) as Record<IndicatorFilterKey, boolean>
+    );
+    setFilters(
+      buildPresetState(
+        PATTERN_FILTER_OPTIONS.map((item) => item.id),
+        preset.patterns
+      ) as Record<PatternFilterKey, boolean>
+    );
+    setActivePresetId(preset.id);
+  };
 
   const indicatorBundle = useMemo(() => {
     const lines: PatternLine[] = [];
@@ -654,20 +670,32 @@ export function PatternAnalysisLab() {
             </datalist>
           </form>
           <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
+            Presets
+          </span>
+          {STRATEGY_PRESETS.map((preset) => {
+            const isActive = activePresetId === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyPreset(preset.id)}
+                className={cn(
+                  "rounded-full border border-border/60 px-3 py-1 text-xs transition",
+                  isActive
+                    ? "bg-accent/20 text-text"
+                    : "bg-surface-muted/40 text-muted hover:bg-surface"
+                )}
+                title={preset.description}
+              >
+                {isActive ? "Aplicado: " : "Aplicar: "}
+                {preset.name}
+              </button>
+            );
+          })}
+          <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
             Indicadores
           </span>
-          {([
-            { id: "sma20", label: "SMA 20" },
-            { id: "ema50", label: "EMA 50" },
-            { id: "ema200", label: "EMA 200" },
-            { id: "bollinger", label: "Bollinger" },
-            { id: "vwap", label: "VWAP" },
-            { id: "macd", label: "MACD" },
-            { id: "atrBands", label: "ATR bandas" },
-            { id: "supertrend", label: "Supertrend" },
-            { id: "ichimoku", label: "Ichimoku" },
-            { id: "pivots", label: "Pivots" },
-          ] as const).map((item) => (
+          {INDICATOR_FILTER_OPTIONS.map((item) => (
             <label
               key={item.id}
               className={cn(
@@ -678,12 +706,13 @@ export function PatternAnalysisLab() {
               <input
                 type="checkbox"
                 checked={indicatorFilters[item.id]}
-                onChange={(event) =>
+                onChange={(event) => {
                   setIndicatorFilters((prev) => ({
                     ...prev,
                     [item.id]: event.target.checked,
-                  }))
-                }
+                  }));
+                  setActivePresetId(null);
+                }}
                 className="accent-accent"
               />
               {item.label}
@@ -692,34 +721,7 @@ export function PatternAnalysisLab() {
           <span className="text-[10px] uppercase tracking-[0.2em] text-muted">
             Patrones
           </span>
-          {([
-            { id: "double-top", label: "Doble techo" },
-            { id: "double-bottom", label: "Doble suelo" },
-            { id: "triple-top", label: "Triple techo" },
-            { id: "triple-bottom", label: "Triple suelo" },
-            { id: "head-shoulders", label: "H-C-H" },
-            { id: "inverse-head-shoulders", label: "HCH Inv." },
-            { id: "rising-wedge", label: "Cuña asc." },
-            { id: "falling-wedge", label: "Cuña desc." },
-            { id: "bullish-flag", label: "Bandera alc." },
-            { id: "bearish-flag", label: "Bandera baj." },
-            { id: "bullish-pennant", label: "Pennant alc." },
-            { id: "bearish-pennant", label: "Pennant baj." },
-            { id: "rectangle", label: "Rectángulo" },
-            { id: "cup-handle", label: "Copa y Asa" },
-            { id: "ascending-triangle", label: "Triangulo asc." },
-            { id: "descending-triangle", label: "Triangulo desc." },
-            { id: "symmetrical-triangle", label: "Triangulo sim." },
-            { id: "rising-channel", label: "Canal asc." },
-            { id: "falling-channel", label: "Canal desc." },
-            { id: "bullish-engulfing", label: "Engulfing alc." },
-            { id: "bearish-engulfing", label: "Engulfing baj." },
-            { id: "doji", label: "Doji" },
-            { id: "hammer", label: "Martillo" },
-            { id: "hanging-man", label: "H. Colgado" },
-            { id: "shooting-star", label: "Estrella Fugaz" },
-            { id: "inverted-hammer", label: "Martillo Inv." },
-          ] as const).map((item) => (
+          {PATTERN_FILTER_OPTIONS.map((item) => (
             <label
               key={item.id}
               className={cn(
@@ -730,14 +732,18 @@ export function PatternAnalysisLab() {
               <input
                 type="checkbox"
                 checked={filters[item.id]}
-                onChange={(event) =>
-                  setFilters((prev) => ({ ...prev, [item.id]: event.target.checked }))
-                }
+                onChange={(event) => {
+                  setFilters((prev) => ({ ...prev, [item.id]: event.target.checked }));
+                  setActivePresetId(null);
+                }}
                 className="accent-accent"
               />
               {item.label}
             </label>
           ))}
+          <span className="rounded-full border border-border/60 bg-surface-muted/40 px-3 py-1 text-[10px] uppercase tracking-[0.2em] text-muted">
+            Engine: {analysisEngine.metrics.mode} · {analysisEngine.metrics.durationMs.toFixed(2)}ms
+          </span>
         </div>
         {liveStatus === "loading" && (
           <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-4 text-xs text-muted">
