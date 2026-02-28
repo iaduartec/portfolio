@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { computeIncrementalTechnicalAnalysis } from "@/lib/incrementalTechnicalEngine";
+import { TechnicalAnalysisWorkerClient } from "@/lib/technicalAnalysisWorkerClient";
 import {
   DEFAULT_INDICATOR_FILTERS,
   DEFAULT_PATTERN_FILTERS,
@@ -24,6 +25,7 @@ import {
   type PatternFilterKey,
 } from "@/data/strategyPresets";
 import {
+  type AnalysisResult,
   type CandlePoint,
   type VolumePoint,
   type PatternLine,
@@ -44,6 +46,18 @@ import {
   buildPivotLevels,
   confidenceLabel,
 } from "@/lib/technical-analysis";
+
+const ANALYSIS_WORKER_TIMEOUT_MS = 4500;
+const EMPTY_ANALYSIS: AnalysisResult = {
+  candles: [],
+  volumes: [],
+  patterns: [],
+  support: [],
+};
+const EMPTY_ANALYSIS_ENGINE_STATE: ReturnType<typeof computeIncrementalTechnicalAnalysis> = {
+  analysis: EMPTY_ANALYSIS,
+  metrics: { mode: "full", durationMs: 0 },
+};
 
 
 
@@ -82,16 +96,12 @@ export function PatternAnalysisLab() {
   const [liveStatus, setLiveStatus] = useState<"idle" | "loading" | "error">("idle");
   const [liveError, setLiveError] = useState<string | null>(null);
   const series = liveSeries;
-  const analysisEngine = useMemo(
-    () =>
-      computeIncrementalTechnicalAnalysis({
-        symbol: selected.symbol,
-        timeframe,
-        candles: series.candles,
-        volumes: series.volumes,
-      }),
-    [selected.symbol, timeframe, series]
-  );
+  const workerClientRef = useRef<TechnicalAnalysisWorkerClient | null>(null);
+  const activeWorkerRequestIdRef = useRef<string | null>(null);
+  const latestAnalysisRunRef = useRef(0);
+  const [analysisEngine, setAnalysisEngine] = useState<
+    ReturnType<typeof computeIncrementalTechnicalAnalysis>
+  >(EMPTY_ANALYSIS_ENGINE_STATE);
   const analysis = analysisEngine.analysis;
 
   const activePatterns = useMemo(
@@ -498,6 +508,95 @@ export function PatternAnalysisLab() {
       ignore = true;
     };
   }, [selected.symbol, timeframe]);
+
+  useEffect(() => {
+    if (series.candles.length === 0) {
+      setAnalysisEngine(EMPTY_ANALYSIS_ENGINE_STATE);
+      return;
+    }
+
+    const runId = latestAnalysisRunRef.current + 1;
+    latestAnalysisRunRef.current = runId;
+    const payload = {
+      symbol: selected.symbol,
+      timeframe,
+      candles: series.candles,
+      volumes: series.volumes,
+    };
+    let canceled = false;
+    let requestIdForRun: string | null = null;
+
+    const runAnalysis = async () => {
+      if (typeof Worker !== "undefined") {
+        if (!workerClientRef.current) {
+          workerClientRef.current = new TechnicalAnalysisWorkerClient();
+        }
+
+        try {
+          const { requestId, promise } = workerClientRef.current.runAnalysis(payload, {
+            timeoutMs: ANALYSIS_WORKER_TIMEOUT_MS,
+          });
+          requestIdForRun = requestId;
+          activeWorkerRequestIdRef.current = requestId;
+          const workerResult = await promise;
+
+          if (canceled || runId !== latestAnalysisRunRef.current) {
+            return;
+          }
+
+          if (activeWorkerRequestIdRef.current === requestIdForRun) {
+            activeWorkerRequestIdRef.current = null;
+          }
+          setAnalysisEngine(workerResult);
+          return;
+        } catch (error) {
+          if (activeWorkerRequestIdRef.current === requestIdForRun) {
+            activeWorkerRequestIdRef.current = null;
+          }
+
+          if (canceled || runId !== latestAnalysisRunRef.current) {
+            return;
+          }
+
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            console.warn("[PatternAnalysisLab] Falling back to main-thread analysis:", error);
+          }
+        }
+      }
+
+      if (canceled || runId !== latestAnalysisRunRef.current) {
+        return;
+      }
+
+      setAnalysisEngine(computeIncrementalTechnicalAnalysis(payload));
+    };
+
+    void runAnalysis();
+
+    return () => {
+      canceled = true;
+      const requestId = requestIdForRun;
+      if (requestId && workerClientRef.current) {
+        workerClientRef.current.cancel(requestId);
+        if (activeWorkerRequestIdRef.current === requestId) {
+          activeWorkerRequestIdRef.current = null;
+        }
+      }
+    };
+  }, [selected.symbol, timeframe, series]);
+
+  useEffect(() => {
+    return () => {
+      const requestId = activeWorkerRequestIdRef.current;
+      if (requestId && workerClientRef.current) {
+        workerClientRef.current.cancel(requestId);
+      }
+
+      workerClientRef.current?.dispose();
+      workerClientRef.current = null;
+      activeWorkerRequestIdRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
