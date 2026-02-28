@@ -6,11 +6,39 @@ type Direction = "bullish" | "bearish";
 type ConfidenceBand = "high" | "medium" | "low";
 
 type Sample = {
+  scenarioId: string;
   raw: number;
   calibrated: number;
   rawBand: ConfidenceBand;
   calibratedBand: ConfidenceBand;
   outcome: boolean;
+};
+
+type Scenario = {
+  id: string;
+  label: string;
+  drift: number;
+  volatility: number;
+  seed: number;
+};
+
+type BandStats = {
+  count: number;
+  hitRate: number;
+};
+
+type ScenarioStats = {
+  scenarioId: string;
+  label: string;
+  drift: number;
+  volatility: number;
+  sampleCount: number;
+  baselineCoverage: number;
+  calibratedCoverage: number;
+  coverageDelta: number;
+  highBandLift: number;
+  rawBands: Record<ConfidenceBand, BandStats>;
+  calibratedBands: Record<ConfidenceBand, BandStats>;
 };
 
 const bullishKinds = new Set<Pattern["kind"]>([
@@ -136,14 +164,43 @@ const byBand = (samples: Sample[], key: "rawBand" | "calibratedBand") => {
   };
 };
 
+const scenarioSummary = (scenario: Scenario, samples: Sample[]): ScenarioStats => {
+  const baselineCoverage = samples.filter((s) => s.raw >= 0.55).length / samples.length;
+  const calibratedCoverage = samples.filter((s) => s.calibrated >= 0.55).length / samples.length;
+  const coverageDelta = calibratedCoverage - baselineCoverage;
+  const rawBands = byBand(samples, "rawBand");
+  const calibratedBands = byBand(samples, "calibratedBand");
+  const highBandLift = calibratedBands.high.hitRate - rawBands.high.hitRate;
+
+  return {
+    scenarioId: scenario.id,
+    label: scenario.label,
+    drift: scenario.drift,
+    volatility: scenario.volatility,
+    sampleCount: samples.length,
+    baselineCoverage,
+    calibratedCoverage,
+    coverageDelta,
+    highBandLift,
+    rawBands,
+    calibratedBands,
+  };
+};
+
 const run = async () => {
-  const scenarios = [
-    { drift: 0.0015, volatility: 0.018, seed: 11 },
-    { drift: -0.0012, volatility: 0.02, seed: 21 },
-    { drift: 0.0004, volatility: 0.035, seed: 31 },
-    { drift: -0.0003, volatility: 0.032, seed: 41 },
-    { drift: 0.0018, volatility: 0.014, seed: 51 },
-    { drift: 0.0, volatility: 0.038, seed: 61 },
+  const scenarios: Scenario[] = [
+    { id: "steady-uptrend", label: "Steady uptrend", drift: 0.0015, volatility: 0.018, seed: 11 },
+    { id: "steady-downtrend", label: "Steady downtrend", drift: -0.0012, volatility: 0.02, seed: 21 },
+    { id: "volatile-uptrend", label: "Volatile uptrend", drift: 0.0004, volatility: 0.035, seed: 31 },
+    {
+      id: "volatile-downtrend",
+      label: "Volatile downtrend",
+      drift: -0.0003,
+      volatility: 0.032,
+      seed: 41,
+    },
+    { id: "low-vol-uptrend", label: "Low-vol uptrend", drift: 0.0018, volatility: 0.014, seed: 51 },
+    { id: "choppy-range", label: "Choppy range", drift: 0.0, volatility: 0.038, seed: 61 },
   ];
 
   const samples: Sample[] = [];
@@ -166,6 +223,7 @@ const run = async () => {
         const raw = clamp(pattern.rawConfidence ?? pattern.confidence, 0.45, 0.99);
         const calibrated = clamp(pattern.calibratedConfidence ?? pattern.confidence, 0.45, 0.99);
         samples.push({
+          scenarioId: scenario.id,
           raw,
           calibrated,
           rawBand: toBand(raw),
@@ -186,10 +244,28 @@ const run = async () => {
   const rawBands = byBand(samples, "rawBand");
   const calibratedBands = byBand(samples, "calibratedBand");
   const highBandLift = calibratedBands.high.hitRate - rawBands.high.hitRate;
+  const scenarioStats = scenarios.map((scenario) =>
+    scenarioSummary(
+      scenario,
+      samples.filter((sample) => sample.scenarioId === scenario.id)
+    )
+  );
+  const scenariosWithPositiveLift = scenarioStats.filter((scenario) => scenario.highBandLift >= 0).length;
+  const requiredScenarioLiftPasses = Math.ceil(scenarios.length * 0.67);
 
-  const gateCoverage = Math.abs(coverageDelta) <= 0.1;
-  const gateHighBand = highBandLift >= 0;
-  const pass = gateCoverage && gateHighBand;
+  const gateSampleSize = samples.length >= 200;
+  const gateCoverage = Math.abs(coverageDelta) <= 0.02;
+  const gateHighBand = highBandLift >= 0.02;
+  const gateHighOverMedium = calibratedBands.high.hitRate - calibratedBands.medium.hitRate >= 0.01;
+  const gateHighBandSampleCount = calibratedBands.high.count >= 50;
+  const gateScenarioLiftMajority = scenariosWithPositiveLift >= requiredScenarioLiftPasses;
+  const pass =
+    gateSampleSize &&
+    gateCoverage &&
+    gateHighBand &&
+    gateHighOverMedium &&
+    gateHighBandSampleCount &&
+    gateScenarioLiftMajority;
 
   const report = {
     generatedAt: new Date().toISOString(),
@@ -199,12 +275,20 @@ const run = async () => {
     coverageDelta,
     highBandLift,
     gates: {
-      coverageWithin10Percent: gateCoverage,
-      highBandLiftNonNegative: gateHighBand,
+      minimumSampleSize200: gateSampleSize,
+      coverageWithin2Percent: gateCoverage,
+      highBandLiftAtLeast2Percent: gateHighBand,
+      calibratedHighBeatsMediumBy1Percent: gateHighOverMedium,
+      calibratedHighHasAtLeast50Samples: gateHighBandSampleCount,
+      majorityScenariosHaveNonNegativeLift: gateScenarioLiftMajority,
+      scenarioLiftPassCount: scenariosWithPositiveLift,
+      scenarioLiftRequiredPassCount: requiredScenarioLiftPasses,
+      scenarioCount: scenarios.length,
       pass,
     },
     rawBands,
     calibratedBands,
+    scenarioStats,
   };
 
   const metricsPath = resolve(
@@ -228,8 +312,16 @@ const run = async () => {
     `- High-band lift (calibrated - raw): ${(report.highBandLift * 100).toFixed(2)}%`,
     "",
     "## Gates",
-    `- Coverage ±10%: ${report.gates.coverageWithin10Percent ? "PASS" : "FAIL"}`,
-    `- High band lift >= 0: ${report.gates.highBandLiftNonNegative ? "PASS" : "FAIL"}`,
+    `- Minimum sample size >= 200: ${report.gates.minimumSampleSize200 ? "PASS" : "FAIL"}`,
+    `- Coverage ±2%: ${report.gates.coverageWithin2Percent ? "PASS" : "FAIL"}`,
+    `- High-band lift >= 2%: ${report.gates.highBandLiftAtLeast2Percent ? "PASS" : "FAIL"}`,
+    `- Calibrated high beats medium by >= 1%: ${
+      report.gates.calibratedHighBeatsMediumBy1Percent ? "PASS" : "FAIL"
+    }`,
+    `- Calibrated high sample count >= 50: ${report.gates.calibratedHighHasAtLeast50Samples ? "PASS" : "FAIL"}`,
+    `- Scenario lift majority (>= ${report.gates.scenarioLiftRequiredPassCount}/${report.gates.scenarioCount}): ${
+      report.gates.majorityScenariosHaveNonNegativeLift ? "PASS" : "FAIL"
+    } (${report.gates.scenarioLiftPassCount}/${report.gates.scenarioCount})`,
     `- Overall: ${report.gates.pass ? "PASS" : "FAIL"}`,
     "",
     "## Raw Bands",
@@ -242,6 +334,18 @@ const run = async () => {
     `- Medium: ${report.calibratedBands.medium.count} | hit-rate ${(report.calibratedBands.medium.hitRate * 100).toFixed(2)}%`,
     `- Low: ${report.calibratedBands.low.count} | hit-rate ${(report.calibratedBands.low.hitRate * 100).toFixed(2)}%`,
     "",
+    "## Scenario Stats",
+    "| Scenario | Drift | Volatility | Samples | Coverage Δ | High-Band Lift | Raw High HR | Calibrated High HR |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ...report.scenarioStats.map(
+      (scenario) =>
+        `| ${scenario.label} | ${scenario.drift.toFixed(4)} | ${scenario.volatility.toFixed(3)} | ${
+          scenario.sampleCount
+        } | ${(scenario.coverageDelta * 100).toFixed(2)}% | ${(scenario.highBandLift * 100).toFixed(2)}% | ${(
+          scenario.rawBands.high.hitRate * 100
+        ).toFixed(2)}% | ${(scenario.calibratedBands.high.hitRate * 100).toFixed(2)}% |`
+    ),
+    "",
   ].join("\n");
 
   await writeFile(metricsPath, markdown, "utf8");
@@ -250,7 +354,7 @@ const run = async () => {
   console.log(JSON.stringify(report, null, 2));
 
   if (!pass) {
-    process.exitCode = 1;
+    process.exit(1);
   }
 };
 
@@ -258,4 +362,3 @@ run().catch((err) => {
   console.error("Calibration backtest failed:", err);
   process.exit(1);
 });
-
