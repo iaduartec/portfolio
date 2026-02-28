@@ -1,4 +1,5 @@
 import { LineStyle, type LineWidth, type SeriesMarker, type Time } from "lightweight-charts";
+import { calibratePatternsForSwing, type ConfidenceBand } from "@/lib/signalCalibration";
 
 export type CandlePoint = {
   time: string;
@@ -61,6 +62,10 @@ export type Pattern = {
   name: string;
   description: string;
   confidence: number;
+  rawConfidence?: number;
+  calibratedConfidence?: number;
+  confidenceBand?: ConfidenceBand;
+  calibrationReason?: string;
   lines: PatternLine[];
   markers: SeriesMarker<Time>[];
   projection?: number; // Price target
@@ -2216,5 +2221,6 @@ export const buildAnalysis = (candles: CandlePoint[], volumes: VolumePoint[]): A
 
   const supportLines = buildSupportResistance(candles, swings);
 
-  return { candles, volumes, patterns, support: supportLines };
+  const calibratedPatterns = calibratePatternsForSwing(patterns, candles);
+  return { candles, volumes, patterns: calibratedPatterns, support: supportLines };
 };

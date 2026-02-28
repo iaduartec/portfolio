@@ -64,6 +64,7 @@ type TechnicalOutlook = {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const isPatternSignal = (signal: PatternSignal | null): signal is PatternSignal => signal !== null;
+const patternConfidence = (pattern: Pattern) => pattern.calibratedConfidence ?? pattern.confidence;
 
 const bullishKinds = new Set<Pattern["kind"]>([
   "double-bottom",
@@ -236,7 +237,8 @@ export function PortfolioValueChart({
     return [...analysis.patterns, ...aiChartPatterns].map((pattern) => {
       const times = pattern.lines.flatMap((line) => line.points.map((point) => String(point.time)));
       const lastTime = [...times].sort().reverse()[0] || "";
-      return { ...pattern, lastTime };
+      const confidence = pattern.confidence;
+      return { ...pattern, confidence, lastTime };
     });
   }, [analysis.patterns, aiChartPatterns]);
 
@@ -252,7 +254,7 @@ export function PortfolioValueChart({
         if (!direction) return null;
         return {
           name: pattern.name,
-          confidence: clamp(pattern.confidence, 0.5, 0.99),
+          confidence: clamp(patternConfidence(pattern), 0.5, 0.99),
           direction,
           projection: pattern.projection,
           stopLoss: pattern.stopLoss,
@@ -513,7 +515,7 @@ export function PortfolioValueChart({
         const times = pattern.lines.flatMap((line) => line.points.map((point) => String(point.time)));
         return {
           name: pattern.name,
-          confidence: pattern.confidence,
+          confidence: patternConfidence(pattern),
           description: pattern.description,
           isAi: false,
           lastTime: [...times].sort().reverse()[0] || "",

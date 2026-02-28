@@ -940,18 +940,26 @@ export function PatternAnalysisLab() {
             {activePatterns.length === 0 ? (
               <p>No hay patrones activos. Activa un filtro para ver resultados.</p>
             ) : (
-              activePatterns.map((pattern) => (
-                <div
-                  key={pattern.kind}
-                  className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
-                >
+              activePatterns.map((pattern) => {
+                const confidence = pattern.calibratedConfidence ?? pattern.confidence;
+                const band = pattern.confidenceBand ?? (confidence >= 0.82 ? "high" : confidence >= 0.66 ? "medium" : "low");
+                return (
+                  <div
+                    key={pattern.kind}
+                    className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
+                  >
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-semibold text-text">{pattern.name}</p>
                     <span className="rounded-full border border-border/60 px-2 py-0.5 text-xs">
-                      {confidenceLabel(pattern.confidence)} ({Math.round(pattern.confidence * 100)}%)
+                      {confidenceLabel(confidence)} ({Math.round(confidence * 100)}%) · {band.toUpperCase()}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted">{pattern.description}</p>
+                  {pattern.calibrationReason ? (
+                    <p className="mt-1 text-[11px] text-accent/90">
+                      Calibración swing: {pattern.calibrationReason}
+                    </p>
+                  ) : null}
                   <div className="mt-2 text-[11px] uppercase tracking-[0.2em] text-muted">
                     Lineas: {pattern.lines.length}
                   </div>
@@ -972,7 +980,8 @@ export function PatternAnalysisLab() {
                     </div>
                   )}
                 </div>
-              ))
+                );
+              })
             )}
 
             <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
