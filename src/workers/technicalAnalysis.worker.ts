@@ -9,6 +9,13 @@ import {
 
 const canceledRequestIds = new Set<string>();
 const indicatorBundleCacheBySeriesKey = new Map<string, { signature: string; indicatorBundle: IndicatorBundle }>();
+const analysisCacheBySeriesKey = new Map<
+  string,
+  {
+    signature: string;
+    payload: ReturnType<typeof computeIncrementalTechnicalAnalysis>;
+  }
+>();
 const INDICATOR_CACHE_MAX_KEYS = 32;
 
 const postWorkerMessage = (message: TechnicalWorkerOutgoingMessage): void => {
@@ -73,6 +80,38 @@ const cacheIndicatorBundle = ({
   indicatorBundleCacheBySeriesKey.set(seriesKey, { signature, indicatorBundle });
 };
 
+const toAnalysisSignature = ({
+  candlesLength,
+  volumesLength,
+  firstCandleTime,
+  lastCandleTime,
+  lastCandleClose,
+}: {
+  candlesLength: number;
+  volumesLength: number;
+  firstCandleTime: string;
+  lastCandleTime: string;
+  lastCandleClose: number;
+}): string => `${candlesLength}|${volumesLength}|${firstCandleTime}|${lastCandleTime}|${lastCandleClose}`;
+
+const cacheAnalysisPayload = ({
+  seriesKey,
+  signature,
+  payload,
+}: {
+  seriesKey: string;
+  signature: string;
+  payload: ReturnType<typeof computeIncrementalTechnicalAnalysis>;
+}): void => {
+  if (analysisCacheBySeriesKey.size >= INDICATOR_CACHE_MAX_KEYS) {
+    const oldestKey = analysisCacheBySeriesKey.keys().next().value;
+    if (oldestKey) {
+      analysisCacheBySeriesKey.delete(oldestKey);
+    }
+  }
+  analysisCacheBySeriesKey.set(seriesKey, { signature, payload });
+};
+
 self.onmessage = (event: MessageEvent<TechnicalWorkerIncomingMessage>): void => {
   const message = event.data;
 
@@ -98,37 +137,64 @@ self.onmessage = (event: MessageEvent<TechnicalWorkerIncomingMessage>): void => 
   }
 
   try {
-    const { analysis, metrics } = computeIncrementalTechnicalAnalysis(message.payload);
+    const inputCandles = message.payload.candles;
+    const inputVolumes = message.payload.volumes;
+    const firstCandleTime = inputCandles[0]?.time ?? "none";
+    const lastCandle = inputCandles[inputCandles.length - 1];
+    const lastCandleTime = lastCandle?.time ?? "none";
+    const lastCandleClose = lastCandle?.close ?? 0;
+    const seriesKey = toSeriesKey(message.payload.symbol, message.payload.timeframe);
+    const analysisSignature = toAnalysisSignature({
+      candlesLength: inputCandles.length,
+      volumesLength: inputVolumes.length,
+      firstCandleTime,
+      lastCandleTime,
+      lastCandleClose,
+    });
+    const cachedAnalysis = analysisCacheBySeriesKey.get(seriesKey);
+    const usedAnalysisCache = cachedAnalysis && cachedAnalysis.signature === analysisSignature;
+    const analysisResult = usedAnalysisCache
+      ? {
+          analysis: cachedAnalysis.payload.analysis,
+          metrics: { mode: "cache-hit" as const, durationMs: 0 },
+        }
+      : computeIncrementalTechnicalAnalysis(message.payload);
+    if (!usedAnalysisCache) {
+      cacheAnalysisPayload({
+        seriesKey,
+        signature: analysisSignature,
+        payload: analysisResult,
+      });
+    }
+    const { analysis, metrics } = analysisResult;
     if (canceledRequestIds.has(requestId)) {
       canceledRequestIds.delete(requestId);
       return;
     }
 
-    const lastCandleTime = analysis.candles[analysis.candles.length - 1]?.time ?? "none";
-    const seriesKey = toSeriesKey(message.payload.symbol, message.payload.timeframe);
-    const signature = `${analysis.candles.length}|${lastCandleTime}|${toFilterSignature(
+    const indicatorSignature = `${analysis.candles.length}|${lastCandleTime}|${toFilterSignature(
       message.payload.indicatorFilters
     )}`;
     const cachedIndicator = indicatorBundleCacheBySeriesKey.get(seriesKey);
     const indicatorStarted = performance.now();
     const indicatorBundle =
-      cachedIndicator && cachedIndicator.signature === signature
+      cachedIndicator && cachedIndicator.signature === indicatorSignature
         ? cachedIndicator.indicatorBundle
         : computeIndicatorBundle({
             candles: analysis.candles,
             volumes: analysis.volumes,
             indicatorFilters: message.payload.indicatorFilters,
           });
-    if (!(cachedIndicator && cachedIndicator.signature === signature)) {
-      cacheIndicatorBundle({ seriesKey, signature, indicatorBundle });
+    if (!(cachedIndicator && cachedIndicator.signature === indicatorSignature)) {
+      cacheIndicatorBundle({ seriesKey, signature: indicatorSignature, indicatorBundle });
     }
     const indicatorMetrics = {
       mode:
-        cachedIndicator && cachedIndicator.signature === signature
+        cachedIndicator && cachedIndicator.signature === indicatorSignature
           ? ("cache-hit" as const)
           : ("full" as const),
       durationMs:
-        cachedIndicator && cachedIndicator.signature === signature
+        cachedIndicator && cachedIndicator.signature === indicatorSignature
           ? 0
           : Number((performance.now() - indicatorStarted).toFixed(2)),
     };
