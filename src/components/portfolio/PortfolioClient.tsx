@@ -46,6 +46,7 @@ type AllocationItem = {
 type PortfolioTab = "stocks" | "etf";
 type PerformancePoint = { label: string; value: number };
 type PositionLot = { quantity: number; costPerShare: number };
+type HistoryClosePoint = { timestamp: number; close: number };
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -92,6 +93,31 @@ const sortTransactionsForCash = (transactions: Transaction[]) =>
     if (aTs !== bTs) return aTs - bTs;
     return transactionPriority(a) - transactionPriority(b);
   });
+
+const normalizeHistoryTimestamp = (raw: unknown) => {
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  return value < 1_000_000_000_000 ? value * 1000 : value;
+};
+
+const findCloseAtOrBefore = (points: HistoryClosePoint[], targetTimestamp: number) => {
+  if (points.length === 0) return undefined;
+  let lo = 0;
+  let hi = points.length - 1;
+  let answer = -1;
+
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (points[mid].timestamp <= targetTimestamp) {
+      answer = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return answer >= 0 ? points[answer].close : undefined;
+};
 
 const getTransactionFeeBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
   const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
@@ -261,6 +287,137 @@ const buildPerformanceSeries = (
   return points;
 };
 
+const buildPerformanceSeriesWithHistory = async (
+  transactions: Transaction[],
+  fxRate: number,
+  baseCurrency: CurrencyCode,
+  latestPnlPercent: number
+): Promise<PerformancePoint[] | null> => {
+  const ordered = sortTransactionsForCash(transactions).filter((tx) => Boolean(tx.ticker));
+  if (ordered.length === 0) {
+    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: Number(latestPnlPercent.toFixed(2)) }];
+  }
+
+  const firstTimestamp = toTimestamp(ordered[0].date);
+  if (!firstTimestamp) return null;
+  const startMonth = getMonthStart(firstTimestamp);
+  const endMonth = getMonthStart(Date.now());
+  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(endMonth).getUTCFullYear();
+
+  const tickerCurrency = new Map<string, CurrencyCode>();
+  const tickers = Array.from(
+    new Set(
+      ordered
+        .map((tx) => tx.ticker)
+        .filter((ticker): ticker is string => Boolean(ticker))
+    )
+  );
+  for (const tx of ordered) {
+    if (!tx.ticker || tickerCurrency.has(tx.ticker)) continue;
+    tickerCurrency.set(tx.ticker, tx.currency ?? inferCurrencyFromTicker(tx.ticker));
+  }
+
+  const historyEntries = await Promise.all(
+    tickers.map(async (ticker) => {
+      try {
+        const res = await fetch(
+          `/api/yahoo?action=history&symbol=${encodeURIComponent(ticker)}&range=5y&interval=1d`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) return [ticker, [] as HistoryClosePoint[]] as const;
+        const json = (await res.json()) as {
+          data?: { points?: Array<{ timestamp?: number; close?: number }> };
+        };
+        const currency = tickerCurrency.get(ticker) ?? inferCurrencyFromTicker(ticker);
+        const points = (json.data?.points ?? [])
+          .map((point) => {
+            const timestamp = normalizeHistoryTimestamp(point.timestamp);
+            const rawClose = Number(point.close);
+            if (!timestamp || !Number.isFinite(rawClose)) return null;
+            const close = convertCurrencyFrom(rawClose, currency, baseCurrency, fxRate, baseCurrency);
+            return Number.isFinite(close) ? { timestamp, close } : null;
+          })
+          .filter((point): point is HistoryClosePoint => point !== null)
+          .sort((a, b) => a.timestamp - b.timestamp);
+        return [ticker, points] as const;
+      } catch {
+        return [ticker, [] as HistoryClosePoint[]] as const;
+      }
+    })
+  );
+  const historyByTicker = new Map<string, HistoryClosePoint[]>(historyEntries);
+
+  const quantityEpsilon = 1e-6;
+  const quantities = new Map<string, number>();
+  const lastTradePriceBase = new Map<string, number>();
+  let txIndex = 0;
+  let cumulativeCash = 0;
+  let cumulativeContributed = 0;
+  const points: PerformancePoint[] = [];
+
+  for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
+    const monthEnd = getMonthEnd(month);
+    while (txIndex < ordered.length) {
+      const tx = ordered[txIndex];
+      const txTimestamp = toTimestamp(tx.date);
+      if (!txTimestamp || txTimestamp > monthEnd) break;
+
+      const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+      const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+      const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
+      const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
+      if (Number.isFinite(priceBase) && priceBase > 0) {
+        lastTradePriceBase.set(tx.ticker, priceBase);
+      }
+
+      if (tx.type === "BUY") {
+        cumulativeCash -= quantity * priceBase + feeBase;
+        quantities.set(tx.ticker, (quantities.get(tx.ticker) ?? 0) + quantity);
+      } else if (tx.type === "SELL") {
+        cumulativeCash += quantity * priceBase - feeBase;
+        const prevQty = quantities.get(tx.ticker) ?? 0;
+        const nextQty = Math.max(0, prevQty - quantity);
+        quantities.set(tx.ticker, nextQty);
+      } else if (tx.type === "DIVIDEND") {
+        cumulativeCash += getDividendNetBase(tx, fxRate, baseCurrency);
+      } else if (tx.type === "FEE") {
+        cumulativeCash -= Math.abs(feeBase);
+      }
+
+      if (cumulativeCash < 0) {
+        cumulativeContributed += -cumulativeCash;
+        cumulativeCash = 0;
+      }
+
+      txIndex += 1;
+    }
+
+    let totalValue = 0;
+    for (const [ticker, qty] of quantities.entries()) {
+      if (qty <= quantityEpsilon) continue;
+      const series = historyByTicker.get(ticker) ?? [];
+      const close = findCloseAtOrBefore(series, monthEnd) ?? lastTradePriceBase.get(ticker) ?? 0;
+      totalValue += qty * close;
+    }
+
+    const equity = totalValue + cumulativeCash;
+    const totalPnl = equity - cumulativeContributed;
+    const pnlPercent = cumulativeContributed > 0 ? (totalPnl / cumulativeContributed) * 100 : 0;
+
+    points.push({
+      label: formatMonthLabel(month, includeYear),
+      value: Number(pnlPercent.toFixed(2)),
+    });
+  }
+
+  if (points.length === 0) return null;
+  points[points.length - 1] = {
+    ...points[points.length - 1],
+    value: Number(latestPnlPercent.toFixed(2)),
+  };
+  return points;
+};
+
 const groupResidualAllocation = (items: AllocationItem[]) => {
   const major = items.filter((item) => item.percent >= RESIDUAL_ALLOCATION_THRESHOLD);
   const residual = items.filter((item) => item.percent < RESIDUAL_ALLOCATION_THRESHOLD);
@@ -296,6 +453,7 @@ export function PortfolioClient() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [sectorByTicker, setSectorByTicker] = useState<Record<string, string>>({});
+  const [performanceSeries, setPerformanceSeries] = useState<PerformancePoint[]>([]);
   const activeTab: PortfolioTab = searchParams.get("tab") === "etf" ? "etf" : "stocks";
 
   const handleTabChange = (tab: PortfolioTab) => {
@@ -413,7 +571,7 @@ export function PortfolioClient() {
     },
     [stockHoldings, stockSummary.totalValue, sectorByTicker]
   );
-  const performanceSeries = useMemo(() => {
+  const fallbackPerformanceSeries = useMemo(() => {
     const latestPnlPercent = computeCumulativeReturnPercent(
       investmentTransactions,
       fxRate,
@@ -427,6 +585,39 @@ export function PortfolioClient() {
     baseCurrency,
     investmentSummary.totalValue
   ]);
+
+  useEffect(() => {
+    setPerformanceSeries(fallbackPerformanceSeries);
+  }, [fallbackPerformanceSeries]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadHistoricalPerformance = async () => {
+      if (investmentTransactions.length === 0) return;
+      const latestPnlPercent = computeCumulativeReturnPercent(
+        investmentTransactions,
+        fxRate,
+        baseCurrency,
+        investmentSummary.totalValue
+      );
+      const enriched = await buildPerformanceSeriesWithHistory(
+        investmentTransactions,
+        fxRate,
+        baseCurrency,
+        latestPnlPercent
+      );
+      if (!cancelled && enriched && enriched.length > 0) {
+        setPerformanceSeries(enriched);
+      }
+    };
+
+    void loadHistoricalPerformance();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [investmentTransactions, fxRate, baseCurrency, investmentSummary.totalValue]);
 
   const dividendsCollected = useMemo(() => {
     return stockTransactions
