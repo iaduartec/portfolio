@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Radar, CandlestickChart, ArrowRight, RefreshCw, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +92,9 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
   const [loading, setLoading] = useState(true);
   const [loadingInsider, setLoadingInsider] = useState(true);
   const [loadingFocus, setLoadingFocus] = useState(true);
+  const [baseError, setBaseError] = useState<string | null>(null);
+  const [insiderError, setInsiderError] = useState<string | null>(null);
+  const [focusError, setFocusError] = useState<string | null>(null);
 
   const insiderTickers = useMemo(() => {
     const merged = Array.from(
@@ -109,113 +112,97 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     }
   }, [insiderTickers, selectedInsiderTicker]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadBaseData = async () => {
-      setLoading(true);
-      try {
-        const quotesRes = await fetch(`/api/yahoo?action=price&symbols=${WATCHLIST.join(",")}`, {
-          cache: "no-store",
-        });
-        const quotesData = (await quotesRes.json()) as { data?: Quote[] };
-        if (!cancelled) {
-          setQuotes(Array.isArray(quotesData.data) ? quotesData.data : []);
-        }
-      } catch {
-        if (!cancelled) {
-          setQuotes([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+  const loadBaseData = useCallback(async () => {
+    setLoading(true);
+    setBaseError(null);
+    try {
+      const quotesRes = await fetch(`/api/yahoo?action=price&symbols=${WATCHLIST.join(",")}`, {
+        cache: "no-store",
+      });
+      if (!quotesRes.ok) {
+        throw new Error("No se pudieron cargar cotizaciones de Yahoo.");
       }
-    };
-
-    void loadBaseData();
-    return () => {
-      cancelled = true;
-    };
+      const quotesData = (await quotesRes.json()) as { data?: Quote[] };
+      setQuotes(Array.isArray(quotesData.data) ? quotesData.data : []);
+    } catch {
+      setQuotes([]);
+      setBaseError("Yahoo Finance no respondio. Prueba actualizar.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    void loadBaseData();
+  }, [loadBaseData]);
 
-    const loadInsider = async () => {
-      setLoadingInsider(true);
-      try {
-        const res = await fetch(
-          `/api/insider?tickers=${encodeURIComponent(insiderTickers.join(","))}&limit=3&fd=${insiderWindowDays}`,
-          { cache: "no-store" }
-        );
-        const data = (await res.json()) as InsiderResponse;
-        if (!cancelled) {
-          setInsiderByTicker(data.byTicker ?? {});
-          setInsiderSummaryByTicker(data.summaryByTicker ?? {});
-        }
-      } catch {
-        if (!cancelled) {
-          setInsiderByTicker({});
-          setInsiderSummaryByTicker({});
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingInsider(false);
-        }
+  const loadInsider = useCallback(async () => {
+    setLoadingInsider(true);
+    setInsiderError(null);
+    try {
+      const res = await fetch(
+        `/api/insider?tickers=${encodeURIComponent(insiderTickers.join(","))}&limit=3&fd=${insiderWindowDays}`,
+        { cache: "no-store" }
+      );
+      if (!res.ok) {
+        throw new Error("No se pudo cargar OpenInsider.");
       }
-    };
-
-    void loadInsider();
-    return () => {
-      cancelled = true;
-    };
+      const data = (await res.json()) as InsiderResponse;
+      setInsiderByTicker(data.byTicker ?? {});
+      setInsiderSummaryByTicker(data.summaryByTicker ?? {});
+    } catch {
+      setInsiderByTicker({});
+      setInsiderSummaryByTicker({});
+      setInsiderError("OpenInsider no respondio. Prueba actualizar.");
+    } finally {
+      setLoadingInsider(false);
+    }
   }, [insiderTickers, insiderWindowDays]);
 
   useEffect(() => {
-    let cancelled = false;
+    void loadInsider();
+  }, [loadInsider]);
 
-    const loadFocusData = async () => {
-      setLoadingFocus(true);
-      try {
-        const [fundRes, ratingsRes, divRes] = await Promise.all([
-          fetch(`/api/yahoo?action=fundamentals&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
-            cache: "no-store",
-          }),
-          fetch(`/api/yahoo?action=ratings&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
-            cache: "no-store",
-          }),
-          fetch(`/api/yahoo?action=dividends&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
-            cache: "no-store",
-          }),
-        ]);
-        const fundJson = (await fundRes.json()) as { data?: YahooFundamentals | null };
-        const ratingsJson = (await ratingsRes.json()) as { data?: YahooRatings | null };
-        const divJson = (await divRes.json()) as { data?: YahooDividends | null };
+  const loadFocusData = useCallback(async () => {
+    setLoadingFocus(true);
+    setFocusError(null);
+    try {
+      const [fundRes, ratingsRes, divRes] = await Promise.all([
+        fetch(`/api/yahoo?action=fundamentals&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/yahoo?action=ratings&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
+          cache: "no-store",
+        }),
+        fetch(`/api/yahoo?action=dividends&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
+          cache: "no-store",
+        }),
+      ]);
 
-        if (!cancelled) {
-          setYahooFundamentals(fundJson.data ?? null);
-          setYahooRatings(ratingsJson.data ?? null);
-          setYahooDividends(divJson.data ?? null);
-        }
-      } catch {
-        if (!cancelled) {
-          setYahooFundamentals(null);
-          setYahooRatings(null);
-          setYahooDividends(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingFocus(false);
-        }
+      if (!fundRes.ok || !ratingsRes.ok || !divRes.ok) {
+        throw new Error("No se pudo cargar el foco Yahoo.");
       }
-    };
 
-    void loadFocusData();
-    return () => {
-      cancelled = true;
-    };
+      const fundJson = (await fundRes.json()) as { data?: YahooFundamentals | null };
+      const ratingsJson = (await ratingsRes.json()) as { data?: YahooRatings | null };
+      const divJson = (await divRes.json()) as { data?: YahooDividends | null };
+
+      setYahooFundamentals(fundJson.data ?? null);
+      setYahooRatings(ratingsJson.data ?? null);
+      setYahooDividends(divJson.data ?? null);
+    } catch {
+      setYahooFundamentals(null);
+      setYahooRatings(null);
+      setYahooDividends(null);
+      setFocusError("No se pudo cargar analitica Yahoo para el ticker en foco.");
+    } finally {
+      setLoadingFocus(false);
+    }
   }, [selectedInsiderTicker]);
+
+  useEffect(() => {
+    void loadFocusData();
+  }, [loadFocusData]);
 
   const quoteMap = useMemo(
     () => new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote])),
@@ -354,6 +341,18 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               </span>
             }
             subtitle="Cotizaciones en vivo para priorizar contexto de mercado"
+            footer={
+              <button
+                type="button"
+                onClick={() => {
+                  void loadBaseData();
+                  void loadFocusData();
+                }}
+                className="rounded-full border border-border/80 bg-surface-muted/30 px-3 py-1 text-[11px] font-medium text-text transition-colors hover:border-primary/60"
+              >
+                Actualizar
+              </button>
+            }
           >
             <div className="space-y-2">
               {WATCHLIST.map((ticker) => {
@@ -375,6 +374,11 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 );
               })}
             </div>
+            {(baseError || focusError) && (
+              <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                {baseError ?? focusError}
+              </p>
+            )}
             <div className="mt-3 rounded-xl border border-border/80 bg-surface-muted/30 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted">
@@ -448,6 +452,17 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               </span>
             }
             subtitle="Movimientos insider en cartera y tickers bajo analisis"
+            footer={
+              <button
+                type="button"
+                onClick={() => {
+                  void loadInsider();
+                }}
+                className="rounded-full border border-border/80 bg-surface-muted/30 px-3 py-1 text-[11px] font-medium text-text transition-colors hover:border-accent/60"
+              >
+                Actualizar
+              </button>
+            }
           >
             <div className="mb-3 inline-flex rounded-full border border-border/80 bg-surface-muted/20 p-1">
               {[7, 30, 90].map((days) => (
@@ -530,6 +545,11 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </div>
               </div>
               <p className="text-[11px] text-muted">Ventana actual: ultimos {insiderWindowDays} dias.</p>
+              {insiderError && (
+                <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+                  {insiderError}
+                </p>
+              )}
               {selectedInsiderTrades.length === 0 ? (
                 <p className="text-sm text-muted">Sin datos insider para {selectedInsiderTicker}.</p>
               ) : (

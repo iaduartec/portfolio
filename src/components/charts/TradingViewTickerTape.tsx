@@ -8,6 +8,12 @@ type TapeItem = {
   dayChangePercent?: number;
 };
 
+type QuotesFallbackItem = {
+  ticker?: string;
+  price?: number;
+  dayChangePercent?: number;
+};
+
 const DEFAULT_SYMBOLS = [
   "SPY",
   "QQQ",
@@ -36,25 +42,103 @@ export function TradingViewTickerTape() {
   useEffect(() => {
     let cancelled = false;
 
+    const isNumber = (value: unknown): value is number =>
+      typeof value === "number" && Number.isFinite(value);
+
+    const normalizeYahoo = (rows: TapeItem[]): TapeItem[] => {
+      const map = new Map(
+        rows
+          .filter((row) => row?.symbol)
+          .map((row) => [
+            String(row.symbol).toUpperCase(),
+            {
+              symbol: String(row.symbol).toUpperCase(),
+              price: isNumber(row.price) ? row.price : undefined,
+              dayChangePercent: isNumber(row.dayChangePercent) ? row.dayChangePercent : undefined,
+            } satisfies TapeItem,
+          ])
+      );
+      return DEFAULT_SYMBOLS.map(
+        (symbol) => map.get(symbol) ?? { symbol, price: undefined, dayChangePercent: undefined }
+      );
+    };
+
+    const normalizeFallback = (rows: QuotesFallbackItem[]): TapeItem[] => {
+      const map = new Map(
+        rows
+          .filter((row) => row?.ticker)
+          .map((row) => [
+            String(row.ticker).toUpperCase(),
+            {
+              symbol: String(row.ticker).toUpperCase(),
+              price: isNumber(row.price) ? row.price : undefined,
+              dayChangePercent: isNumber(row.dayChangePercent) ? row.dayChangePercent : undefined,
+            } satisfies TapeItem,
+          ])
+      );
+      return DEFAULT_SYMBOLS.map(
+        (symbol) => map.get(symbol) ?? { symbol, price: undefined, dayChangePercent: undefined }
+      );
+    };
+
+    const mergeWithPrevious = (nextRows: TapeItem[]) => {
+      setItems((prev) => {
+        const prevMap = new Map(prev.map((row) => [row.symbol.toUpperCase(), row]));
+        return nextRows.map((row) => {
+          const prevRow = prevMap.get(row.symbol.toUpperCase());
+          return {
+            symbol: row.symbol,
+            price: row.price ?? prevRow?.price,
+            dayChangePercent: row.dayChangePercent ?? prevRow?.dayChangePercent,
+          };
+        });
+      });
+    };
+
     const load = async () => {
       try {
         const res = await fetch(
           `/api/yahoo?action=price&symbols=${encodeURIComponent(DEFAULT_SYMBOLS.join(","))}`,
           { cache: "no-store" }
         );
+        if (!res.ok) {
+          throw new Error("yahoo-unavailable");
+        }
         const json = (await res.json()) as { data?: TapeItem[] };
+        const yahooRows = Array.isArray(json.data) ? json.data : [];
+        const normalized = normalizeYahoo(yahooRows);
+        const hasAnyPrice = normalized.some((row) => row.price !== undefined);
+
+        if (!hasAnyPrice) {
+          throw new Error("yahoo-empty");
+        }
+
         if (!cancelled) {
-          setItems(Array.isArray(json.data) ? json.data : []);
+          mergeWithPrevious(normalized);
         }
       } catch {
-        if (!cancelled) {
-          setItems([]);
+        try {
+          const fallbackRes = await fetch(
+            `/api/quotes?tickers=${encodeURIComponent(DEFAULT_SYMBOLS.join(","))}`,
+            { cache: "no-store" }
+          );
+          if (!fallbackRes.ok) {
+            throw new Error("quotes-unavailable");
+          }
+          const fallbackJson = (await fallbackRes.json()) as { quotes?: QuotesFallbackItem[] };
+          const fallbackRows = Array.isArray(fallbackJson.quotes) ? fallbackJson.quotes : [];
+          const normalized = normalizeFallback(fallbackRows);
+          if (!cancelled) {
+            mergeWithPrevious(normalized);
+          }
+        } catch {
+          // Preserve last known values if all providers fail.
         }
       }
     };
 
     void load();
-    const interval = window.setInterval(load, 60_000);
+    const interval = window.setInterval(load, 20_000);
     return () => {
       cancelled = true;
       window.clearInterval(interval);
