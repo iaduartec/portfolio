@@ -77,6 +77,22 @@ const formatMonthLabel = (monthStart: number, includeYear: boolean) => {
   return `${month} ${String(date.getUTCFullYear()).slice(-2)}`;
 };
 
+const transactionPriority = (tx: Transaction) => {
+  if (tx.type === "SELL") return 0;
+  if (tx.type === "DIVIDEND") return 1;
+  if (tx.type === "BUY") return 2;
+  if (tx.type === "FEE") return 3;
+  return 4;
+};
+
+const sortTransactionsForCash = (transactions: Transaction[]) =>
+  [...transactions].sort((a, b) => {
+    const aTs = toTimestamp(a.date) ?? 0;
+    const bTs = toTimestamp(b.date) ?? 0;
+    if (aTs !== bTs) return aTs - bTs;
+    return transactionPriority(a) - transactionPriority(b);
+  });
+
 const getTransactionFeeBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
   const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
   const rawFee = Number.isFinite(tx.fee) ? tx.fee ?? 0 : 0;
@@ -104,10 +120,11 @@ const computeCumulativeReturnPercent = (
   baseCurrency: CurrencyCode,
   currentMarketValue: number
 ) => {
+  const ordered = sortTransactionsForCash(transactions);
   let cash = 0;
   let contributed = 0;
 
-  for (const tx of transactions) {
+  for (const tx of ordered) {
     if (!tx.ticker) continue;
     const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
     const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
@@ -143,8 +160,8 @@ const buildPerformanceSeries = (
   baseCurrency: CurrencyCode,
   latestPnlPercent: number
 ): PerformancePoint[] => {
-  const ordered = transactions
-    .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL" || tx.type === "DIVIDEND"))
+  const ordered = sortTransactionsForCash(transactions)
+    .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL" || tx.type === "DIVIDEND" || tx.type === "FEE"))
     .map((tx) => {
       const timestamp = toTimestamp(tx.date);
       if (!Number.isFinite(timestamp)) return null;
