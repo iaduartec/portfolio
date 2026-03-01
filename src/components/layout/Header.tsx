@@ -127,20 +127,6 @@ export function Header() {
           })}
         </nav>
 
-        <div className="mt-3 hidden items-center gap-2 lg:flex">
-          <Link
-            href="/upload"
-            className="rounded-full border border-primary/45 bg-primary/15 px-3 py-1.5 text-[11px] font-semibold text-primary transition-colors duration-200 hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
-          >
-            Importar CSV
-          </Link>
-          <Link
-            href="/lab"
-            className="rounded-full border border-border/75 bg-surface/70 px-3 py-1.5 text-[11px] font-semibold text-text transition-colors duration-200 hover:border-accent/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
-          >
-            Abrir Lab
-          </Link>
-        </div>
       </div>
     </header>
   );
