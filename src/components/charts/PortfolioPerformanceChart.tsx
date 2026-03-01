@@ -10,8 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { convertCurrency, formatCurrency, formatPercent } from "@/lib/formatters";
-import { useCurrency } from "@/components/currency/CurrencyProvider";
+import { formatPercent } from "@/lib/formatters";
 
 type PerformancePoint = {
   label: string;
@@ -23,48 +22,40 @@ interface PortfolioPerformanceChartProps {
 }
 
 export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartProps) {
-  const { currency, baseCurrency, fxRate } = useCurrency();
-  const chartData = useMemo(
-    () =>
-      data.map((point) => ({
-        ...point,
-        convertedValue: convertCurrency(point.value, currency, fxRate, baseCurrency),
-      })),
-    [data, currency, fxRate, baseCurrency]
-  );
-  const first = chartData[0]?.convertedValue ?? 0;
-  const last = chartData[chartData.length - 1]?.convertedValue ?? 0;
+  const chartData = useMemo(() => data, [data]);
+  const first = chartData[0]?.value ?? 0;
+  const last = chartData[chartData.length - 1]?.value ?? 0;
   const delta = last - first;
-  const deltaPercent = first !== 0 ? (delta / first) * 100 : 0;
+  const deltaPercent = delta;
   const isPositive = delta >= 0;
   const rangeStart = chartData[0]?.label ?? "";
   const rangeEnd = chartData[chartData.length - 1]?.label ?? "";
   const yDomain = useMemo<[number, number]>(() => {
-    if (chartData.length === 0) return [0, 1];
+    if (chartData.length === 0) return [-1, 1];
     const values = chartData
-      .map((point) => point.convertedValue)
+      .map((point) => point.value)
       .filter((value) => Number.isFinite(value));
-    if (values.length === 0) return [0, 1];
+    if (values.length === 0) return [-1, 1];
     const min = Math.min(...values);
     const max = Math.max(...values);
     if (min === max) {
-      const padding = Math.max(Math.abs(max) * 0.08, 1);
-      return [Math.max(0, min - padding), max + padding];
+      const padding = Math.max(Math.abs(max) * 0.12, 1.5);
+      return [min - padding, max + padding];
     }
     const padding = (max - min) * 0.12;
-    return [Math.max(0, min - padding), max + padding];
+    return [min - padding, max + padding];
   }, [chartData]);
 
   return (
     <div className="w-full">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 rounded-full border border-white/5 bg-white/5 px-3 py-1 text-sm backdrop-blur-sm">
-          <span className={isPositive ? "text-success" : "text-danger"}>
-            {isPositive ? "+" : ""}
-            {formatPercent(deltaPercent / 100)}
-          </span>
-          <span className="text-muted/60 text-[10px] uppercase tracking-widest">• Total Histórico</span>
-        </div>
+              <span className={isPositive ? "text-success" : "text-danger"}>
+                {isPositive ? "+" : ""}
+                {formatPercent(deltaPercent / 100)} pp
+              </span>
+              <span className="text-muted/60 text-[10px] uppercase tracking-widest">• Total Histórico</span>
+            </div>
         <div className="text-xs text-muted/80 font-medium">
           {rangeStart && rangeEnd ? `${rangeStart} – ${rangeEnd}` : "Últimos 6 meses"}
         </div>
@@ -92,7 +83,7 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
               tickLine={false}
               axisLine={false}
               fontSize={11}
-              tickFormatter={(value) => formatCurrency(Number(value), currency)}
+              tickFormatter={(value) => formatPercent(Number(value) / 100)}
               domain={yDomain}
               tickCount={5}
             />
@@ -104,11 +95,11 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
                 borderRadius: 10,
                 color: "#d1d4dc",
               }}
-              formatter={(value: number) => formatCurrency(value, currency)}
+              formatter={(value: number) => `${formatPercent(value / 100)} rentabilidad`}
             />
             <Area
               type="monotone"
-              dataKey="convertedValue"
+              dataKey="value"
               stroke="#2962ff"
               strokeWidth={2}
               fill="url(#perfGradient)"

@@ -45,6 +45,7 @@ type AllocationItem = {
 
 type PortfolioTab = "stocks" | "etf";
 type PerformancePoint = { label: string; value: number };
+type PositionLot = { quantity: number; costPerShare: number };
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -80,7 +81,7 @@ const buildPerformanceSeries = (
   transactions: Transaction[],
   fxRate: number,
   baseCurrency: CurrencyCode,
-  latestValue: number
+  latestPnlPercent: number
 ): PerformancePoint[] => {
   const ordered = transactions
     .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL"))
@@ -93,8 +94,8 @@ const buildPerformanceSeries = (
     .sort((a, b) => a.timestamp - b.timestamp);
 
   if (ordered.length === 0) {
-    const fallback = Number.isFinite(latestValue) && latestValue > 0 ? Number(latestValue.toFixed(2)) : 0;
-    return fallback > 0 ? [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: fallback }] : [];
+    const fallback = Number.isFinite(latestPnlPercent) ? Number(latestPnlPercent.toFixed(2)) : 0;
+    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: fallback }];
   }
 
   const startMonth = getMonthStart(ordered[0].timestamp);
@@ -103,7 +104,8 @@ const buildPerformanceSeries = (
   const endMonth = Math.max(lastMonth, nowMonth);
   const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(endMonth).getUTCFullYear();
 
-  const positions = new Map<string, { quantity: number; lastPrice: number }>();
+  const quantityEpsilon = 1e-6;
+  const positions = new Map<string, { lots: PositionLot[]; lastPrice: number }>();
   const points: PerformancePoint[] = [];
   let txIndex = 0;
 
@@ -111,36 +113,59 @@ const buildPerformanceSeries = (
     const monthEnd = getMonthEnd(month);
     while (txIndex < ordered.length && ordered[txIndex].timestamp <= monthEnd) {
       const { tx } = ordered[txIndex];
-      const entry = positions.get(tx.ticker) ?? { quantity: 0, lastPrice: 0 };
+      const entry = positions.get(tx.ticker) ?? { lots: [], lastPrice: 0 };
       const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
       if (Number.isFinite(tx.price) && tx.price > 0) {
         entry.lastPrice = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
       }
       const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
+      const fee = Number.isFinite(tx.fee) ? tx.fee ?? 0 : 0;
+      const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
+
       if (tx.type === "BUY") {
-        entry.quantity += quantity;
+        const totalCost = quantity * entry.lastPrice + feeBase;
+        const costPerShare = quantity > 0 ? totalCost / quantity : entry.lastPrice;
+        if (quantity > quantityEpsilon) {
+          entry.lots.push({ quantity, costPerShare });
+        }
       } else if (tx.type === "SELL") {
-        entry.quantity = Math.max(0, entry.quantity - quantity);
+        let remaining = quantity;
+        while (remaining > quantityEpsilon && entry.lots.length > 0) {
+          const lot = entry.lots[0];
+          const sold = Math.min(lot.quantity, remaining);
+          lot.quantity -= sold;
+          remaining -= sold;
+          if (lot.quantity <= quantityEpsilon) entry.lots.shift();
+        }
       }
       positions.set(tx.ticker, entry);
       txIndex += 1;
     }
 
-    const value = Array.from(positions.values()).reduce((sum, position) => {
-      if (position.quantity <= 0 || position.lastPrice <= 0) return sum;
-      return sum + position.quantity * position.lastPrice;
-    }, 0);
+    const { totalValue, totalCost } = Array.from(positions.values()).reduce(
+      (acc, position) => {
+        const quantity = position.lots.reduce((sum, lot) => sum + lot.quantity, 0);
+        if (quantity <= quantityEpsilon || position.lastPrice <= 0) return acc;
+        const cost = position.lots.reduce((sum, lot) => sum + lot.quantity * lot.costPerShare, 0);
+        acc.totalValue += quantity * position.lastPrice;
+        acc.totalCost += cost;
+        return acc;
+      },
+      { totalValue: 0, totalCost: 0 }
+    );
+
+    const pnlPercent = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
 
     points.push({
       label: formatMonthLabel(month, includeYear),
-      value: Number(value.toFixed(2)),
+      value: Number(pnlPercent.toFixed(2)),
     });
   }
 
-  if (points.length > 0 && Number.isFinite(latestValue) && latestValue > 0) {
+  if (points.length > 0 && Number.isFinite(latestPnlPercent)) {
     points[points.length - 1] = {
       ...points[points.length - 1],
-      value: Number(latestValue.toFixed(2)),
+      value: Number(latestPnlPercent.toFixed(2)),
     };
   }
 
@@ -288,8 +313,11 @@ export function PortfolioClient() {
     [stockHoldings, stockSummary.totalValue, sectorByTicker]
   );
   const performanceSeries = useMemo(() => {
-    return buildPerformanceSeries(stockTransactions, fxRate, baseCurrency, stockSummary.totalValue);
-  }, [stockTransactions, fxRate, baseCurrency, stockSummary.totalValue]);
+    const investedCapital = stockSummary.totalValue - stockSummary.totalPnl;
+    const latestPnlPercent =
+      investedCapital > 0 ? (stockSummary.totalPnl / investedCapital) * 100 : 0;
+    return buildPerformanceSeries(stockTransactions, fxRate, baseCurrency, latestPnlPercent);
+  }, [stockTransactions, fxRate, baseCurrency, stockSummary.totalValue, stockSummary.totalPnl]);
 
   const dividendsCollected = useMemo(() => {
     return stockTransactions
