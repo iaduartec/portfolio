@@ -23,11 +23,8 @@ interface PortfolioPerformanceChartProps {
 
 export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartProps) {
   const chartData = useMemo(() => data, [data]);
-  const first = chartData[0]?.value ?? 0;
-  const last = chartData[chartData.length - 1]?.value ?? 0;
-  const delta = last - first;
-  const deltaPercent = delta;
-  const isPositive = delta >= 0;
+  const latestReturn = chartData[chartData.length - 1]?.value ?? 0;
+  const isPositive = latestReturn >= 0;
   const rangeStart = chartData[0]?.label ?? "";
   const rangeEnd = chartData[chartData.length - 1]?.label ?? "";
   const yDomain = useMemo<[number, number]>(() => {
@@ -50,12 +47,12 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
     <div className="w-full">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 rounded-full border border-white/5 bg-white/5 px-3 py-1 text-sm backdrop-blur-sm">
-              <span className={isPositive ? "text-success" : "text-danger"}>
-                {isPositive ? "+" : ""}
-                {formatPercent(deltaPercent / 100)} pp
-              </span>
-              <span className="text-muted/60 text-[10px] uppercase tracking-widest">• Total Histórico</span>
-            </div>
+          <span className={isPositive ? "text-success" : "text-danger"}>
+            {isPositive ? "+" : ""}
+            {formatPercent(latestReturn / 100)}
+          </span>
+          <span className="text-muted/60 text-[10px] uppercase tracking-widest">• Rentabilidad acumulada</span>
+        </div>
         <div className="text-xs text-muted/80 font-medium">
           {rangeStart && rangeEnd ? `${rangeStart} – ${rangeEnd}` : "Últimos 6 meses"}
         </div>

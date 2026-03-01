@@ -102,7 +102,8 @@ const computeInvestmentReturnPercent = (
   transactions: Transaction[],
   fxRate: number,
   baseCurrency: CurrencyCode,
-  currentMarketValue: number
+  currentMarketValue: number,
+  currentOpenPnl: number
 ) => {
   let invested = 0;
   let realized = 0;
@@ -123,7 +124,11 @@ const computeInvestmentReturnPercent = (
     }
   }
 
-  if (invested <= 0) return 0;
+  if (invested <= 0) {
+    // Fallback for datasets without full transaction history.
+    const openInvested = currentMarketValue - currentOpenPnl;
+    return openInvested > 0 ? (currentOpenPnl / openInvested) * 100 : 0;
+  }
   const totalPnl = currentMarketValue + realized - invested;
   return (totalPnl / invested) * 100;
 };
@@ -384,14 +389,16 @@ export function PortfolioClient() {
       investmentTransactions,
       fxRate,
       baseCurrency,
-      investmentSummary.totalValue
+      investmentSummary.totalValue,
+      investmentSummary.totalPnl
     );
     return buildPerformanceSeries(investmentTransactions, fxRate, baseCurrency, latestPnlPercent);
   }, [
     investmentTransactions,
     fxRate,
     baseCurrency,
-    investmentSummary.totalValue
+    investmentSummary.totalValue,
+    investmentSummary.totalPnl
   ]);
 
   const dividendsCollected = useMemo(() => {
