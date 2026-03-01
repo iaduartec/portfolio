@@ -37,6 +37,11 @@ export function DashboardClient() {
     return prevValue > 0 ? (summary.dailyPnl / prevValue) * 100 : 0;
   }, [summary.totalValue, summary.dailyPnl]);
 
+  const portfolioTickers = useMemo(
+    () => holdings.map((holding) => holding.ticker),
+    [holdings]
+  );
+
   return (
     <div className="flex flex-col gap-10 pb-20">
       <DashboardHero />
@@ -57,7 +62,7 @@ export function DashboardClient() {
         </section>
 
         <section>
-          <DashboardSkillIntel portfolioTickers={holdings.map((holding) => holding.ticker)} />
+          <DashboardSkillIntel portfolioTickers={portfolioTickers} />
         </section>
 
         <section id="holdings-section" className="scroll-mt-20">
