@@ -45,18 +45,48 @@ type AllocationItem = {
 
 type PortfolioTab = "stocks" | "etf";
 type PerformancePoint = { label: string; value: number };
-type PositionLot = { quantity: number; costPerShare: number };
 type HistoryClosePoint = { timestamp: number; close: number };
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 const toTimestamp = (value: string) => {
-  const parsed = Date.parse(value);
-  if (Number.isFinite(parsed)) return parsed;
-  const isoDate = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!isoDate) return null;
-  const [, year, month, day] = isoDate;
-  return Date.UTC(Number(year), Number(month) - 1, Number(day));
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+
+  const isoDateTime = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2})(?::(\d{2}))?(?::(\d{2}))?(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?$/
+  );
+  if (isoDateTime) {
+    const parsed = Date.parse(raw);
+    if (Number.isFinite(parsed)) return parsed;
+    const [, year, month, day, hour = "0", minute = "0", second = "0"] = isoDateTime;
+    return Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    );
+  }
+
+  const localDateTime = raw.match(
+    /^(\d{2})[/-](\d{2})[/-](\d{4})(?:[T\s](\d{2})(?::(\d{2}))?(?::(\d{2}))?)?$/
+  );
+  if (localDateTime) {
+    const [, day, month, year, hour = "0", minute = "0", second = "0"] = localDateTime;
+    return Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    );
+  }
+
+  const fallback = Date.parse(raw);
+  return Number.isFinite(fallback) ? fallback : null;
 };
 
 const getMonthStart = (timestamp: number) => {
@@ -91,7 +121,24 @@ const formatDayLabel = (dayStart: number, includeYear: boolean) => {
   return `${day} ${month} ${String(date.getUTCFullYear()).slice(-2)}`;
 };
 
+const getTransactionCurrency = (tx: Transaction, baseCurrency: CurrencyCode) => {
+  if (tx.currency) return tx.currency;
+  if (tx.ticker) return inferCurrencyFromTicker(tx.ticker);
+  return baseCurrency;
+};
+
+const getTransactionGrossAmount = (tx: Transaction) => {
+  const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
+  const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
+  if (hasQty && hasPrice) return tx.quantity * tx.price;
+  if (hasPrice) return tx.price;
+  if (hasQty) return tx.quantity;
+  return 0;
+};
+
 const transactionPriority = (tx: Transaction) => {
+  const isExternalCashFlow = tx.type === "OTHER" && (!tx.ticker || isNonInvestmentTicker(tx.ticker));
+  if (isExternalCashFlow) return -1;
   if (tx.type === "SELL") return 0;
   if (tx.type === "DIVIDEND") return 1;
   if (tx.type === "BUY") return 2;
@@ -133,74 +180,103 @@ const findCloseAtOrBefore = (points: HistoryClosePoint[], targetTimestamp: numbe
 };
 
 const getTransactionFeeBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
-  const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-  const rawFee = Number.isFinite(tx.fee) ? tx.fee ?? 0 : 0;
-  return convertCurrencyFrom(rawFee, currency, baseCurrency, fxRate, baseCurrency);
+  const currency = getTransactionCurrency(tx, baseCurrency);
+  const explicitFee = Number.isFinite(tx.fee) ? Math.abs(tx.fee ?? 0) : 0;
+  if (explicitFee > 0) {
+    return convertCurrencyFrom(explicitFee, currency, baseCurrency, fxRate, baseCurrency);
+  }
+  if (tx.type !== "FEE") return 0;
+  const fallbackFee = Math.abs(getTransactionGrossAmount(tx));
+  if (!Number.isFinite(fallbackFee) || fallbackFee === 0) return 0;
+  return convertCurrencyFrom(fallbackFee, currency, baseCurrency, fxRate, baseCurrency);
 };
 
 const getDividendNetBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
-  const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-  const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
-  const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
-  const gross = hasQty && hasPrice
-    ? tx.quantity * tx.price
-    : hasPrice
-      ? tx.price
-      : hasQty
-        ? tx.quantity
-        : 0;
+  const currency = getTransactionCurrency(tx, baseCurrency);
+  const gross = getTransactionGrossAmount(tx);
   const net = gross - (tx.fee ?? 0);
   return convertCurrencyFrom(net, currency, baseCurrency, fxRate, baseCurrency);
 };
 
-const computeCumulativeReturnPercent = (
-  transactions: Transaction[],
+const getExternalCashFlowBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
+  if (tx.type !== "OTHER") return null;
+  if (tx.ticker && !isNonInvestmentTicker(tx.ticker)) return null;
+  const gross = getTransactionGrossAmount(tx);
+  if (!Number.isFinite(gross) || gross === 0) return null;
+  const currency = getTransactionCurrency(tx, baseCurrency);
+  return convertCurrencyFrom(gross, currency, baseCurrency, fxRate, baseCurrency);
+};
+
+type RunningPortfolioState = {
+  cash: number;
+  netExternalContributions: number;
+  quantities: Map<string, number>;
+  lastTradePriceBase: Map<string, number>;
+};
+
+const createRunningPortfolioState = (): RunningPortfolioState => ({
+  cash: 0,
+  netExternalContributions: 0,
+  quantities: new Map<string, number>(),
+  lastTradePriceBase: new Map<string, number>(),
+});
+
+const applyTransactionToState = (
+  state: RunningPortfolioState,
+  tx: Transaction,
   fxRate: number,
-  baseCurrency: CurrencyCode,
-  currentMarketValue: number
+  baseCurrency: CurrencyCode
 ) => {
-  const ordered = sortTransactionsForCash(transactions);
-  let cash = 0;
-  let contributed = 0;
-
-  for (const tx of ordered) {
-    if (!tx.ticker) continue;
-    const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
-    const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
-    const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
-
-    if (tx.type === "BUY") {
-      cash -= quantity * priceBase + feeBase;
-    } else if (tx.type === "SELL") {
-      cash += quantity * priceBase - feeBase;
-    } else if (tx.type === "DIVIDEND") {
-      cash += getDividendNetBase(tx, fxRate, baseCurrency);
-    } else if (tx.type === "FEE") {
-      cash -= Math.abs(feeBase);
-    }
-
-    // Top-up externo solo cuando hace falta cubrir caja negativa.
-    if (cash < 0) {
-      contributed += -cash;
-      cash = 0;
-    }
+  const externalCashFlowBase = getExternalCashFlowBase(tx, fxRate, baseCurrency);
+  if (externalCashFlowBase !== null) {
+    state.cash += externalCashFlowBase;
+    state.netExternalContributions += externalCashFlowBase;
+    return externalCashFlowBase;
   }
 
-  if (contributed <= 0) return 0;
-  const equity = currentMarketValue + cash;
-  const totalPnl = equity - contributed;
-  return (totalPnl / contributed) * 100;
+  const hasInvestmentTicker = Boolean(tx.ticker) && !isNonInvestmentTicker(tx.ticker);
+  const currency = getTransactionCurrency(tx, baseCurrency);
+  const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
+  const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+  const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
+  if (hasInvestmentTicker && Number.isFinite(priceBase) && priceBase > 0) {
+    state.lastTradePriceBase.set(tx.ticker, priceBase);
+  }
+
+  if (tx.type === "BUY") {
+    if (!hasInvestmentTicker) return 0;
+    state.cash -= quantity * priceBase + feeBase;
+    state.quantities.set(tx.ticker, (state.quantities.get(tx.ticker) ?? 0) + quantity);
+    return 0;
+  }
+
+  if (tx.type === "SELL") {
+    if (!hasInvestmentTicker) return 0;
+    state.cash += quantity * priceBase - feeBase;
+    const previous = state.quantities.get(tx.ticker) ?? 0;
+    state.quantities.set(tx.ticker, Math.max(0, previous - quantity));
+    return 0;
+  }
+
+  if (tx.type === "DIVIDEND") {
+    state.cash += getDividendNetBase(tx, fxRate, baseCurrency);
+    return 0;
+  }
+
+  if (tx.type === "FEE") {
+    state.cash -= Math.abs(feeBase);
+    return 0;
+  }
+
+  return 0;
 };
 
 const buildPerformanceSeries = (
   transactions: Transaction[],
   fxRate: number,
-  baseCurrency: CurrencyCode,
-  latestPnlPercent: number
+  baseCurrency: CurrencyCode
 ): PerformancePoint[] => {
   const ordered = sortTransactionsForCash(transactions)
-    .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL" || tx.type === "DIVIDEND" || tx.type === "FEE"))
     .map((tx) => {
       const timestamp = toTimestamp(tx.date);
       if (!Number.isFinite(timestamp)) return null;
@@ -210,8 +286,7 @@ const buildPerformanceSeries = (
     .sort((a, b) => a.timestamp - b.timestamp);
 
   if (ordered.length === 0) {
-    const fallback = Number.isFinite(latestPnlPercent) ? Number(latestPnlPercent.toFixed(2)) : 0;
-    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: fallback }];
+    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: 0 }];
   }
 
   const startMonth = getMonthStart(ordered[0].timestamp);
@@ -221,80 +296,41 @@ const buildPerformanceSeries = (
   const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(endMonth).getUTCFullYear();
 
   const quantityEpsilon = 1e-6;
-  const positions = new Map<string, { lots: PositionLot[]; lastPrice: number }>();
+  const state = createRunningPortfolioState();
   const points: PerformancePoint[] = [];
   let txIndex = 0;
-  let cumulativeCash = 0;
-  let cumulativeContributed = 0;
+  let previousEquity: number | null = null;
+  let cumulativeReturnFactor = 1;
 
   for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
     const monthEnd = getMonthEnd(month);
+    let externalCashFlowInMonth = 0;
     while (txIndex < ordered.length && ordered[txIndex].timestamp <= monthEnd) {
-      const { tx } = ordered[txIndex];
-      const entry = positions.get(tx.ticker) ?? { lots: [], lastPrice: 0 };
-      const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-      if (Number.isFinite(tx.price) && tx.price > 0) {
-        entry.lastPrice = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
-      }
-      const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
-      const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
-
-      if (tx.type === "BUY") {
-        const totalCost = quantity * entry.lastPrice + feeBase;
-        cumulativeCash -= totalCost;
-        const costPerShare = quantity > 0 ? totalCost / quantity : entry.lastPrice;
-        if (quantity > quantityEpsilon) {
-          entry.lots.push({ quantity, costPerShare });
-        }
-      } else if (tx.type === "SELL") {
-        cumulativeCash += quantity * entry.lastPrice - feeBase;
-        let remaining = quantity;
-        while (remaining > quantityEpsilon && entry.lots.length > 0) {
-          const lot = entry.lots[0];
-          const sold = Math.min(lot.quantity, remaining);
-          lot.quantity -= sold;
-          remaining -= sold;
-          if (lot.quantity <= quantityEpsilon) entry.lots.shift();
-        }
-      } else if (tx.type === "DIVIDEND") {
-        cumulativeCash += getDividendNetBase(tx, fxRate, baseCurrency);
-      } else if (tx.type === "FEE") {
-        cumulativeCash -= Math.abs(feeBase);
-      }
-
-      if (cumulativeCash < 0) {
-        cumulativeContributed += -cumulativeCash;
-        cumulativeCash = 0;
-      }
-      positions.set(tx.ticker, entry);
+      externalCashFlowInMonth += applyTransactionToState(state, ordered[txIndex].tx, fxRate, baseCurrency);
       txIndex += 1;
     }
 
-    const { totalValue } = Array.from(positions.values()).reduce(
-      (acc, position) => {
-        const quantity = position.lots.reduce((sum, lot) => sum + lot.quantity, 0);
-        if (quantity <= quantityEpsilon || position.lastPrice <= 0) return acc;
-        acc.totalValue += quantity * position.lastPrice;
-        return acc;
-      },
-      { totalValue: 0 }
-    );
+    let totalValue = 0;
+    for (const [ticker, quantity] of state.quantities.entries()) {
+      if (quantity <= quantityEpsilon) continue;
+      const priceBase = state.lastTradePriceBase.get(ticker) ?? 0;
+      if (!Number.isFinite(priceBase) || priceBase <= 0) continue;
+      totalValue += quantity * priceBase;
+    }
 
-    const equity = totalValue + cumulativeCash;
-    const totalPnl = equity - cumulativeContributed;
-    const pnlPercent = cumulativeContributed > 0 ? (totalPnl / cumulativeContributed) * 100 : 0;
+    const equity = totalValue + state.cash;
+    if (previousEquity !== null && previousEquity > 0) {
+      const periodReturn = (equity - previousEquity - externalCashFlowInMonth) / previousEquity;
+      if (Number.isFinite(periodReturn)) {
+        cumulativeReturnFactor *= 1 + periodReturn;
+      }
+    }
+    previousEquity = equity;
 
     points.push({
       label: formatMonthLabel(month, includeYear),
-      value: Number(pnlPercent.toFixed(2)),
+      value: Number(((cumulativeReturnFactor - 1) * 100).toFixed(2)),
     });
-  }
-
-  if (points.length > 0 && Number.isFinite(latestPnlPercent)) {
-    points[points.length - 1] = {
-      ...points[points.length - 1],
-      value: Number(latestPnlPercent.toFixed(2)),
-    };
   }
 
   return points;
@@ -303,12 +339,11 @@ const buildPerformanceSeries = (
 const buildPerformanceSeriesWithHistory = async (
   transactions: Transaction[],
   fxRate: number,
-  baseCurrency: CurrencyCode,
-  latestPnlPercent: number
+  baseCurrency: CurrencyCode
 ): Promise<PerformancePoint[] | null> => {
-  const ordered = sortTransactionsForCash(transactions).filter((tx) => Boolean(tx.ticker));
+  const ordered = sortTransactionsForCash(transactions);
   if (ordered.length === 0) {
-    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: Number(latestPnlPercent.toFixed(2)) }];
+    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: 0 }];
   }
 
   const firstTimestamp = toTimestamp(ordered[0].date);
@@ -322,7 +357,7 @@ const buildPerformanceSeriesWithHistory = async (
     new Set(
       ordered
         .map((tx) => tx.ticker)
-        .filter((ticker): ticker is string => Boolean(ticker))
+        .filter((ticker): ticker is string => Boolean(ticker) && !isNonInvestmentTicker(ticker))
     )
   );
   for (const tx of ordered) {
@@ -361,73 +396,47 @@ const buildPerformanceSeriesWithHistory = async (
   const historyByTicker = new Map<string, HistoryClosePoint[]>(historyEntries);
 
   const quantityEpsilon = 1e-6;
-  const quantities = new Map<string, number>();
-  const lastTradePriceBase = new Map<string, number>();
+  const state = createRunningPortfolioState();
   let txIndex = 0;
-  let cumulativeCash = 0;
-  let cumulativeContributed = 0;
   const points: PerformancePoint[] = [];
+  let previousEquity: number | null = null;
+  let cumulativeReturnFactor = 1;
 
   for (let day = startDay; day <= endDay; day = getNextDayStart(day)) {
     const dayEnd = getDayEnd(day);
+    let externalCashFlowInDay = 0;
     while (txIndex < ordered.length) {
       const tx = ordered[txIndex];
       const txTimestamp = toTimestamp(tx.date);
       if (!txTimestamp || txTimestamp > dayEnd) break;
-
-      const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-      const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
-      const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
-      const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
-      if (Number.isFinite(priceBase) && priceBase > 0) {
-        lastTradePriceBase.set(tx.ticker, priceBase);
-      }
-
-      if (tx.type === "BUY") {
-        cumulativeCash -= quantity * priceBase + feeBase;
-        quantities.set(tx.ticker, (quantities.get(tx.ticker) ?? 0) + quantity);
-      } else if (tx.type === "SELL") {
-        cumulativeCash += quantity * priceBase - feeBase;
-        const prevQty = quantities.get(tx.ticker) ?? 0;
-        const nextQty = Math.max(0, prevQty - quantity);
-        quantities.set(tx.ticker, nextQty);
-      } else if (tx.type === "DIVIDEND") {
-        cumulativeCash += getDividendNetBase(tx, fxRate, baseCurrency);
-      } else if (tx.type === "FEE") {
-        cumulativeCash -= Math.abs(feeBase);
-      }
-
-      if (cumulativeCash < 0) {
-        cumulativeContributed += -cumulativeCash;
-        cumulativeCash = 0;
-      }
-
+      externalCashFlowInDay += applyTransactionToState(state, tx, fxRate, baseCurrency);
       txIndex += 1;
     }
 
     let totalValue = 0;
-    for (const [ticker, qty] of quantities.entries()) {
+    for (const [ticker, qty] of state.quantities.entries()) {
       if (qty <= quantityEpsilon) continue;
       const series = historyByTicker.get(ticker) ?? [];
-      const close = findCloseAtOrBefore(series, dayEnd) ?? lastTradePriceBase.get(ticker) ?? 0;
+      const close = findCloseAtOrBefore(series, dayEnd) ?? state.lastTradePriceBase.get(ticker) ?? 0;
       totalValue += qty * close;
     }
 
-    const equity = totalValue + cumulativeCash;
-    const totalPnl = equity - cumulativeContributed;
-    const pnlPercent = cumulativeContributed > 0 ? (totalPnl / cumulativeContributed) * 100 : 0;
+    const equity = totalValue + state.cash;
+    if (previousEquity !== null && previousEquity > 0) {
+      const periodReturn = (equity - previousEquity - externalCashFlowInDay) / previousEquity;
+      if (Number.isFinite(periodReturn)) {
+        cumulativeReturnFactor *= 1 + periodReturn;
+      }
+    }
+    previousEquity = equity;
 
     points.push({
       label: formatDayLabel(day, includeYear),
-      value: Number(pnlPercent.toFixed(2)),
+      value: Number(((cumulativeReturnFactor - 1) * 100).toFixed(2)),
     });
   }
 
   if (points.length === 0) return null;
-  points[points.length - 1] = {
-    ...points[points.length - 1],
-    value: Number(latestPnlPercent.toFixed(2)),
-  };
   return points;
 };
 
@@ -483,19 +492,11 @@ export function PortfolioClient() {
       ),
     [holdings]
   );
-  const investmentHoldings = useMemo(
-    () => holdings.filter((holding) => !isNonInvestmentTicker(holding.ticker)),
-    [holdings]
-  );
   const etfHoldings = useMemo(
     () => holdings.filter((holding) => isFundTicker(holding.ticker)),
     [holdings]
   );
   const stockSummary = useMemo(() => computeSummaryFromHoldings(stockHoldings), [stockHoldings]);
-  const investmentSummary = useMemo(
-    () => computeSummaryFromHoldings(investmentHoldings),
-    [investmentHoldings]
-  );
   const etfSummary = useMemo(() => computeSummaryFromHoldings(etfHoldings), [etfHoldings]);
   const stockTrades = useMemo(
     () =>
@@ -511,10 +512,7 @@ export function PortfolioClient() {
       ),
     [transactions]
   );
-  const investmentTransactions = useMemo(
-    () => transactions.filter((tx) => !isNonInvestmentTicker(tx.ticker)),
-    [transactions]
-  );
+  const performanceTransactions = useMemo(() => transactions, [transactions]);
   const etfTransactions = useMemo(
     () => transactions.filter((tx) => isFundTicker(tx.ticker)),
     [transactions]
@@ -584,20 +582,10 @@ export function PortfolioClient() {
     },
     [stockHoldings, stockSummary.totalValue, sectorByTicker]
   );
-  const fallbackPerformanceSeries = useMemo(() => {
-    const latestPnlPercent = computeCumulativeReturnPercent(
-      investmentTransactions,
-      fxRate,
-      baseCurrency,
-      investmentSummary.totalValue
-    );
-    return buildPerformanceSeries(investmentTransactions, fxRate, baseCurrency, latestPnlPercent);
-  }, [
-    investmentTransactions,
-    fxRate,
-    baseCurrency,
-    investmentSummary.totalValue
-  ]);
+  const fallbackPerformanceSeries = useMemo(
+    () => buildPerformanceSeries(performanceTransactions, fxRate, baseCurrency),
+    [performanceTransactions, fxRate, baseCurrency]
+  );
 
   useEffect(() => {
     setPerformanceSeries(fallbackPerformanceSeries);
@@ -607,18 +595,11 @@ export function PortfolioClient() {
     let cancelled = false;
 
     const loadHistoricalPerformance = async () => {
-      if (investmentTransactions.length === 0) return;
-      const latestPnlPercent = computeCumulativeReturnPercent(
-        investmentTransactions,
-        fxRate,
-        baseCurrency,
-        investmentSummary.totalValue
-      );
+      if (performanceTransactions.length === 0) return;
       const enriched = await buildPerformanceSeriesWithHistory(
-        investmentTransactions,
+        performanceTransactions,
         fxRate,
-        baseCurrency,
-        latestPnlPercent
+        baseCurrency
       );
       if (!cancelled && enriched && enriched.length > 0) {
         setPerformanceSeries(enriched);
@@ -630,7 +611,7 @@ export function PortfolioClient() {
     return () => {
       cancelled = true;
     };
-  }, [investmentTransactions, fxRate, baseCurrency, investmentSummary.totalValue]);
+  }, [performanceTransactions, fxRate, baseCurrency]);
 
   const dividendsCollected = useMemo(() => {
     return stockTransactions
