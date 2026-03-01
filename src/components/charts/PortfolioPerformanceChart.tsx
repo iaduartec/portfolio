@@ -27,6 +27,14 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
   const isPositive = latestReturn >= 0;
   const rangeStart = chartData[0]?.label ?? "";
   const rangeEnd = chartData[chartData.length - 1]?.label ?? "";
+  const formatXAxisLabel = (label: string) => {
+    if (!label.includes(" ")) return label;
+    const parts = label.split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0]} ${parts[1]}`;
+    }
+    return label;
+  };
   const yDomain = useMemo<[number, number]>(() => {
     if (chartData.length === 0) return [-1, 1];
     const values = chartData
@@ -74,6 +82,9 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
               tickLine={false}
               axisLine={false}
               fontSize={11}
+              interval="preserveStartEnd"
+              minTickGap={24}
+              tickFormatter={formatXAxisLabel}
             />
             <YAxis
               stroke="rgba(209,212,220,0.6)"

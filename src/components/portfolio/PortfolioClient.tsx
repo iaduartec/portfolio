@@ -70,12 +70,25 @@ const getNextMonthStart = (monthStart: number) => {
 };
 
 const getMonthEnd = (monthStart: number) => getNextMonthStart(monthStart) - 1;
+const getDayStart = (timestamp: number) => {
+  const date = new Date(timestamp);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+};
+const getNextDayStart = (dayStart: number) => dayStart + 24 * 60 * 60 * 1000;
+const getDayEnd = (dayStart: number) => getNextDayStart(dayStart) - 1;
 
 const formatMonthLabel = (monthStart: number, includeYear: boolean) => {
   const date = new Date(monthStart);
   const month = MONTH_LABELS[date.getUTCMonth()];
   if (!includeYear) return month;
   return `${month} ${String(date.getUTCFullYear()).slice(-2)}`;
+};
+const formatDayLabel = (dayStart: number, includeYear: boolean) => {
+  const date = new Date(dayStart);
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  const month = MONTH_LABELS[date.getUTCMonth()];
+  if (!includeYear) return `${day} ${month}`;
+  return `${day} ${month} ${String(date.getUTCFullYear()).slice(-2)}`;
 };
 
 const transactionPriority = (tx: Transaction) => {
@@ -300,9 +313,9 @@ const buildPerformanceSeriesWithHistory = async (
 
   const firstTimestamp = toTimestamp(ordered[0].date);
   if (!firstTimestamp) return null;
-  const startMonth = getMonthStart(firstTimestamp);
-  const endMonth = getMonthStart(Date.now());
-  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(endMonth).getUTCFullYear();
+  const startDay = getDayStart(firstTimestamp);
+  const endDay = getDayStart(Date.now());
+  const includeYear = new Date(startDay).getUTCFullYear() !== new Date(endDay).getUTCFullYear();
 
   const tickerCurrency = new Map<string, CurrencyCode>();
   const tickers = Array.from(
@@ -355,12 +368,12 @@ const buildPerformanceSeriesWithHistory = async (
   let cumulativeContributed = 0;
   const points: PerformancePoint[] = [];
 
-  for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
-    const monthEnd = getMonthEnd(month);
+  for (let day = startDay; day <= endDay; day = getNextDayStart(day)) {
+    const dayEnd = getDayEnd(day);
     while (txIndex < ordered.length) {
       const tx = ordered[txIndex];
       const txTimestamp = toTimestamp(tx.date);
-      if (!txTimestamp || txTimestamp > monthEnd) break;
+      if (!txTimestamp || txTimestamp > dayEnd) break;
 
       const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
       const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
@@ -396,7 +409,7 @@ const buildPerformanceSeriesWithHistory = async (
     for (const [ticker, qty] of quantities.entries()) {
       if (qty <= quantityEpsilon) continue;
       const series = historyByTicker.get(ticker) ?? [];
-      const close = findCloseAtOrBefore(series, monthEnd) ?? lastTradePriceBase.get(ticker) ?? 0;
+      const close = findCloseAtOrBefore(series, dayEnd) ?? lastTradePriceBase.get(ticker) ?? 0;
       totalValue += qty * close;
     }
 
@@ -405,7 +418,7 @@ const buildPerformanceSeriesWithHistory = async (
     const pnlPercent = cumulativeContributed > 0 ? (totalPnl / cumulativeContributed) * 100 : 0;
 
     points.push({
-      label: formatMonthLabel(month, includeYear),
+      label: formatDayLabel(day, includeYear),
       value: Number(pnlPercent.toFixed(2)),
     });
   }
