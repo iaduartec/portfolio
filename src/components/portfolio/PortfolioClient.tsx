@@ -77,6 +77,57 @@ const formatMonthLabel = (monthStart: number, includeYear: boolean) => {
   return `${month} ${String(date.getUTCFullYear()).slice(-2)}`;
 };
 
+const getTransactionFeeBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
+  const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+  const rawFee = Number.isFinite(tx.fee) ? tx.fee ?? 0 : 0;
+  return convertCurrencyFrom(rawFee, currency, baseCurrency, fxRate, baseCurrency);
+};
+
+const getDividendNetBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
+  const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+  const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
+  const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
+  const gross = hasQty && hasPrice
+    ? tx.quantity * tx.price
+    : hasPrice
+      ? tx.price
+      : hasQty
+        ? tx.quantity
+        : 0;
+  const net = gross - (tx.fee ?? 0);
+  return convertCurrencyFrom(net, currency, baseCurrency, fxRate, baseCurrency);
+};
+
+const computeInvestmentReturnPercent = (
+  transactions: Transaction[],
+  fxRate: number,
+  baseCurrency: CurrencyCode,
+  currentMarketValue: number
+) => {
+  let invested = 0;
+  let realized = 0;
+
+  for (const tx of transactions) {
+    if (!tx.ticker) continue;
+    const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
+    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+    const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
+    const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
+
+    if (tx.type === "BUY") {
+      invested += quantity * priceBase + feeBase;
+    } else if (tx.type === "SELL") {
+      realized += quantity * priceBase - feeBase;
+    } else if (tx.type === "DIVIDEND") {
+      realized += getDividendNetBase(tx, fxRate, baseCurrency);
+    }
+  }
+
+  if (invested <= 0) return 0;
+  const totalPnl = currentMarketValue + realized - invested;
+  return (totalPnl / invested) * 100;
+};
+
 const buildPerformanceSeries = (
   transactions: Transaction[],
   fxRate: number,
@@ -84,7 +135,7 @@ const buildPerformanceSeries = (
   latestPnlPercent: number
 ): PerformancePoint[] => {
   const ordered = transactions
-    .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL"))
+    .filter((tx) => tx.ticker && (tx.type === "BUY" || tx.type === "SELL" || tx.type === "DIVIDEND"))
     .map((tx) => {
       const timestamp = toTimestamp(tx.date);
       if (!Number.isFinite(timestamp)) return null;
@@ -108,6 +159,8 @@ const buildPerformanceSeries = (
   const positions = new Map<string, { lots: PositionLot[]; lastPrice: number }>();
   const points: PerformancePoint[] = [];
   let txIndex = 0;
+  let cumulativeInvested = 0;
+  let cumulativeRealized = 0;
 
   for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
     const monthEnd = getMonthEnd(month);
@@ -119,16 +172,17 @@ const buildPerformanceSeries = (
         entry.lastPrice = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
       }
       const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
-      const fee = Number.isFinite(tx.fee) ? tx.fee ?? 0 : 0;
-      const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
+      const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
 
       if (tx.type === "BUY") {
         const totalCost = quantity * entry.lastPrice + feeBase;
+        cumulativeInvested += totalCost;
         const costPerShare = quantity > 0 ? totalCost / quantity : entry.lastPrice;
         if (quantity > quantityEpsilon) {
           entry.lots.push({ quantity, costPerShare });
         }
       } else if (tx.type === "SELL") {
+        cumulativeRealized += quantity * entry.lastPrice - feeBase;
         let remaining = quantity;
         while (remaining > quantityEpsilon && entry.lots.length > 0) {
           const lot = entry.lots[0];
@@ -137,24 +191,25 @@ const buildPerformanceSeries = (
           remaining -= sold;
           if (lot.quantity <= quantityEpsilon) entry.lots.shift();
         }
+      } else if (tx.type === "DIVIDEND") {
+        cumulativeRealized += getDividendNetBase(tx, fxRate, baseCurrency);
       }
       positions.set(tx.ticker, entry);
       txIndex += 1;
     }
 
-    const { totalValue, totalCost } = Array.from(positions.values()).reduce(
+    const { totalValue } = Array.from(positions.values()).reduce(
       (acc, position) => {
         const quantity = position.lots.reduce((sum, lot) => sum + lot.quantity, 0);
         if (quantity <= quantityEpsilon || position.lastPrice <= 0) return acc;
-        const cost = position.lots.reduce((sum, lot) => sum + lot.quantity * lot.costPerShare, 0);
         acc.totalValue += quantity * position.lastPrice;
-        acc.totalCost += cost;
         return acc;
       },
-      { totalValue: 0, totalCost: 0 }
+      { totalValue: 0 }
     );
 
-    const pnlPercent = totalCost > 0 ? ((totalValue - totalCost) / totalCost) * 100 : 0;
+    const totalPnl = totalValue + cumulativeRealized - cumulativeInvested;
+    const pnlPercent = cumulativeInvested > 0 ? (totalPnl / cumulativeInvested) * 100 : 0;
 
     points.push({
       label: formatMonthLabel(month, includeYear),
@@ -325,16 +380,18 @@ export function PortfolioClient() {
     [stockHoldings, stockSummary.totalValue, sectorByTicker]
   );
   const performanceSeries = useMemo(() => {
-    const investedCapital = investmentSummary.totalValue - investmentSummary.totalPnl;
-    const latestPnlPercent =
-      investedCapital > 0 ? (investmentSummary.totalPnl / investedCapital) * 100 : 0;
+    const latestPnlPercent = computeInvestmentReturnPercent(
+      investmentTransactions,
+      fxRate,
+      baseCurrency,
+      investmentSummary.totalValue
+    );
     return buildPerformanceSeries(investmentTransactions, fxRate, baseCurrency, latestPnlPercent);
   }, [
     investmentTransactions,
     fxRate,
     baseCurrency,
-    investmentSummary.totalValue,
-    investmentSummary.totalPnl,
+    investmentSummary.totalValue
   ]);
 
   const dividendsCollected = useMemo(() => {
