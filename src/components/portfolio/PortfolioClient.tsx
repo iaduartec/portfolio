@@ -104,8 +104,8 @@ const computeCumulativeReturnPercent = (
   baseCurrency: CurrencyCode,
   currentMarketValue: number
 ) => {
-  let invested = 0;
-  let returned = 0;
+  let cash = 0;
+  let contributed = 0;
 
   for (const tx of transactions) {
     if (!tx.ticker) continue;
@@ -115,19 +115,26 @@ const computeCumulativeReturnPercent = (
     const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
 
     if (tx.type === "BUY") {
-      invested += quantity * priceBase + feeBase;
+      cash -= quantity * priceBase + feeBase;
     } else if (tx.type === "SELL") {
-      returned += quantity * priceBase - feeBase;
+      cash += quantity * priceBase - feeBase;
     } else if (tx.type === "DIVIDEND") {
-      returned += getDividendNetBase(tx, fxRate, baseCurrency);
+      cash += getDividendNetBase(tx, fxRate, baseCurrency);
     } else if (tx.type === "FEE") {
-      invested += Math.abs(feeBase);
+      cash -= Math.abs(feeBase);
+    }
+
+    // Top-up externo solo cuando hace falta cubrir caja negativa.
+    if (cash < 0) {
+      contributed += -cash;
+      cash = 0;
     }
   }
 
-  if (invested <= 0) return 0;
-  const totalPnl = currentMarketValue + returned - invested;
-  return (totalPnl / invested) * 100;
+  if (contributed <= 0) return 0;
+  const equity = currentMarketValue + cash;
+  const totalPnl = equity - contributed;
+  return (totalPnl / contributed) * 100;
 };
 
 const buildPerformanceSeries = (
@@ -161,8 +168,8 @@ const buildPerformanceSeries = (
   const positions = new Map<string, { lots: PositionLot[]; lastPrice: number }>();
   const points: PerformancePoint[] = [];
   let txIndex = 0;
-  let cumulativeInvested = 0;
-  let cumulativeReturned = 0;
+  let cumulativeCash = 0;
+  let cumulativeContributed = 0;
 
   for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
     const monthEnd = getMonthEnd(month);
@@ -178,13 +185,13 @@ const buildPerformanceSeries = (
 
       if (tx.type === "BUY") {
         const totalCost = quantity * entry.lastPrice + feeBase;
-        cumulativeInvested += totalCost;
+        cumulativeCash -= totalCost;
         const costPerShare = quantity > 0 ? totalCost / quantity : entry.lastPrice;
         if (quantity > quantityEpsilon) {
           entry.lots.push({ quantity, costPerShare });
         }
       } else if (tx.type === "SELL") {
-        cumulativeReturned += quantity * entry.lastPrice - feeBase;
+        cumulativeCash += quantity * entry.lastPrice - feeBase;
         let remaining = quantity;
         while (remaining > quantityEpsilon && entry.lots.length > 0) {
           const lot = entry.lots[0];
@@ -194,9 +201,14 @@ const buildPerformanceSeries = (
           if (lot.quantity <= quantityEpsilon) entry.lots.shift();
         }
       } else if (tx.type === "DIVIDEND") {
-        cumulativeReturned += getDividendNetBase(tx, fxRate, baseCurrency);
+        cumulativeCash += getDividendNetBase(tx, fxRate, baseCurrency);
       } else if (tx.type === "FEE") {
-        cumulativeInvested += Math.abs(feeBase);
+        cumulativeCash -= Math.abs(feeBase);
+      }
+
+      if (cumulativeCash < 0) {
+        cumulativeContributed += -cumulativeCash;
+        cumulativeCash = 0;
       }
       positions.set(tx.ticker, entry);
       txIndex += 1;
@@ -212,8 +224,9 @@ const buildPerformanceSeries = (
       { totalValue: 0 }
     );
 
-    const totalPnl = totalValue + cumulativeReturned - cumulativeInvested;
-    const pnlPercent = cumulativeInvested > 0 ? (totalPnl / cumulativeInvested) * 100 : 0;
+    const equity = totalValue + cumulativeCash;
+    const totalPnl = equity - cumulativeContributed;
+    const pnlPercent = cumulativeContributed > 0 ? (totalPnl / cumulativeContributed) * 100 : 0;
 
     points.push({
       label: formatMonthLabel(month, includeYear),
