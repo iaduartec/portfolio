@@ -223,11 +223,19 @@ export function PortfolioClient() {
       ),
     [holdings]
   );
+  const investmentHoldings = useMemo(
+    () => holdings.filter((holding) => !isNonInvestmentTicker(holding.ticker)),
+    [holdings]
+  );
   const etfHoldings = useMemo(
     () => holdings.filter((holding) => isFundTicker(holding.ticker)),
     [holdings]
   );
   const stockSummary = useMemo(() => computeSummaryFromHoldings(stockHoldings), [stockHoldings]);
+  const investmentSummary = useMemo(
+    () => computeSummaryFromHoldings(investmentHoldings),
+    [investmentHoldings]
+  );
   const etfSummary = useMemo(() => computeSummaryFromHoldings(etfHoldings), [etfHoldings]);
   const stockTrades = useMemo(
     () =>
@@ -241,6 +249,10 @@ export function PortfolioClient() {
       transactions.filter(
         (tx) => !isFundTicker(tx.ticker) && !isNonInvestmentTicker(tx.ticker)
       ),
+    [transactions]
+  );
+  const investmentTransactions = useMemo(
+    () => transactions.filter((tx) => !isNonInvestmentTicker(tx.ticker)),
     [transactions]
   );
   const etfTransactions = useMemo(
@@ -313,11 +325,17 @@ export function PortfolioClient() {
     [stockHoldings, stockSummary.totalValue, sectorByTicker]
   );
   const performanceSeries = useMemo(() => {
-    const investedCapital = stockSummary.totalValue - stockSummary.totalPnl;
+    const investedCapital = investmentSummary.totalValue - investmentSummary.totalPnl;
     const latestPnlPercent =
-      investedCapital > 0 ? (stockSummary.totalPnl / investedCapital) * 100 : 0;
-    return buildPerformanceSeries(stockTransactions, fxRate, baseCurrency, latestPnlPercent);
-  }, [stockTransactions, fxRate, baseCurrency, stockSummary.totalValue, stockSummary.totalPnl]);
+      investedCapital > 0 ? (investmentSummary.totalPnl / investedCapital) * 100 : 0;
+    return buildPerformanceSeries(investmentTransactions, fxRate, baseCurrency, latestPnlPercent);
+  }, [
+    investmentTransactions,
+    fxRate,
+    baseCurrency,
+    investmentSummary.totalValue,
+    investmentSummary.totalPnl,
+  ]);
 
   const dividendsCollected = useMemo(() => {
     return stockTransactions
@@ -464,8 +482,8 @@ export function PortfolioClient() {
 
           <Card
             className="border-primary/20 bg-gradient-to-b from-surface-muted/45 to-surface/90"
-            title="Rendimiento de la cartera"
-            subtitle="Evolución mensual estimada por operaciones y valoración actual"
+            title="Rendimiento total de la cartera"
+            subtitle="Incluye acciones + ETFs/fondos (sin inflar por aportaciones)"
           >
             <PortfolioPerformanceChart data={performanceSeries} />
           </Card>
