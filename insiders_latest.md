@@ -1,71 +1,71 @@
-# Informe Diario Insiders España (2026-03-03)
+# Informe Diario Insiders España (2026-03-04)
 
 - Fuente: CNMV (PDMR)
-- Generado: 2026-03-03T07:15:35Z
+- Generado: 2026-03-04T07:15:36Z
 - Corte del informe: nuevas operaciones detectadas en la última ejecución
-- Última ejecución ingest: run_id=30 | started_at=2026-03-03T07:15:35Z | scraped=200 | generated=496 | inserted=57
+- Última ejecución ingest: run_id=31 | started_at=2026-03-04T07:15:35Z | scraped=196 | generated=468 | inserted=38
 
 ## Resumen Ejecutivo
 
-- Operaciones analizadas: 57
-- Compras: 25 (importe total: 9.879.425,90 EUR)
-- Ventas: 14 (importe total: 1.817.283,00 EUR)
-- Otros/No clasificadas: 18
+- Operaciones analizadas: 38
+- Compras: 24 (importe total: 663.560,40 EUR)
+- Ventas: 14 (importe total: 7.335.690,52 EUR)
+- Otros/No clasificadas: 0
 
 ## Señales Relevantes
 
 | Señal | Fecha | Empresa | Directivo | Importe | Compras 90d | Score |
 | --- | --- | --- | --- | ---: | ---: | ---: |
-| COMPRA_FUERTE | 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 1.202.587,02 USD | 8 | 38.74 |
-| COMPRA_FUERTE | 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 1.202.587,02 USD | 8 | 38.74 |
-| COMPRA_FUERTE | 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 1.165.000,00 USD | 8 | 38.66 |
-| COMPRA_FUERTE | 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 1.165.000,00 USD | 8 | 38.66 |
-| COMPRA_FUERTE | 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 592.500,00 EUR | 8 | 36.79 |
+| COMPRA_REPETIDA | 2026-03-02 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 9.440,00 EUR | 16 | 40.16 |
+| COMPRA_REPETIDA | 2026-03-02 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 9.440,00 EUR | 16 | 40.16 |
+| COMPRA_REPETIDA | 2026-03-03 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 7.400,00 EUR | 16 | 39.09 |
+| COMPRA_REPETIDA | 2026-03-03 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 7.400,00 EUR | 16 | 39.09 |
+| COMPRA_REPETIDA | 2026-03-02 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 6.727,25 EUR | 13 | 33.32 |
 
 ## Top Compras
 
 | Fecha | Empresa | Directivo | Títulos | Precio | Importe |
 | --- | --- | --- | ---: | ---: | ---: |
-| 2026-02-27 | GRUPO EZENTIS, S.A. | ELÉCTRICA NURIEL, S.L.U. | 14.358.974 | 0,09 EUR | 1.292.307,66 EUR |
-| 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 51.791 | 23,22 USD | 1.202.587,02 USD |
-| 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 51.791 | 23,22 USD | 1.202.587,02 USD |
-| 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 50.000 | 23,30 USD | 1.165.000,00 USD |
-| 2026-02-27 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 50.000 | 23,30 USD | 1.165.000,00 USD |
+| 2026-02-27 | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 25.000.000 | 0,01 EUR | 250.000,00 EUR |
+| 2026-02-27 | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 25.000.000 | 0,01 EUR | 250.000,00 EUR |
+| 2026-03-02 | VIDRALA, S.A. | ADRIANA DELCLAUX ECHEVARRÍA | 300 | 80,10 EUR | 24.030,00 EUR |
+| 2026-03-02 | VIDRALA, S.A. | ALEJANDRO DELCLAUX ECHEVARRÍA | 300 | 79,70 EUR | 23.910,00 EUR |
+| 2026-03-02 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 3.160 | 5,20 EUR | 16.432,00 EUR |
 
 ## Top Ventas
 
 | Fecha | Empresa | Directivo | Títulos | Precio | Importe |
 | --- | --- | --- | ---: | ---: | ---: |
-| 2026-02-27 | ACCIONA, S.A. | MACARENA CARRIÓN LÓPEZ DE LA GARMA | 1.360 | 249,60 EUR | 339.456,00 EUR |
-| 2026-02-27 | ACCIONA, S.A. | MACARENA CARRIÓN LÓPEZ DE LA GARMA | 1.360 | 249,60 EUR | 339.456,00 EUR |
-| 2026-02-27 | ACCIONA, S.A. | María Cordón Ucar | 784 | 247,95 EUR | 194.392,80 EUR |
-| 2026-02-27 | ACCIONA, S.A. | María Cordón Ucar | 784 | 247,95 EUR | 194.392,80 EUR |
-| 2026-03-02 | METROVACESA, S.A. | Enrique Gracia Colldeforns | 14.189 | 12,50 EUR | 177.362,50 EUR |
+| 2026-02-27 | INTERNATIONAL CONSOLIDATED AIRLINES GROUP, S.A. | Marco Sansavini | 350.000 | 4,33 GBP | 1.515.500,00 GBP |
+| 2026-02-27 | INTERNATIONAL CONSOLIDATED AIRLINES GROUP, S.A. | Marco Sansavini | 350.000 | 4,33 GBP | 1.515.500,00 GBP |
+| 2026-02-27 | INTERNATIONAL CONSOLIDATED AIRLINES GROUP, S.A. | Carolina Martinoli | 293.889 | 4,34 GBP | 1.275.478,26 GBP |
+| 2026-02-27 | INTERNATIONAL CONSOLIDATED AIRLINES GROUP, S.A. | Carolina Martinoli | 293.889 | 4,34 GBP | 1.275.478,26 GBP |
+| 2026-03-02 | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Casas Moreno | 31.000 | 18,90 EUR | 585.900,00 EUR |
 
 ## Últimos Movimientos
 
 | Fecha | Tipo | Empresa | Directivo | Importe |
 | --- | --- | --- | --- | ---: |
-| 2026-03-02 | VENTA | METROVACESA, S.A. | Enrique Gracia Colldeforns | 177.362,50 EUR |
-| 2026-02-27 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 2.910,00 EUR |
-| 2026-02-27 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 2.323,20 EUR |
-| 2026-02-27 | VENTA | METROVACESA, S.A. | Enrique Gracia Colldeforns | 18.101,30 EUR |
-| 2026-02-27 | COMPRA | GRUPO EZENTIS, S.A. | ELÉCTRICA NURIEL, S.L.U. | 1.292.307,66 EUR |
-| 2026-02-27 | VENTA | GRENERGY RENOVABLES, S.A. | Antonio Francisco Jiménez Alarcón | 68.400,00 EUR |
-| 2026-02-27 | VENTA | GRENERGY RENOVABLES, S.A. | Antonio Francisco Jiménez Alarcón | 53.580,00 EUR |
-| 2026-02-27 | OTROS | CAIXABANK, S.A. | Matthias Bulach | 11.991,28 EUR |
-| 2026-02-27 | OTROS | CAIXABANK, S.A. | Luis Javier Blas Agüeros | 9.990,96 EUR |
-| 2026-02-27 | COMPRA | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 1.165.000,00 USD |
-| 2026-02-27 | COMPRA | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 1.202.587,02 USD |
-| 2026-02-27 | COMPRA | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Salazar Lomelín | 592.500,00 EUR |
-| 2026-02-27 | COMPRA | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Servicios Maravilla del Norte, S.A. de C.V. | 393.000,00 EUR |
-| 2026-02-27 | VENTA | ACCIONA, S.A. | MACARENA CARRIÓN LÓPEZ DE LA GARMA | 339.456,00 EUR |
-| 2026-02-27 | VENTA | ACCIONA, S.A. | María Cordón Ucar | 61.358,60 EUR |
-| 2026-02-27 | VENTA | ACCIONA, S.A. | María Cordón Ucar | 194.392,80 EUR |
-| 2026-02-27 | VENTA | ACCIONA, S.A. | Pepa Chapa Alós | 47.212,20 EUR |
-| 2026-02-27 | OTROS | CAIXABANK, S.A. | Matthias Bulach | 11.991,28 EUR |
-| 2026-02-27 | OTROS | CAIXABANK, S.A. | Luis Javier Blas Agüeros | 9.990,96 EUR |
-| 2026-02-27 | COMPRA | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Servicios Maravilla del Norte, S.A. de C.V. | 393.000,00 EUR |
+| 2026-03-03 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 6.216,00 EUR |
+| 2026-03-03 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 7.400,00 EUR |
+| 2026-03-03 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 6.216,00 EUR |
+| 2026-03-03 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 7.400,00 EUR |
+| 2026-03-02 | COMPRA | VIDRALA, S.A. | ALEJANDRO DELCLAUX ECHEVARRÍA | 23.910,00 EUR |
+| 2026-03-02 | COMPRA | VIDRALA, S.A. | ADRIANA DELCLAUX ECHEVARRÍA | 24.030,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 9.440,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 6.727,25 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | Rafael Navas Lanchas | 2.150,50 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | GEMMA AZNAR CORNEJO | 523,60 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | GEMMA AZNAR CORNEJO | 2.176,20 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | PILAR GARCIA CEBALLOS- ZUÑIGA | 2.697,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | Pedro Angel Navarro | 2.697,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 9.440,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 6.727,25 EUR |
+| 2026-03-02 | VENTA | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 85.000,00 EUR |
+| 2026-03-02 | COMPRA | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 16.432,00 EUR |
+| 2026-03-02 | VENTA | BANCO BILBAO VIZCAYA ARGENTARIA, S.A. | Carlos Casas Moreno | 585.900,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | Maria del Pino Velázquez Medina | 2.697,00 EUR |
+| 2026-03-02 | COMPRA | RENTA 4 BANCO, S.A. | Eduardo Chacón López | 2.157,60 EUR |
 
 ## Conclusión
 
