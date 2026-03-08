@@ -1,65 +1,71 @@
-# Informe Diario Insiders España (2026-03-06)
+# Informe Diario Insiders España (2026-03-08)
 
 - Fuente: CNMV (PDMR)
-- Generado: 2026-03-06T07:15:44Z
+- Generado: 2026-03-08T07:15:48Z
 - Corte del informe: nuevas operaciones detectadas en la última ejecución
-- Última ejecución ingest: run_id=33 | started_at=2026-03-06T07:15:43Z | scraped=200 | generated=254 | inserted=24
+- Última ejecución ingest: run_id=34 | started_at=2026-03-08T07:15:48Z | scraped=200 | generated=276 | inserted=22
 
 ## Resumen Ejecutivo
 
-- Operaciones analizadas: 24
-- Compras: 24 (importe total: 1.751.735,28 EUR)
-- Ventas: 0 (importe total: 0,00 EUR)
-- Otros/No clasificadas: 0
+- Operaciones analizadas: 22
+- Compras: 8 (importe total: 104.854,80 EUR)
+- Ventas: 8 (importe total: 5.727.600,00 EUR)
+- Otros/No clasificadas: 6
 
 ## Señales Relevantes
 
 | Señal | Fecha | Empresa | Directivo | Importe | Compras 90d | Score |
 | --- | --- | --- | --- | ---: | ---: | ---: |
-| COMPRA_REPETIDA | 2026-03-04 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 54.161,64 EUR | 18 | 52.24 |
-| COMPRA_REPETIDA | 2026-03-04 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 54.161,64 EUR | 18 | 52.24 |
-| COMPRA_REPETIDA | 2026-03-05 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 48.729,00 EUR | 15 | 45.17 |
-| COMPRA_REPETIDA | 2026-03-05 | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 48.729,00 EUR | 15 | 45.17 |
-| COMPRA_FUERTE | 2026-03-04 | RENTA 4 BANCO, S.A. | JUAN CARLOS URETA DOMINGO | 132.829,00 EUR | 2 | 18.31 |
+| COMPRA_REPETIDA | 2026-03-03 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 9.568,00 EUR | 10 | 29.08 |
+| COMPRA_REPETIDA | 2026-03-03 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 9.568,00 EUR | 10 | 29.08 |
+| COMPRA_REPETIDA | 2026-03-04 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 5.876,00 EUR | 10 | 27.53 |
+| COMPRA_REPETIDA | 2026-03-04 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 5.876,00 EUR | 10 | 27.53 |
+| COMPRA_REPETIDA | 2026-03-03 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 197,60 EUR | 10 | 16.77 |
 
 ## Top Compras
 
 | Fecha | Empresa | Directivo | Títulos | Precio | Importe |
 | --- | --- | --- | ---: | ---: | ---: |
-| 2026-03-04 | RENTA 4 BANCO, S.A. | JUAN CARLOS URETA DOMINGO | 6.991 | 19,00 EUR | 132.829,00 EUR |
-| 2026-03-04 | RENTA 4 BANCO, S.A. | JUAN CARLOS URETA DOMINGO | 6.991 | 19,00 EUR | 132.829,00 EUR |
-| 2026-03-04 | RENTA 4 BANCO, S.A. | Jesús Sánchez - Quiñones González | 6.484 | 19,00 EUR | 123.196,00 EUR |
-| 2026-03-04 | RENTA 4 BANCO, S.A. | JUAN LUIS LOPEZ GARCIA | 6.484 | 19,00 EUR | 123.196,00 EUR |
-| 2026-03-04 | RENTA 4 BANCO, S.A. | Jesús Sánchez - Quiñones González | 6.484 | 19,00 EUR | 123.196,00 EUR |
+| 2026-03-05 | IBERDROLA, S.A. | Anthony L. Gardner | 1.906 | 19,30 EUR | 36.785,80 EUR |
+| 2026-03-05 | IBERDROLA, S.A. | Anthony L. Gardner | 1.906 | 19,30 EUR | 36.785,80 EUR |
+| 2026-03-03 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 1.840 | 5,20 EUR | 9.568,00 EUR |
+| 2026-03-03 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 1.840 | 5,20 EUR | 9.568,00 EUR |
+| 2026-03-04 | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 1.130 | 5,20 EUR | 5.876,00 EUR |
 
 ## Top Ventas
 
-- No hay ventas con importe informado.
+| Fecha | Empresa | Directivo | Títulos | Precio | Importe |
+| --- | --- | --- | ---: | ---: | ---: |
+| 2026-03-05 | BANCO SANTANDER, S.A. | JUAN MANUEL CENDOYA MENDEZ DE VIGO | 245.000 | 9,96 EUR | 2.440.200,00 EUR |
+| 2026-03-05 | BANCO SANTANDER, S.A. | JUAN MANUEL CENDOYA MENDEZ DE VIGO | 245.000 | 9,96 EUR | 2.440.200,00 EUR |
+| 2026-03-04 | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 29.000.000 | 0,01 EUR | 290.000,00 EUR |
+| 2026-03-04 | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 29.000.000 | 0,01 EUR | 290.000,00 EUR |
+| 2026-03-05 | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 8.500.000 | 0,01 EUR | 85.000,00 EUR |
 
 ## Últimos Movimientos
 
 | Fecha | Tipo | Empresa | Directivo | Importe |
 | --- | --- | --- | --- | ---: |
-| 2026-03-05 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 48.729,00 EUR |
-| 2026-03-05 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2011, S.A. | 48.729,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 54.161,64 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Enrique Sánchez de Villar Boceta | 39.159,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Raúl Pérez Arnaldo | 42.845,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Sonia Alvarez Nozal | 81.073,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Carlos Ruiz Sánchez | 90.649,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | DIEGO ABAITUA RODRIGUEZ | 26.106,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Jesús Sánchez - Quiñones González | 123.196,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | JUAN CARLOS URETA ESTADES | 55.309,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | SANTIAGO GONZALEZ ENCISO | 48.241,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | JUAN LUIS LOPEZ GARCIA | 123.196,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | JUAN CARLOS URETA DOMINGO | 132.829,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | CARTERA DE DIRECTIVOS 2024, S.A. | 54.161,64 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Marcos Manuel Pastor García | 47.177,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | María Teresa Sánchez Alonso | 55.575,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Sonia Alvarez Nozal | 81.073,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Carlos Ruiz Sánchez | 90.649,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | DIEGO ABAITUA RODRIGUEZ | 26.106,00 EUR |
-| 2026-03-04 | COMPRA | RENTA 4 BANCO, S.A. | Jesús Sánchez - Quiñones González | 123.196,00 EUR |
+| 2026-03-05 | VENTA | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 85.000,00 EUR |
+| 2026-03-05 | VENTA | INMOBILIARIA DEL SUR, S.A. | DOMINGO GONZALEZ GOMEZ | 48.600,00 EUR |
+| 2026-03-05 | OTROS | IBERDROLA, S.A. | José Ignacio Sánchez Galán | 0,00 EUR |
+| 2026-03-05 | OTROS | IBERDROLA, S.A. | Pedro Azagra Blázquez | 0,00 EUR |
+| 2026-03-05 | COMPRA | IBERDROLA, S.A. | Anthony L. Gardner | 36.785,80 EUR |
+| 2026-03-05 | OTROS | IBERDROLA, S.A. | José Sainz Armada | 0,00 EUR |
+| 2026-03-05 | VENTA | BANCO SANTANDER, S.A. | JUAN MANUEL CENDOYA MENDEZ DE VIGO | 2.440.200,00 EUR |
+| 2026-03-05 | VENTA | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 85.000,00 EUR |
+| 2026-03-05 | VENTA | INMOBILIARIA DEL SUR, S.A. | DOMINGO GONZALEZ GOMEZ | 48.600,00 EUR |
+| 2026-03-05 | OTROS | IBERDROLA, S.A. | José Ignacio Sánchez Galán | 0,00 EUR |
+| 2026-03-05 | OTROS | IBERDROLA, S.A. | Pedro Azagra Blázquez | 0,00 EUR |
+| 2026-03-05 | COMPRA | IBERDROLA, S.A. | Anthony L. Gardner | 36.785,80 EUR |
+| 2026-03-05 | OTROS | IBERDROLA, S.A. | José Sainz Armada | 0,00 EUR |
+| 2026-03-05 | VENTA | BANCO SANTANDER, S.A. | JUAN MANUEL CENDOYA MENDEZ DE VIGO | 2.440.200,00 EUR |
+| 2026-03-04 | VENTA | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 290.000,00 EUR |
+| 2026-03-04 | COMPRA | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 5.876,00 EUR |
+| 2026-03-04 | VENTA | NYESA VALORES CORPORACION, S.A. | Inversiones Río Arnoia, S.L. | 290.000,00 EUR |
+| 2026-03-04 | COMPRA | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 5.876,00 EUR |
+| 2026-03-03 | COMPRA | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 9.568,00 EUR |
+| 2026-03-03 | COMPRA | LINGOTES ESPECIALES, S.A. | CORPORACION OUDALOI SL | 197,60 EUR |
 
 ## Conclusión
 
