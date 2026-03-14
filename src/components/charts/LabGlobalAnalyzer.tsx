@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { PortfolioValueChart } from "@/components/charts/PortfolioValueChart";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { isFundTicker } from "@/lib/portfolioGroups";
+import type { MarketSearchResult } from "@/types/marketSearch";
 
 const DEFAULT_TICKER = "NASDAQ:AAPL";
 const NO_MARKET = "NONE";
@@ -36,6 +37,14 @@ const parseTicker = (rawTicker: string) => {
 const buildTicker = (market: string, symbol: string) =>
   market === NO_MARKET ? symbol : `${market}:${symbol}`;
 
+const normalizeSearchValue = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
 export function LabGlobalAnalyzer() {
   const { holdings } = usePortfolioData();
   const defaultParsedTicker = useMemo(() => parseTicker(DEFAULT_TICKER), []);
@@ -43,6 +52,12 @@ export function LabGlobalAnalyzer() {
   const [symbolInput, setSymbolInput] = useState(defaultParsedTicker.symbol);
   const [selectedTicker, setSelectedTicker] = useState(DEFAULT_TICKER);
   const [selectedRange, setSelectedRange] = useState<HistoryRange>("1y");
+  const [suggestions, setSuggestions] = useState<MarketSearchResult[]>([]);
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const hideSuggestionsTimeoutRef = useRef<number | null>(null);
+  const deferredSymbolInput = useDeferredValue(symbolInput);
 
   const stockQuickTickers = useMemo(() => {
     const fromPortfolio = holdings
@@ -72,6 +87,111 @@ export function LabGlobalAnalyzer() {
     return Array.from(merged);
   }, [holdings]);
 
+  const topSuggestion = suggestions[0] ?? null;
+  const topSuggestionLabel = useMemo(() => {
+    if (!topSuggestion) return null;
+    const query = normalizeSearchValue(symbolInput);
+    if (!query || query.includes(":")) return null;
+    return `${topSuggestion.ticker} · ${topSuggestion.name}`;
+  }, [topSuggestion, symbolInput]);
+
+  const applySuggestion = (suggestion: MarketSearchResult) => {
+    setSelectedMarket(suggestion.market);
+    setSymbolInput(suggestion.symbol);
+    setSelectedTicker(suggestion.ticker);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(0);
+  };
+
+  const handleSuggestionKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (event.key === "Escape") {
+        setShowSuggestions(false);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveSuggestionIndex((current) => (current + 1) % suggestions.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveSuggestionIndex((current) => (current - 1 + suggestions.length) % suggestions.length);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setShowSuggestions(false);
+      setActiveSuggestionIndex(0);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const activeSuggestion = suggestions[activeSuggestionIndex] ?? topSuggestion;
+      if (!activeSuggestion) return;
+      event.preventDefault();
+      applySuggestion(activeSuggestion);
+    }
+  };
+
+  useEffect(() => {
+    const query = deferredSymbolInput.trim();
+    if (!query) {
+      setSuggestions([]);
+      setIsSuggesting(false);
+      setActiveSuggestionIndex(0);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsSuggesting(true);
+        const params = new URLSearchParams({ query });
+        if (selectedMarket !== NO_MARKET) {
+          params.set("market", selectedMarket);
+        }
+        const res = await fetch(`/api/market/search?${params.toString()}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error("search-failed");
+        const payload = (await res.json()) as { results?: MarketSearchResult[] };
+        setSuggestions(Array.isArray(payload.results) ? payload.results : []);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("[LabGlobalAnalyzer] Search autocomplete failed:", error);
+        setSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSuggesting(false);
+        }
+      }
+    }, 140);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [deferredSymbolInput, selectedMarket]);
+
+  useEffect(() => {
+    setActiveSuggestionIndex(0);
+  }, [suggestions]);
+
+  useEffect(() => {
+    return () => {
+      if (hideSuggestionsTimeoutRef.current !== null) {
+        window.clearTimeout(hideSuggestionsTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const normalizedSymbol = normalizeTickerInput(symbolInput);
@@ -84,6 +204,20 @@ export function LabGlobalAnalyzer() {
       setSelectedTicker(buildTicker(parsed.market, parsed.symbol));
       return;
     }
+
+    if (showSuggestions && suggestions.length > 0) {
+      const activeSuggestion = suggestions[activeSuggestionIndex] ?? topSuggestion;
+      if (activeSuggestion) {
+        applySuggestion(activeSuggestion);
+        return;
+      }
+    }
+
+    if (topSuggestion) {
+      applySuggestion(topSuggestion);
+      return;
+    }
+
     setSelectedTicker(buildTicker(selectedMarket, normalizedSymbol));
     setSymbolInput(normalizedSymbol);
   };
@@ -129,16 +263,69 @@ export function LabGlobalAnalyzer() {
             <label htmlFor="lab-global-ticker" className="sr-only">
               Buscar ticker
             </label>
-            <input
-              id="lab-global-ticker"
-              type="text"
-              name="ticker"
-              autoComplete="off"
-              value={symbolInput}
-              onChange={(event) => setSymbolInput(event.target.value)}
-              placeholder="Ej. AAPL, REP, BTC-USD…"
-              className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-3 text-sm text-text transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
-            />
+            <div className="relative">
+              <input
+                id="lab-global-ticker"
+                type="text"
+                name="ticker"
+                autoComplete="off"
+                value={symbolInput}
+                onChange={(event) => {
+                  setSymbolInput(event.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onKeyDown={handleSuggestionKeyDown}
+                onBlur={() => {
+                  if (hideSuggestionsTimeoutRef.current !== null) {
+                    window.clearTimeout(hideSuggestionsTimeoutRef.current);
+                  }
+                  hideSuggestionsTimeoutRef.current = window.setTimeout(() => {
+                    setShowSuggestions(false);
+                  }, 140);
+                }}
+                placeholder="Ej. AAPL, REP, BTC-USD…"
+                className="h-10 w-full rounded-lg border border-border/70 bg-surface-muted/45 px-3 text-sm text-text transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+              />
+              {showSuggestions && (suggestions.length > 0 || isSuggesting) ? (
+                <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-20 overflow-hidden rounded-xl border border-border/80 bg-[#0d1422]/96 shadow-[0_24px_50px_rgba(2,8,20,0.55)] backdrop-blur-xl">
+                  {isSuggesting ? (
+                    <div className="px-3 py-2 text-xs text-muted">Buscando coincidencias…</div>
+                  ) : (
+                    suggestions.map((suggestion, index) => (
+                      <button
+                        key={suggestion.ticker}
+                        type="button"
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          applySuggestion(suggestion);
+                        }}
+                        className={`flex w-full items-start justify-between gap-3 border-b border-border/60 px-3 py-2 text-left transition-colors duration-150 last:border-b-0 ${
+                          index === activeSuggestionIndex
+                            ? "bg-surface-muted/45"
+                            : "hover:bg-surface-muted/35"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-text">{suggestion.ticker}</p>
+                          <p className="truncate text-xs text-muted">{suggestion.name}</p>
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {suggestion.tags.slice(0, 2).map((tag) => (
+                            <span
+                              key={`${suggestion.ticker}-${tag}`}
+                              className="rounded-full border border-border/70 bg-surface-muted/35 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.08em] text-muted"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              ) : null}
+            </div>
             <button
               type="submit"
               className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-accent/50 bg-accent/20 px-4 text-sm font-semibold text-accent transition-colors duration-200 hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
@@ -148,6 +335,12 @@ export function LabGlobalAnalyzer() {
             </button>
           </form>
         </div>
+
+        {topSuggestionLabel ? (
+          <p className="mt-3 text-xs text-muted">
+            Coincidencia: <span className="font-medium text-text">{topSuggestionLabel}</span>
+          </p>
+        ) : null}
 
         <div className="mt-4 space-y-3">
           <div className="space-y-2">

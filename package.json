@@ -9,6 +9,7 @@
     "start": "PORT=${PORT:-10000} next start --hostname 0.0.0.0 --port $PORT",
     "lint": "eslint app src --max-warnings=0",
     "type-check": "tsc --noEmit",
+    "build:market-search-index": "python3 scripts/build-market-search-index.py",
     "backtest:calibration": "pnpm dlx tsx scripts/backtest-calibration.ts",
     "vercel": "pnpm dlx vercel",
     "analyze": "cross-env ANALYZE=true next build --webpack"
