@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { computeIncrementalTechnicalAnalysis } from "@/lib/incrementalTechnicalEngine";
+import { isIntradayTimeframe, mapChartMarkers, mapChartSeriesData } from "@/lib/lightweightChartTime";
 import {
   EMPTY_INDICATOR_BUNDLE,
   computeIndicatorBundleWithMetrics,
@@ -406,7 +407,7 @@ export function PatternAnalysisLab() {
       },
       timeScale: {
         borderColor: "rgba(255,255,255,0.08)",
-        timeVisible: false,
+        timeVisible: isIntradayTimeframe(timeframe),
         secondsVisible: false,
       },
     });
@@ -418,7 +419,7 @@ export function PatternAnalysisLab() {
       wickUpColor: "#00c074",
       wickDownColor: "#f6465d",
     });
-    candleSeries.setData(analysis.candles);
+    candleSeries.setData(mapChartSeriesData(analysis.candles));
 
     const volumeSeries = chart.addHistogramSeries({
       color: "rgba(41,98,255,0.25)",
@@ -428,7 +429,7 @@ export function PatternAnalysisLab() {
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.82, bottom: 0 },
     });
-    volumeSeries.setData(analysis.volumes);
+    volumeSeries.setData(mapChartSeriesData(analysis.volumes));
 
     const markers = activePatterns
       .flatMap((pattern) => pattern.markers)
@@ -437,7 +438,7 @@ export function PatternAnalysisLab() {
         return a.time > b.time ? 1 : -1;
       });
     if (markers.length > 0) {
-      candleSeries.setMarkers(markers);
+      candleSeries.setMarkers(mapChartMarkers(markers));
     }
 
     [
@@ -453,7 +454,7 @@ export function PatternAnalysisLab() {
         priceLineVisible: false,
         lastValueVisible: false,
       });
-      series.setData(line.points);
+      series.setData(mapChartSeriesData(line.points));
     });
 
     chart.timeScale().fitContent();
@@ -466,7 +467,7 @@ export function PatternAnalysisLab() {
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [analysis, activePatterns, indicatorBundle]);
+  }, [analysis, activePatterns, indicatorBundle, timeframe]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2.1fr,1fr]">

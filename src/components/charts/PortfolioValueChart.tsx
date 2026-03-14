@@ -9,6 +9,7 @@ import {
   type Time,
 } from "lightweight-charts";
 import { Card } from "@/components/ui/card";
+import { mapChartMarkers, mapChartSeriesData } from "@/lib/lightweightChartTime";
 import {
   buildAnalysis,
   type CandlePoint,
@@ -389,7 +390,7 @@ export function PortfolioValueChart({
       wickUpColor: "#00c074",
       wickDownColor: "#f6465d",
     });
-    candleSeries.setData(liveSeries.candles);
+    candleSeries.setData(mapChartSeriesData(liveSeries.candles));
 
     const volumeSeries = chart.addHistogramSeries({
       color: "rgba(41,98,255,0.25)",
@@ -399,7 +400,7 @@ export function PortfolioValueChart({
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.82, bottom: 0 },
     });
-    volumeSeries.setData(liveSeries.volumes);
+    volumeSeries.setData(mapChartSeriesData(liveSeries.volumes));
 
     const allMarkers: MarkerWithConfidence[] = [];
 
@@ -412,7 +413,7 @@ export function PortfolioValueChart({
           priceLineVisible: false,
           lastValueVisible: false,
         });
-        series.setData(line.points);
+        series.setData(mapChartSeriesData(line.points));
       });
 
       if (pattern.markers.length > 0) {
@@ -460,7 +461,9 @@ export function PortfolioValueChart({
     });
 
     candleSeries.setMarkers(
-      Array.from(groupedMarkers.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+      mapChartMarkers(
+        Array.from(groupedMarkers.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+      )
     );
 
     analysis.support.forEach((line) => {
@@ -471,7 +474,7 @@ export function PortfolioValueChart({
         priceLineVisible: false,
         lastValueVisible: false,
       });
-      series.setData(line.points);
+      series.setData(mapChartSeriesData(line.points));
     });
 
     if (showProjectionInsights && technicalOutlook) {
