@@ -74,6 +74,7 @@ def parse_money(x):
 
 def get_ticker_mapping():
     return {
+        "CAD": "CIE.MC",    # Cie Automotive (Madrid)
         "ENL": "ENEL.MI",   # Enel (Milan)
         "41L": "ROVI.MC",   # Rovi (Madrid)
         "AJ3": "ANA.MC",    # Acciona (Madrid)

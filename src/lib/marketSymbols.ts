@@ -1,4 +1,5 @@
 const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
+  CAD: "CIE.MC",
   ENL: "ENEL.MI",
   "41L": "ROVI.MC",
   "41L.MC": "ROVI.MC",
@@ -16,6 +17,7 @@ const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
 };
 
 export const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
+  CAD: "BME:CIE",
   ENL: "MIL:ENEL",
   "41L": "BME:ROVI",
   AJ3: "BME:ANA",

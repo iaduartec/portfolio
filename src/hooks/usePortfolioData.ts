@@ -34,6 +34,7 @@ export function usePortfolioData() {
 
       try {
         const defaultFiles = [
+          "/portfolio-seed-2026-03.csv",
           "/DA0F4AD2-C6CC-4ED7-A1EA-612069957DA4.csv",
           "/Mi cartera_2025-11-29.csv",
         ];
