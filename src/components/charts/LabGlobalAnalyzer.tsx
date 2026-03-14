@@ -42,7 +42,7 @@ export function LabGlobalAnalyzer() {
   const [selectedMarket, setSelectedMarket] = useState(defaultParsedTicker.market);
   const [symbolInput, setSymbolInput] = useState(defaultParsedTicker.symbol);
   const [selectedTicker, setSelectedTicker] = useState(DEFAULT_TICKER);
-  const [selectedRange, setSelectedRange] = useState<HistoryRange>("3y");
+  const [selectedRange, setSelectedRange] = useState<HistoryRange>("1y");
 
   const stockQuickTickers = useMemo(() => {
     const fromPortfolio = holdings

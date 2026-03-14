@@ -375,6 +375,9 @@ export function PortfolioValueChart({
       },
       timeScale: {
         borderColor: "rgba(255,255,255,0.05)",
+        barSpacing: 6,
+        minBarSpacing: 1.5,
+        rightOffset: 6,
         timeVisible: false,
       },
     });
