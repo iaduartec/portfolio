@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import {
   loadStoredTransactions,
+  loadStoredTransactionsSource,
+  loadStoredTransactionsVersion,
   persistTransactions,
   TRANSACTIONS_UPDATED_EVENT,
 } from "@/lib/storage";
@@ -17,6 +19,8 @@ import {
 } from "@/lib/portfolio";
 import { toTransaction } from "@/hooks/usePortfolioData.utils";
 
+const DEFAULT_PORTFOLIO_VERSION = "2026-03-14-full-cashflows";
+
 export function usePortfolioData() {
   const { fxRate, baseCurrency } = useCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -27,7 +31,15 @@ export function usePortfolioData() {
   useEffect(() => {
     const loadDefaultData = async () => {
       const stored = loadStoredTransactions();
-      if (stored.length > 0) {
+      const storedSource = loadStoredTransactionsSource();
+      const storedVersion = loadStoredTransactionsVersion();
+      const shouldUseStoredUserPortfolio = stored.length > 0 && storedSource === "user";
+      const shouldUseCurrentDefaultPortfolio =
+        stored.length > 0 &&
+        storedSource === "default" &&
+        storedVersion === DEFAULT_PORTFOLIO_VERSION;
+
+      if (shouldUseStoredUserPortfolio || shouldUseCurrentDefaultPortfolio) {
         setTransactions(stored);
         return;
       }
@@ -57,7 +69,10 @@ export function usePortfolioData() {
           });
 
           if (parsed.length > 0) {
-            persistTransactions(parsed);
+            persistTransactions(parsed, {
+              source: "default",
+              version: DEFAULT_PORTFOLIO_VERSION,
+            });
             setTransactions(parsed);
             console.log(`INFO: Loaded default portfolio data from ${file}.`);
             break;

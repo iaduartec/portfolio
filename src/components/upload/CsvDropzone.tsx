@@ -171,7 +171,7 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
       return true;
     });
     const merged = [...existing, ...appended];
-    const saved = persistTransactions(merged);
+    const saved = persistTransactions(merged, { source: "user", version: "" });
     if (!saved) {
       setError("No se pudieron guardar en localStorage.");
       return;
