@@ -371,7 +371,7 @@ export function PortfolioValueChart({
       },
       rightPriceScale: {
         borderColor: "rgba(255,255,255,0.05)",
-        scaleMargins: { top: 0.2, bottom: 0.1 },
+        scaleMargins: { top: 0.16, bottom: 0.22 },
       },
       timeScale: {
         borderColor: "rgba(255,255,255,0.05)",
@@ -387,6 +387,16 @@ export function PortfolioValueChart({
       wickDownColor: "#f6465d",
     });
     candleSeries.setData(liveSeries.candles);
+
+    const volumeSeries = chart.addHistogramSeries({
+      color: "rgba(41,98,255,0.25)",
+      priceFormat: { type: "volume" },
+      priceScaleId: "",
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.82, bottom: 0 },
+    });
+    volumeSeries.setData(liveSeries.volumes);
 
     const allMarkers: MarkerWithConfidence[] = [];
 
