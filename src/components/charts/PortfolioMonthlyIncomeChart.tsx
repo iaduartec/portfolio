@@ -4,7 +4,9 @@ import { useMemo } from "react";
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -34,22 +36,33 @@ export function PortfolioMonthlyIncomeChart({ data }: PortfolioMonthlyIncomeChar
     [data, currency, fxRate, baseCurrency]
   );
 
-  const totalIncome = chartData.reduce((sum, point) => sum + point.displayValue, 0);
+  const totalResult = chartData.reduce((sum, point) => sum + point.displayValue, 0);
   const bestMonth = chartData.reduce<IncomePoint & { displayValue: number } | null>((best, point) => {
     if (!best || point.displayValue > best.displayValue) return point;
     return best;
   }, null);
+  const worstMonth = chartData.reduce<IncomePoint & { displayValue: number } | null>((worst, point) => {
+    if (!worst || point.displayValue < worst.displayValue) return point;
+    return worst;
+  }, null);
+  const totalToneClass =
+    totalResult >= 0
+      ? "border-success/25 bg-success/10 text-success"
+      : "border-danger/25 bg-danger/10 text-danger";
 
   return (
     <div className="w-full">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="rounded-full border border-success/25 bg-success/10 px-3 py-1 text-sm text-success">
-          {formatCurrency(totalIncome, currency)} cobrados
+        <div className={`rounded-full border px-3 py-1 text-sm ${totalToneClass}`}>
+          {formatCurrency(totalResult, currency)} acumulado
         </div>
         <div className="text-right text-xs text-muted">
-          <p>Ingreso mensual</p>
+          <p>Resultado mensual</p>
           <p className="mt-1 text-text">
             Mejor mes: {bestMonth ? `${bestMonth.label} · ${formatCurrency(bestMonth.displayValue, currency)}` : "N/D"}
+          </p>
+          <p className="mt-1 text-text">
+            Peor mes: {worstMonth ? `${worstMonth.label} · ${formatCurrency(worstMonth.displayValue, currency)}` : "N/D"}
           </p>
         </div>
       </div>
@@ -57,6 +70,7 @@ export function PortfolioMonthlyIncomeChart({ data }: PortfolioMonthlyIncomeChar
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
             <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <ReferenceLine y={0} stroke="rgba(209,212,220,0.18)" />
             <XAxis
               dataKey="label"
               stroke="rgba(209,212,220,0.6)"
@@ -82,7 +96,14 @@ export function PortfolioMonthlyIncomeChart({ data }: PortfolioMonthlyIncomeChar
               }}
               formatter={(value: number) => formatCurrency(value, currency)}
             />
-            <Bar dataKey="displayValue" fill="#48d597" radius={[8, 8, 0, 0]} maxBarSize={42} />
+            <Bar dataKey="displayValue" radius={[8, 8, 0, 0]} maxBarSize={42}>
+              {chartData.map((point) => (
+                <Cell
+                  key={point.label}
+                  fill={point.displayValue >= 0 ? "#48d597" : "#f87171"}
+                />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

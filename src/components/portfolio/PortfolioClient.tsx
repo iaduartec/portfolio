@@ -21,7 +21,7 @@ import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
 import { isFundTicker, isNonInvestmentTicker } from "@/lib/portfolioGroups";
-import type { Holding } from "@/types/portfolio";
+import type { Holding, RealizedTrade } from "@/types/portfolio";
 import type { Transaction } from "@/types/transactions";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -471,53 +471,39 @@ const computeSummaryFromHoldings = (subset: Holding[]) => {
   return { totalValue, totalPnl, dailyPnl };
 };
 
-const buildMonthlyDividendSeries = (
-  transactions: Transaction[],
-  fxRate: number,
-  baseCurrency: CurrencyCode
-): IncomePoint[] => {
-  const dividendTransactions = transactions
-    .filter((tx) => tx.type === "DIVIDEND")
-    .map((tx) => {
-      const timestamp = toTimestamp(tx.date);
-      if (!timestamp) return null;
+const buildMonthlyRealizedSeries = (trades: RealizedTrade[]): IncomePoint[] => {
+  const realizedByMonth = trades
+    .map((trade) => {
+      const timestamp = toTimestamp(trade.date);
+      if (!timestamp || !Number.isFinite(trade.pnlValue)) return null;
 
-      const txCurrency = tx.currency ?? baseCurrency;
-      const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
-      const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
-      const gross = hasQty && hasPrice ? tx.quantity * tx.price : hasPrice ? tx.price : hasQty ? tx.quantity : 0;
-      const net = gross - (tx.fee ?? 0);
-      const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
-
-      return Number.isFinite(amount)
-        ? {
-            monthStart: getMonthStart(timestamp),
-            value: amount,
-          }
-        : null;
+      return {
+        monthStart: getMonthStart(timestamp),
+        value: trade.pnlValue,
+      };
     })
     .filter((entry): entry is { monthStart: number; value: number } => entry !== null)
     .sort((a, b) => a.monthStart - b.monthStart);
 
-  if (dividendTransactions.length === 0) return [];
+  if (realizedByMonth.length === 0) return [];
 
   const totals = new Map<number, number>();
-  for (const entry of dividendTransactions) {
+  for (const entry of realizedByMonth) {
     totals.set(entry.monthStart, (totals.get(entry.monthStart) ?? 0) + entry.value);
   }
 
   const currentMonth = getMonthStart(Date.now());
-  const lastDividendMonth = Math.max(
-    dividendTransactions[dividendTransactions.length - 1]?.monthStart ?? currentMonth,
+  const lastRealizedMonth = Math.max(
+    realizedByMonth[realizedByMonth.length - 1]?.monthStart ?? currentMonth,
     currentMonth
   );
-  const startDate = new Date(lastDividendMonth);
+  const startDate = new Date(lastRealizedMonth);
   startDate.setUTCMonth(startDate.getUTCMonth() - 5);
   const startMonth = getMonthStart(startDate.getTime());
-  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(lastDividendMonth).getUTCFullYear();
+  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(lastRealizedMonth).getUTCFullYear();
   const points: IncomePoint[] = [];
 
-  for (let month = startMonth; month <= lastDividendMonth; month = getNextMonthStart(month)) {
+  for (let month = startMonth; month <= lastRealizedMonth; month = getNextMonthStart(month)) {
     points.push({
       label: formatMonthLabel(month, includeYear),
       value: Number((totals.get(month) ?? 0).toFixed(2)),
@@ -558,11 +544,23 @@ export function PortfolioClient() {
   );
   const stockSummary = useMemo(() => computeSummaryFromHoldings(stockHoldings), [stockHoldings]);
   const etfSummary = useMemo(() => computeSummaryFromHoldings(etfHoldings), [etfHoldings]);
+  const etfTotalCost = useMemo(
+    () => Math.max(0, etfSummary.totalValue - etfSummary.totalPnl),
+    [etfSummary.totalValue, etfSummary.totalPnl]
+  );
+  const etfReturnPercent = useMemo(
+    () => (etfTotalCost > 0 ? etfSummary.totalPnl / etfTotalCost : 0),
+    [etfSummary.totalPnl, etfTotalCost]
+  );
   const stockTrades = useMemo(
     () =>
       realizedTrades.filter(
         (trade) => !isFundTicker(trade.ticker) && !isNonInvestmentTicker(trade.ticker)
       ),
+    [realizedTrades]
+  );
+  const etfTrades = useMemo(
+    () => realizedTrades.filter((trade) => isFundTicker(trade.ticker)),
     [realizedTrades]
   );
   const stockTransactions = useMemo(
@@ -692,9 +690,13 @@ export function PortfolioClient() {
         return sum + (Number.isFinite(amount) ? amount : 0);
       }, 0);
   }, [stockTransactions, fxRate, baseCurrency]);
-  const stockDividendSeries = useMemo(
-    () => buildMonthlyDividendSeries(stockTransactions, fxRate, baseCurrency),
-    [stockTransactions, fxRate, baseCurrency]
+  const stockClosedSalesTotal = useMemo(
+    () => stockTrades.reduce((sum, trade) => sum + trade.pnlValue, 0),
+    [stockTrades]
+  );
+  const stockMonthlyRealizedSeries = useMemo(
+    () => buildMonthlyRealizedSeries(stockTrades),
+    [stockTrades]
   );
   const largestStockHolding = useMemo(
     () =>
@@ -740,9 +742,13 @@ export function PortfolioClient() {
         return sum + (Number.isFinite(amount) ? amount : 0);
       }, 0);
   }, [etfTransactions, fxRate, baseCurrency]);
-  const etfDividendSeries = useMemo(
-    () => buildMonthlyDividendSeries(etfTransactions, fxRate, baseCurrency),
-    [etfTransactions, fxRate, baseCurrency]
+  const etfClosedSalesTotal = useMemo(
+    () => etfTrades.reduce((sum, trade) => sum + trade.pnlValue, 0),
+    [etfTrades]
+  );
+  const etfMonthlyRealizedSeries = useMemo(
+    () => buildMonthlyRealizedSeries(etfTrades),
+    [etfTrades]
   );
 
   const etfTxStats = useMemo(() => {
@@ -978,6 +984,23 @@ export function PortfolioClient() {
                 className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
                 title="Ventas cerradas"
                 subtitle="Entradas, salidas y P&amp;L realizado"
+                footer={
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className="rounded-full border border-border/70 bg-surface-muted/35 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+                      {stockTrades.length} cierres
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]",
+                        stockClosedSalesTotal >= 0
+                          ? "border-success/30 bg-success/10 text-success"
+                          : "border-danger/30 bg-danger/10 text-danger"
+                      )}
+                    >
+                      Total {formatCurrency(convertCurrency(stockClosedSalesTotal, currency, fxRate, baseCurrency), currency)}
+                    </span>
+                  </div>
+                }
               >
                 <RealizedTradesTable trades={stockTrades} />
               </Card>
@@ -994,14 +1017,14 @@ export function PortfolioClient() {
           </div>
 
           <Card
-            className="border-success/25 bg-gradient-to-b from-success/10 to-surface/90"
-            title="Dividendos por mes"
-            subtitle="Serie mensual para separar ingresos recurrentes de aportaciones"
+            className="border-primary/25 bg-gradient-to-b from-primary/10 to-surface/90"
+            title="Beneficios / pérdidas por mes"
+            subtitle="Suma mensual del P&amp;L realizado en ventas cerradas de acciones"
           >
-            {stockDividendSeries.length > 0 ? (
-              <PortfolioMonthlyIncomeChart data={stockDividendSeries} />
+            {stockMonthlyRealizedSeries.length > 0 ? (
+              <PortfolioMonthlyIncomeChart data={stockMonthlyRealizedSeries} />
             ) : (
-              <p className="text-sm text-muted">Todavía no hay dividendos suficientes para construir una serie mensual.</p>
+              <p className="text-sm text-muted">Todavía no hay ventas cerradas suficientes para construir una serie mensual.</p>
             )}
           </Card>
 
@@ -1019,7 +1042,7 @@ export function PortfolioClient() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <Card className={cn(METRIC_CARD_CLASS, "border-primary/20 from-primary/10 to-surface/90")}>
               <p className="text-xs uppercase tracking-widest text-muted mb-2">Valor {ROBOADVISOR_NAME}</p>
               <p className="text-3xl font-bold text-text">
@@ -1030,6 +1053,12 @@ export function PortfolioClient() {
               <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Total</p>
               <p className={cn("text-3xl font-bold", etfSummary.totalPnl >= 0 ? "text-success" : "text-danger")}>
                 {formatCurrency(convertCurrency(etfSummary.totalPnl, currency, fxRate, baseCurrency), currency)}
+              </p>
+            </Card>
+            <Card className={METRIC_CARD_CLASS}>
+              <p className="text-xs uppercase tracking-widest text-muted mb-2">Rentabilidad</p>
+              <p className={cn("text-3xl font-bold", etfReturnPercent >= 0 ? "text-success" : "text-danger")}>
+                {formatPercent(etfReturnPercent)}
               </p>
             </Card>
             <Card className={cn(METRIC_CARD_CLASS, "border-success/25 from-success/10 to-surface/90")}>
@@ -1069,8 +1098,26 @@ export function PortfolioClient() {
                           }}
                         />
                       </div>
-                      <div className="mt-2 flex items-center justify-between text-xs text-muted">
+                      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted">
                         <span className="tabular-nums">{holding.totalQuantity.toFixed(4)} participaciones</span>
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            holding.pnlValue >= 0 ? "text-success" : "text-danger"
+                          )}
+                        >
+                          {formatPercent(holding.pnlPercent / 100)}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted">
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            holding.pnlValue >= 0 ? "text-success" : "text-danger"
+                          )}
+                        >
+                          {formatCurrency(convertCurrency(holding.pnlValue, currency, fxRate, baseCurrency), currency)}
+                        </span>
                         <span>{formatCurrency(convertCurrency(holding.marketValue, currency, fxRate, baseCurrency), currency)}</span>
                       </div>
                     </div>
@@ -1080,48 +1127,74 @@ export function PortfolioClient() {
                 <p className="text-sm text-muted">No hay posiciones de ETFs/fondos en el robadvisor.</p>
               )}
             </Card>
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
               <Card
                 className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-                title="Movimientos del Roboadvisor"
-                subtitle="Actividad detectada en tus CSV"
+                title="Ventas cerradas ETFs/Fondos"
+                subtitle="Rentabilidades obtenidas en cierres anteriores"
+                footer={
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <span className="rounded-full border border-border/70 bg-surface-muted/35 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
+                      {etfTrades.length} cierres
+                    </span>
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]",
+                        etfClosedSalesTotal >= 0
+                          ? "border-success/30 bg-success/10 text-success"
+                          : "border-danger/30 bg-danger/10 text-danger"
+                      )}
+                    >
+                      Total {formatCurrency(convertCurrency(etfClosedSalesTotal, currency, fxRate, baseCurrency), currency)}
+                    </span>
+                  </div>
+                }
               >
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
-                    <p className="text-xs uppercase tracking-[0.08em] text-muted">Compras</p>
-                    <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.buy}</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
-                    <p className="text-xs uppercase tracking-[0.08em] text-muted">Ventas</p>
-                    <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.sell}</p>
-                  </div>
-                  <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
-                    <p className="text-xs uppercase tracking-[0.08em] text-muted">Dividendos</p>
-                    <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.dividend}</p>
-                  </div>
-                </div>
+                <RealizedTradesTable trades={etfTrades} />
               </Card>
-              <Card
-                className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-                title="Participaciones ETFs/Fondos"
-                subtitle={`Posiciones abiertas en ${ROBOADVISOR_NAME}`}
-              >
-                {etfHoldings.length ? (
-                  <HoldingsTable holdings={etfHoldings} />
-                ) : (
-                  <p className="text-sm text-muted">No hay participaciones abiertas en ETFs/fondos.</p>
-                )}
-              </Card>
+              <div className="flex flex-col gap-6">
+                <Card
+                  className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
+                  title="Movimientos del Roboadvisor"
+                  subtitle="Actividad detectada en tus CSV"
+                >
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
+                      <p className="text-xs uppercase tracking-[0.08em] text-muted">Compras</p>
+                      <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.buy}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
+                      <p className="text-xs uppercase tracking-[0.08em] text-muted">Ventas</p>
+                      <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.sell}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
+                      <p className="text-xs uppercase tracking-[0.08em] text-muted">Dividendos</p>
+                      <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.dividend}</p>
+                    </div>
+                  </div>
+                </Card>
+                <Card
+                  className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
+                  title="Participaciones ETFs/Fondos"
+                  subtitle={`Posiciones abiertas en ${ROBOADVISOR_NAME}`}
+                >
+                  {etfHoldings.length ? (
+                    <HoldingsTable holdings={etfHoldings} />
+                  ) : (
+                    <p className="text-sm text-muted">No hay participaciones abiertas en ETFs/fondos.</p>
+                  )}
+                </Card>
+              </div>
             </div>
             <Card
-              className="border-success/25 bg-gradient-to-b from-success/10 to-surface/90"
-              title="Dividendos ETFs/Fondos por mes"
-              subtitle="Vista mensual del bloque de ingresos del robadvisor"
+              className="border-primary/25 bg-gradient-to-b from-primary/10 to-surface/90"
+              title="Beneficios / pérdidas ETFs/Fondos por mes"
+              subtitle="Suma mensual del P&amp;L realizado en ventas cerradas del robadvisor"
             >
-              {etfDividendSeries.length > 0 ? (
-                <PortfolioMonthlyIncomeChart data={etfDividendSeries} />
+              {etfMonthlyRealizedSeries.length > 0 ? (
+                <PortfolioMonthlyIncomeChart data={etfMonthlyRealizedSeries} />
               ) : (
-                <p className="text-sm text-muted">No hay dividendos suficientes en ETFs/fondos para una serie mensual.</p>
+                <p className="text-sm text-muted">No hay ventas cerradas suficientes en ETFs/fondos para una serie mensual.</p>
               )}
             </Card>
           </div>
