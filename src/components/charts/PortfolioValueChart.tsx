@@ -475,46 +475,34 @@ export function PortfolioValueChart({
     });
 
     if (showProjectionInsights && technicalOutlook) {
-      const startTime = liveSeries.candles[Math.max(0, liveSeries.candles.length - 90)].time;
-      const endTime = liveSeries.candles[liveSeries.candles.length - 1].time;
       const targetColor = technicalOutlook.direction === "bullish" ? "#00c074" : "#f8c12e";
-      const stopColor = "#f6465d";
 
-      const targetSeries = chart.addLineSeries({
+      candleSeries.createPriceLine({
+        price: technicalOutlook.target,
         color: targetColor,
         lineWidth: 2,
         lineStyle: LineStyle.Dashed,
-        priceLineVisible: true,
-        lastValueVisible: true,
+        axisLabelVisible: true,
+        title: "Objetivo",
       });
-      targetSeries.setData([
-        { time: startTime, value: technicalOutlook.target },
-        { time: endTime, value: technicalOutlook.target },
-      ]);
 
-      const stopSeries = chart.addLineSeries({
-        color: stopColor,
+      candleSeries.createPriceLine({
+        price: technicalOutlook.stopLoss,
+        color: "#f6465d",
         lineWidth: 2,
         lineStyle: LineStyle.Dashed,
-        priceLineVisible: true,
-        lastValueVisible: true,
+        axisLabelVisible: true,
+        title: "Stop",
       });
-      stopSeries.setData([
-        { time: startTime, value: technicalOutlook.stopLoss },
-        { time: endTime, value: technicalOutlook.stopLoss },
-      ]);
 
-      const entrySeries = chart.addLineSeries({
+      candleSeries.createPriceLine({
+        price: technicalOutlook.lastPrice,
         color: "rgba(133,148,170,0.7)",
         lineWidth: 1,
         lineStyle: LineStyle.Dotted,
-        priceLineVisible: false,
-        lastValueVisible: false,
+        axisLabelVisible: true,
+        title: "Entrada",
       });
-      entrySeries.setData([
-        { time: startTime, value: technicalOutlook.lastPrice },
-        { time: endTime, value: technicalOutlook.lastPrice },
-      ]);
     }
 
     chart.timeScale().fitContent();
