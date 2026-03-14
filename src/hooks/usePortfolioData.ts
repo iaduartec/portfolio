@@ -25,26 +25,27 @@ export function usePortfolioData() {
   const { fxRate, baseCurrency } = useCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [priceMap, setPriceMap] = useState<Record<string, PriceSnapshot>>({});
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
 
   // Load and sync transactions
   useEffect(() => {
     const loadDefaultData = async () => {
-      const stored = loadStoredTransactions();
-      const storedSource = loadStoredTransactionsSource();
-      const storedVersion = loadStoredTransactionsVersion();
-      const shouldUseStoredUserPortfolio = stored.length > 0 && storedSource === "user";
-      const shouldUseCurrentDefaultPortfolio =
-        stored.length > 0 &&
-        storedSource === "default" &&
-        storedVersion === DEFAULT_PORTFOLIO_VERSION;
-
-      if (shouldUseStoredUserPortfolio || shouldUseCurrentDefaultPortfolio) {
-        setTransactions(stored);
-        return;
-      }
-
       try {
+        const stored = loadStoredTransactions();
+        const storedSource = loadStoredTransactionsSource();
+        const storedVersion = loadStoredTransactionsVersion();
+        const shouldUseStoredUserPortfolio = stored.length > 0 && storedSource === "user";
+        const shouldUseCurrentDefaultPortfolio =
+          stored.length > 0 &&
+          storedSource === "default" &&
+          storedVersion === DEFAULT_PORTFOLIO_VERSION;
+
+        if (shouldUseStoredUserPortfolio || shouldUseCurrentDefaultPortfolio) {
+          setTransactions(stored);
+          return;
+        }
+
         const defaultFiles = [
           "/portfolio-seed-2026-03.csv",
           "/DA0F4AD2-C6CC-4ED7-A1EA-612069957DA4.csv",
@@ -80,6 +81,8 @@ export function usePortfolioData() {
         }
       } catch (error) {
         console.error("Failed to load default portfolio", error);
+      } finally {
+        setIsBootstrapping(false);
       }
     };
 
@@ -153,5 +156,12 @@ export function usePortfolioData() {
 
   const hasTransactions = transactions.length > 0;
 
-  return { transactions, holdings, summary, realizedTrades, hasTransactions, isLoading: isLoadingQuotes };
+  return {
+    transactions,
+    holdings,
+    summary,
+    realizedTrades,
+    hasTransactions,
+    isLoading: isBootstrapping || isLoadingQuotes,
+  };
 }

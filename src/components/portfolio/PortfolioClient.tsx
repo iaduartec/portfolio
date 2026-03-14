@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
 import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
+import { PortfolioMonthlyIncomeChart } from "@/components/charts/PortfolioMonthlyIncomeChart";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import {
   formatPercent,
@@ -45,6 +47,7 @@ type AllocationItem = {
 
 type PortfolioTab = "stocks" | "etf";
 type PerformancePoint = { label: string; value: number };
+type IncomePoint = { label: string; value: number };
 type HistoryClosePoint = { timestamp: number; close: number };
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -468,8 +471,64 @@ const computeSummaryFromHoldings = (subset: Holding[]) => {
   return { totalValue, totalPnl, dailyPnl };
 };
 
+const buildMonthlyDividendSeries = (
+  transactions: Transaction[],
+  fxRate: number,
+  baseCurrency: CurrencyCode
+): IncomePoint[] => {
+  const dividendTransactions = transactions
+    .filter((tx) => tx.type === "DIVIDEND")
+    .map((tx) => {
+      const timestamp = toTimestamp(tx.date);
+      if (!timestamp) return null;
+
+      const txCurrency = tx.currency ?? baseCurrency;
+      const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
+      const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
+      const gross = hasQty && hasPrice ? tx.quantity * tx.price : hasPrice ? tx.price : hasQty ? tx.quantity : 0;
+      const net = gross - (tx.fee ?? 0);
+      const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
+
+      return Number.isFinite(amount)
+        ? {
+            monthStart: getMonthStart(timestamp),
+            value: amount,
+          }
+        : null;
+    })
+    .filter((entry): entry is { monthStart: number; value: number } => entry !== null)
+    .sort((a, b) => a.monthStart - b.monthStart);
+
+  if (dividendTransactions.length === 0) return [];
+
+  const totals = new Map<number, number>();
+  for (const entry of dividendTransactions) {
+    totals.set(entry.monthStart, (totals.get(entry.monthStart) ?? 0) + entry.value);
+  }
+
+  const currentMonth = getMonthStart(Date.now());
+  const lastDividendMonth = Math.max(
+    dividendTransactions[dividendTransactions.length - 1]?.monthStart ?? currentMonth,
+    currentMonth
+  );
+  const startDate = new Date(lastDividendMonth);
+  startDate.setUTCMonth(startDate.getUTCMonth() - 5);
+  const startMonth = getMonthStart(startDate.getTime());
+  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(lastDividendMonth).getUTCFullYear();
+  const points: IncomePoint[] = [];
+
+  for (let month = startMonth; month <= lastDividendMonth; month = getNextMonthStart(month)) {
+    points.push({
+      label: formatMonthLabel(month, includeYear),
+      value: Number((totals.get(month) ?? 0).toFixed(2)),
+    });
+  }
+
+  return points;
+};
+
 export function PortfolioClient() {
-  const { holdings, realizedTrades, transactions } = usePortfolioData();
+  const { holdings, realizedTrades, transactions, isLoading } = usePortfolioData();
   const { currency, baseCurrency, fxRate } = useCurrency();
   const router = useRouter();
   const pathname = usePathname();
@@ -477,6 +536,7 @@ export function PortfolioClient() {
   const [sectorByTicker, setSectorByTicker] = useState<Record<string, string>>({});
   const [performanceSeries, setPerformanceSeries] = useState<PerformancePoint[]>([]);
   const activeTab: PortfolioTab = searchParams.get("tab") === "etf" ? "etf" : "stocks";
+  const showBootstrapState = isLoading && transactions.length === 0;
 
   const handleTabChange = (tab: PortfolioTab) => {
     if (tab === activeTab) return;
@@ -632,6 +692,34 @@ export function PortfolioClient() {
         return sum + (Number.isFinite(amount) ? amount : 0);
       }, 0);
   }, [stockTransactions, fxRate, baseCurrency]);
+  const stockDividendSeries = useMemo(
+    () => buildMonthlyDividendSeries(stockTransactions, fxRate, baseCurrency),
+    [stockTransactions, fxRate, baseCurrency]
+  );
+  const largestStockHolding = useMemo(
+    () =>
+      stockHoldings.reduce<Holding | null>((largest, holding) => {
+        if (!largest || holding.marketValue > largest.marketValue) return holding;
+        return largest;
+      }, null),
+    [stockHoldings]
+  );
+  const bestStockHolding = useMemo(
+    () =>
+      stockHoldings.reduce<Holding | null>((best, holding) => {
+        if (!best || holding.pnlPercent > best.pnlPercent) return holding;
+        return best;
+      }, null),
+    [stockHoldings]
+  );
+  const worstStockHolding = useMemo(
+    () =>
+      stockHoldings.reduce<Holding | null>((worst, holding) => {
+        if (!worst || holding.pnlPercent < worst.pnlPercent) return holding;
+        return worst;
+      }, null),
+    [stockHoldings]
+  );
 
   const etfDividendsCollected = useMemo(() => {
     return etfTransactions
@@ -652,6 +740,10 @@ export function PortfolioClient() {
         return sum + (Number.isFinite(amount) ? amount : 0);
       }, 0);
   }, [etfTransactions, fxRate, baseCurrency]);
+  const etfDividendSeries = useMemo(
+    () => buildMonthlyDividendSeries(etfTransactions, fxRate, baseCurrency),
+    [etfTransactions, fxRate, baseCurrency]
+  );
 
   const etfTxStats = useMemo(() => {
     return etfTransactions.reduce(
@@ -733,7 +825,33 @@ export function PortfolioClient() {
         </div>
       </section>
 
-      {activeTab === "stocks" ? (
+      {showBootstrapState ? (
+        <>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+            {[0, 1, 2].map((index) => (
+              <Card key={index} className={cn(METRIC_CARD_CLASS, "items-start px-6")}>
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-4 h-10 w-32" />
+              </Card>
+            ))}
+          </div>
+          <Card
+            className="border-primary/20 bg-gradient-to-b from-surface-muted/45 to-surface/90"
+            title="Rendimiento total de la cartera"
+            subtitle="Cargando histórico y posiciones..."
+          >
+            <Skeleton className="h-64 w-full rounded-2xl" />
+          </Card>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card title="Distribución" subtitle="Preparando composición y sectores">
+              <Skeleton className="h-64 w-full rounded-2xl" />
+            </Card>
+            <Card title="Participaciones" subtitle="Cargando posiciones abiertas">
+              <Skeleton className="h-64 w-full rounded-2xl" />
+            </Card>
+          </div>
+        </>
+      ) : activeTab === "stocks" ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className={cn(METRIC_CARD_CLASS, "border-primary/20 from-primary/10 to-surface/90")}>
@@ -763,6 +881,43 @@ export function PortfolioClient() {
           >
             <PortfolioPerformanceChart data={performanceSeries} />
           </Card>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Posiciones abiertas</p>
+              <p className="mt-3 text-3xl font-bold text-text">{stockHoldings.length}</p>
+              <p className="mt-2 text-sm text-muted">Acciones activas ahora mismo.</p>
+            </Card>
+            <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Mayor peso</p>
+              <p className="mt-3 text-lg font-semibold text-text">
+                {largestStockHolding?.name || largestStockHolding?.ticker || "Sin datos"}
+              </p>
+              <p className="mt-2 text-sm text-muted">
+                {largestStockHolding && stockSummary.totalValue > 0
+                  ? `${formatPercent(largestStockHolding.marketValue / stockSummary.totalValue)} de la cartera`
+                  : "Sin concentración relevante todavía."}
+              </p>
+            </Card>
+            <Card className="border-success/20 bg-gradient-to-b from-success/10 to-surface/92">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Mejor posición</p>
+              <p className="mt-3 text-lg font-semibold text-text">
+                {bestStockHolding?.name || bestStockHolding?.ticker || "Sin datos"}
+              </p>
+              <p className="mt-2 text-sm text-success">
+                {bestStockHolding ? formatPercent(bestStockHolding.pnlPercent / 100) : "N/D"}
+              </p>
+            </Card>
+            <Card className="border-danger/20 bg-gradient-to-b from-danger/10 to-surface/92">
+              <p className="text-xs uppercase tracking-[0.08em] text-muted">Peor posición</p>
+              <p className="mt-3 text-lg font-semibold text-text">
+                {worstStockHolding?.name || worstStockHolding?.ticker || "Sin datos"}
+              </p>
+              <p className="mt-2 text-sm text-danger">
+                {worstStockHolding ? formatPercent(worstStockHolding.pnlPercent / 100) : "N/D"}
+              </p>
+            </Card>
+          </div>
 
           <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
             <Card
@@ -837,6 +992,18 @@ export function PortfolioClient() {
               </Card>
             </div>
           </div>
+
+          <Card
+            className="border-success/25 bg-gradient-to-b from-success/10 to-surface/90"
+            title="Dividendos por mes"
+            subtitle="Serie mensual para separar ingresos recurrentes de aportaciones"
+          >
+            {stockDividendSeries.length > 0 ? (
+              <PortfolioMonthlyIncomeChart data={stockDividendSeries} />
+            ) : (
+              <p className="text-sm text-muted">Todavía no hay dividendos suficientes para construir una serie mensual.</p>
+            )}
+          </Card>
 
           <Card
             className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
@@ -946,6 +1113,17 @@ export function PortfolioClient() {
                 )}
               </Card>
             </div>
+            <Card
+              className="border-success/25 bg-gradient-to-b from-success/10 to-surface/90"
+              title="Dividendos ETFs/Fondos por mes"
+              subtitle="Vista mensual del bloque de ingresos del robadvisor"
+            >
+              {etfDividendSeries.length > 0 ? (
+                <PortfolioMonthlyIncomeChart data={etfDividendSeries} />
+              ) : (
+                <p className="text-sm text-muted">No hay dividendos suficientes en ETFs/fondos para una serie mensual.</p>
+              )}
+            </Card>
           </div>
         </>
       )}
