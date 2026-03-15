@@ -9,6 +9,7 @@ import {
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
+  AreaSeries,
   type SeriesMarker,
   type Time,
 } from "lightweight-charts";
@@ -436,14 +437,31 @@ export function PortfolioValueChart({
       },
     });
 
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: "#00c074",
-      downColor: "#f6465d",
-      borderVisible: false,
-      wickUpColor: "#00c074",
-      wickDownColor: "#f6465d",
-    }) as any;
-    candleSeries.setData(mapChartSeriesData(liveSeries.candles));
+    const isTotalPortfolio = normalizedTicker === 'PORTFOLIO';
+    
+    let mainSeries: any;
+    
+    if (isTotalPortfolio) {
+      mainSeries = chart.addSeries(AreaSeries, {
+        lineColor: "#2962ff",
+        topColor: "rgba(41,98,255,0.4)",
+        bottomColor: "rgba(41,98,255,0.02)",
+        lineWidth: 3,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: true,
+      });
+    } else {
+      mainSeries = chart.addSeries(CandlestickSeries, {
+        upColor: "#00c074",
+        downColor: "#f6465d",
+        borderVisible: false,
+        wickUpColor: "#00c074",
+        wickDownColor: "#f6465d",
+      }) as any;
+    }
+    
+    mainSeries.setData(mapChartSeriesData(liveSeries.candles));
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
       color: "rgba(41,98,255,0.25)",
@@ -514,7 +532,7 @@ export function PortfolioValueChart({
     });
 
     createSeriesMarkers(
-      candleSeries,
+      mainSeries,
       mapChartMarkers(
         Array.from(groupedMarkers.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
       )
@@ -534,7 +552,7 @@ export function PortfolioValueChart({
     if (showProjectionInsights && technicalOutlook) {
       const targetColor = technicalOutlook.direction === "bullish" ? "#00c074" : "#f8c12e";
 
-      candleSeries.createPriceLine({
+      mainSeries.createPriceLine({
         price: technicalOutlook.target,
         color: targetColor,
         lineWidth: 2,
@@ -543,7 +561,7 @@ export function PortfolioValueChart({
         title: "Objetivo",
       });
 
-      candleSeries.createPriceLine({
+      mainSeries.createPriceLine({
         price: technicalOutlook.stopLoss,
         color: "#f6465d",
         lineWidth: 2,
@@ -552,7 +570,7 @@ export function PortfolioValueChart({
         title: "Stop",
       });
 
-      candleSeries.createPriceLine({
+      mainSeries.createPriceLine({
         price: technicalOutlook.lastPrice,
         color: "rgba(133,148,170,0.7)",
         lineWidth: 1,

@@ -104,37 +104,54 @@ export function PortfolioDividendsChart({ transactions, holdings, range }: Portf
           </div>
         </div>
       </div>
-      <div className="h-64 rounded-2xl border border-border bg-surface-muted/30 p-3">
+      <div className="h-64 rounded-2xl border border-white/5 bg-gradient-to-br from-surface-muted/20 to-surface/40 p-4 transition-all hover:border-white/10">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
-            <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis
-              dataKey="label"
-              stroke="rgba(209,212,220,0.6)"
-              tickLine={false}
-              axisLine={false}
-              fontSize={11}
-            />
-            <YAxis
-              stroke="rgba(209,212,220,0.6)"
-              tickLine={false}
-              axisLine={false}
-              fontSize={11}
-              tickFormatter={(value) => formatCurrency(Number(value), currency)}
-              width={80}
-            />
-            <Tooltip
-              cursor={{ fill: "rgba(62,199,255,0.08)" }}
-              contentStyle={{
-                background: "#1b1f2a",
-                border: "1px solid rgba(255,255,255,0.1)",
-                borderRadius: 10,
-                color: "#d1d4dc",
-              }}
-              formatter={(value: any) => [formatCurrency(Number(value), currency), "Dividendos"]}
-            />
-            <Bar dataKey="value" fill="#3bc2ff" radius={[4, 4, 0, 0]} maxBarSize={40} />
-          </BarChart>
+            <defs>
+              <linearGradient id="dividendGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#3bc2ff" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="#2962ff" stopOpacity={0.4} />
+              </linearGradient>
+            </defs>
+            <BarChart data={chartData} margin={{ top: 10, right: 18, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke="rgba(255,255,255,0.03)" vertical={false} />
+              <XAxis
+                dataKey="label"
+                stroke="rgba(209,212,220,0.4)"
+                tickLine={false}
+                axisLine={false}
+                fontSize={10}
+                dy={10}
+              />
+              <YAxis
+                stroke="rgba(209,212,220,0.4)"
+                tickLine={false}
+                axisLine={false}
+                fontSize={10}
+                tickFormatter={(value) => formatCurrency(Number(value), currency)}
+                width={65}
+              />
+              <Tooltip
+                cursor={{ fill: "rgba(255,255,255,0.03)", radius: 6 }}
+                contentStyle={{
+                  background: "rgba(16, 24, 41, 0.95)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 16,
+                  boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)",
+                  backdropFilter: "blur(16px)",
+                  padding: "12px 16px",
+                }}
+                itemStyle={{ color: "#3bc2ff", fontSize: "12px", fontWeight: "bold" }}
+                labelStyle={{ color: "rgba(255,255,255,0.5)", fontSize: "10px", marginBottom: "6px", fontWeight: "bold", textTransform: "uppercase" }}
+                formatter={(value: any) => [formatCurrency(Number(value), currency), "DIVIDENDOS"]}
+              />
+              <Bar 
+                dataKey="value" 
+                fill="url(#dividendGradient)" 
+                radius={[6, 6, 2, 2]} 
+                maxBarSize={32}
+                className="transition-all duration-300 hover:brightness-110"
+              />
+            </BarChart>
         </ResponsiveContainer>
       </div>
     </div>

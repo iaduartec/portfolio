@@ -84,7 +84,7 @@ export function DashboardComposition({
         title="Mapa de concentración"
         subtitle="Qué posiciones explican la mayor parte del riesgo y del valor"
       >
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,0.95fr)]">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-3">
             {topHoldings.map((holding) => {
               const isSelected = activeTicker === holding.ticker;

@@ -40,6 +40,7 @@ export function DashboardHoldings({
                             selectedTicker={activeTicker}
                             onSelect={onSelectTicker}
                             isLoading={isLoading}
+                            totalPortfolioValue={fundTotal}
                         />
                     ) : (
                         <p className="text-sm leading-relaxed text-muted">

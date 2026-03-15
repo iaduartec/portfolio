@@ -1107,52 +1107,63 @@ export function PortfolioClient() {
             </div>
             <button
               onClick={() => setIsPrivate(!isPrivate)}
-              className="p-2 rounded-full bg-surface-muted/30 border border-border/60 text-muted hover:text-white transition-colors"
+              className={cn(
+                "group flex items-center gap-3 rounded-full border p-1.5 pr-4 transition-all active:scale-95 cursor-pointer shadow-lg",
+                isPrivate 
+                  ? "bg-primary/10 border-primary/30 text-primary shadow-primary/5 hover:bg-primary/20" 
+                  : "bg-surface/40 border-white/10 text-muted hover:text-white hover:bg-surface/60 shadow-black/20"
+              )}
               title={isPrivate ? "Mostrar valores" : "Ocultar valores"}
             >
-              {isPrivate ? <EyeOff size={18} /> : <Eye size={18} />}
+              <div className="relative">
+                {isPrivate ? <EyeOff size={14} className="animate-in fade-in zoom-in duration-300" /> : <Eye size={14} className="animate-in fade-in zoom-in duration-300" />}
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider select-none">
+                {isPrivate ? "Privado" : "Público"}
+              </span>
             </button>
           </div>
         </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
              {highlights && (
-               <>
-                 <Card className="flex items-center gap-4 border-none bg-[#1C1C1E] p-4 shadow-xl transition-all hover:bg-[#2C2C2E]">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
-                       <TrendingUp size={20} />
-                    </div>
-                    <div>
-                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted/60">Mayor Impulsor</p>
-                       <p className="text-sm font-bold text-text truncate max-w-[120px]">
-                         {highlights.best.ticker} <span className="text-success ml-1">+{maskValue(formatCurrency(convertCurrency(highlights.best.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
-                       </p>
-                    </div>
-                 </Card>
-                 <Card className="flex items-center gap-4 border-none bg-[#1C1C1E] p-4 shadow-xl transition-all hover:bg-[#2C2C2E]">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/10 text-danger">
-                       <TrendingDown size={20} />
-                    </div>
-                    <div>
-                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted/60">Mayor Detractor</p>
-                       <p className="text-sm font-bold text-text truncate max-w-[120px]">
-                         {highlights.worst.ticker} <span className="text-danger ml-1">{maskValue(formatCurrency(convertCurrency(highlights.worst.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
-                       </p>
-                    </div>
-                 </Card>
-                 <Card className="flex items-center gap-4 border-none bg-[#1C1C1E] p-4 shadow-xl transition-all hover:bg-[#2C2C2E]">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                       <Activity size={20} />
-                    </div>
-                    <div>
-                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted/60">Estrategia</p>
-                       <p className="text-sm font-bold text-text">
-                         {highlights.diversity} <span className="text-muted/50 font-medium px-1">·</span> 
-                         {selectedHoldings.length} posiciones
-                       </p>
-                    </div>
-                 </Card>
-               </>
+                <>
+                  <Card className="flex items-center gap-4 transition-all hover:border-success/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
+                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success transition-transform group-hover:scale-110">
+                        <TrendingUp size={20} />
+                     </div>
+                     <div className="min-w-0">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted/50">Top Impulsor</p>
+                        <p className="text-sm font-bold text-text truncate">
+                          {highlights.best.ticker} <span className="text-success ml-1 font-mono">+{maskValue(formatCurrency(convertCurrency(highlights.best.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
+                        </p>
+                     </div>
+                  </Card>
+                  <Card className="flex items-center gap-4 transition-all hover:border-danger/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
+                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/10 text-danger transition-transform group-hover:scale-110">
+                        <TrendingDown size={20} />
+                     </div>
+                     <div className="min-w-0">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted/50">Detractor</p>
+                        <p className="text-sm font-bold text-text truncate">
+                          {highlights.worst.ticker} <span className="text-danger ml-1 font-mono">{maskValue(formatCurrency(convertCurrency(highlights.worst.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
+                        </p>
+                     </div>
+                  </Card>
+                  <Card className="flex items-center gap-4 transition-all hover:border-primary/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
+                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
+                        <Activity size={20} />
+                     </div>
+                     <div className="min-w-0">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted/50">Estrategia</p>
+                        <p className="text-sm font-bold text-text truncate">
+                          {highlights.diversity} <span className="text-muted/40 font-medium px-1">·</span> 
+                          <span className="text-primary font-mono">{maskValue(formatCurrency(convertCurrency(selectedSummary.totalValue - (highlights.best.pnlValue + highlights.worst.pnlValue), currency, fxRate, baseCurrency), currency), isPrivate)}</span>
+                          <span className="text-[10px] text-muted/40 ml-1">({selectedHoldings.length} pos)</span>
+                        </p>
+                     </div>
+                  </Card>
+                </>
              )}
           </div>
 
@@ -1244,8 +1255,8 @@ export function PortfolioClient() {
               </div>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="flex flex-col justify-between border-none bg-[#1C1C1E] p-6 shadow-xl transition-all hover:bg-[#2C2C2E]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <Card className="flex flex-col justify-between transition-all hover:border-success/20 cursor-pointer hover:scale-[1.01] active:scale-[0.99] group">
               <div>
                 <p className="text-sm font-medium text-muted/60">Rendimiento</p>
                 <p className={cn("mt-1 text-2xl font-bold", displayedReturnPct >= 0 ? "text-success" : "text-danger")}>
@@ -1262,7 +1273,7 @@ export function PortfolioClient() {
               </div>
             </Card>
 
-            <Card className="flex flex-col justify-between border-none bg-[#1C1C1E] p-6 shadow-xl transition-all hover:bg-[#2C2C2E]">
+            <Card className="flex flex-col justify-between transition-all hover:border-primary/20 cursor-pointer hover:scale-[1.01] active:scale-[0.99] group">
               <div>
                 <p className="text-sm font-medium text-muted/60">Ganancias y Pérdidas</p>
                 <p className={cn("mt-1 text-2xl font-bold", displayedProfitChange >= 0 ? "text-success" : "text-danger")}>
@@ -1294,39 +1305,48 @@ export function PortfolioClient() {
             </Card>
           </div>
 
-          <Card className="relative overflow-hidden border-none bg-[#1C1C1E] p-6 shadow-xl">
-             <div className="flex justify-between items-start">
-               <div>
-                  <p className="text-sm font-medium text-muted/60">Asignación</p>
-                  <div className="mt-12 flex items-center gap-2">
-                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text">
+          <Card className="relative overflow-hidden min-h-[220px]">
+             <div className="flex flex-col md:flex-row justify-between items-start gap-6">
+               <div className="flex-1">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/50 mb-6">Asignación estratégica</p>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-primary/80">
                        <div className="flex py-0.5 space-x-[-2px]">
-                         <div className="w-[1px] h-2 bg-text/40" />
-                         <div className="w-[1px] h-3 bg-text/70" />
-                         <div className="w-[1px] h-2 bg-text/40" />
+                         <div className="w-[1px] h-2 bg-primary/40" />
+                         <div className="w-[1px] h-3 bg-primary/70" />
+                         <div className="w-[1px] h-2 bg-primary/40" />
                        </div>
                        Mayor participación
                     </div>
+                    
+                    <div>
+                      <p className="text-lg font-bold text-white leading-tight">
+                        {selectedLargestHolding?.name || selectedLargestHolding?.ticker || "---"}
+                      </p>
+                      <p className="mt-1 text-2xl font-black tracking-tight text-text">
+                        {selectedLargestHolding && selectedSummary.totalValue > 0 
+                          ? formatPercent(selectedLargestHolding.marketValue / selectedSummary.totalValue)
+                          : "0%"}
+                        <span className="ml-2 text-xs font-medium uppercase tracking-widest text-muted/40">Peso</span>
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-sm font-bold text-text">
-                    {selectedLargestHolding?.name || selectedLargestHolding?.ticker || "---"} <span className="text-muted/50 font-medium px-1">·</span> 
-                    {selectedLargestHolding && selectedSummary.totalValue > 0 
-                      ? formatPercent(selectedLargestHolding.marketValue / selectedSummary.totalValue)
-                      : "0%"}
-                  </p>
                 </div>
 
-                <div className="flex items-end gap-3 h-[140px] pt-4 pr-1">
+                <div className="flex items-end gap-4 h-[160px] pt-8 bg-surface-muted/10 rounded-2xl px-6 pb-4 border border-white/5">
                   {selectedAllocation.slice(0, 3).map((holding, idx) => (
-                    <div key={holding.ticker} className="flex flex-col items-center gap-3">
-                       <div 
-                          className="w-10 rounded-sm bg-white" 
-                          style={{ 
-                            opacity: 1 - (idx * 0.35),
-                            height: `${Math.max(15, (holding.marketValue / (selectedAllocation[0]?.marketValue || 1)) * 100)}%` 
-                          }} 
-                        />
-                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8" />
+                    <div key={holding.ticker} className="flex flex-col items-center gap-4 group">
+                       <div className="relative w-12 flex flex-col justify-end h-full">
+                         <div 
+                            className="w-full rounded-t-md bg-gradient-to-t from-primary/80 to-primary/40 shadow-glow transition-all duration-300 group-hover:scale-x-110" 
+                            style={{ 
+                              opacity: 1 - (idx * 0.25),
+                              height: `${Math.max(20, (holding.marketValue / (selectedAllocation[0]?.marketValue || 1)) * 100)}%` 
+                            }} 
+                          />
+                        </div>
+                        <RevolutTickerIcon ticker={holding.ticker} className="h-9 w-9 shadow-glow transition-transform group-hover:scale-110" />
                     </div>
                   ))}
                </div>
@@ -1334,7 +1354,7 @@ export function PortfolioClient() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden flex flex-col justify-center">
+            <Card className="overflow-hidden flex flex-col justify-center">
               <p className="text-sm font-medium text-muted/60 mb-3">Dividendos cobrados (LTM) y rentabilidad base</p>
               <div className="h-[260px] w-full pt-4">
                 <PortfolioDividendsChart 
@@ -1344,7 +1364,7 @@ export function PortfolioClient() {
                 />
               </div>
             </Card>
-            <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden flex flex-col justify-center">
+            <Card className="overflow-hidden flex flex-col justify-center">
               <SectorTreemap holdings={selectedHoldings} isPrivate={isPrivate} />
             </Card>
           </div>

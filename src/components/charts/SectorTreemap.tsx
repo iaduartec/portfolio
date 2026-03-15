@@ -46,17 +46,25 @@ const CustomizedContent = (props: any) => {
 
   return (
     <g>
+      <defs>
+        <linearGradient id={`gradient-${index}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.8} />
+          <stop offset="100%" stopColor={color} stopOpacity={0.4} />
+        </linearGradient>
+      </defs>
       <rect
         x={x}
         y={y}
         width={width}
         height={height}
+        rx={4}
+        ry={4}
         style={{
-          fill: color || '#8884d8',
-          stroke: '#1c1c1e',
-          strokeWidth: 2,
-          strokeOpacity: 1,
+          fill: `url(#gradient-${index})`,
+          stroke: 'rgba(255,255,255,0.1)',
+          strokeWidth: 1,
         }}
+        className="transition-all duration-300 hover:opacity-90"
       />
       {width > 40 && height > 25 && (
         <text
@@ -117,33 +125,51 @@ export function SectorTreemap({ holdings, isPrivate = false }: SectorTreemapProp
     }));
   }, [holdings, currency, fxRate, baseCurrency]);
 
-  return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-lg font-bold text-text">Sectores</h3>
-        <p className="text-xs text-muted/60">
-          Distribución del valor de mercado agrupado por sectores principales y fondos.
-        </p>
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex h-[300px] flex-col items-center justify-center space-y-3 rounded-2xl border border-white/5 bg-surface/20 p-8 text-center backdrop-blur-sm">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/10 text-muted/40">
+           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><line x1="12" y1="22" x2="12" y2="12"></line></svg>
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-text">Sin datos de exposición</h3>
+          <p className="text-xs text-muted/60">Agrega activos con valor de mercado para ver tu diversificación.</p>
+        </div>
       </div>
-      <div className="h-[300px] overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-surface-muted/20 to-surface/40">
+    );
+  }
+
+  const totalPortfolioValue = data.reduce((sum, sector) => sum + sector.size, 0);
+
+  return (
+    <div className="w-full">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-bold text-muted/80 uppercase tracking-widest flex items-center gap-2">
+           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+           Exposición por Sector
+        </h3>
+      </div>
+      <div className="h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
           <Treemap
             data={data}
             dataKey="size"
+            aspectRatio={4 / 3}
             stroke="#1c1c1e"
-            fill="#8884d8"
             content={<CustomizedContent />}
-            isAnimationActive={false}
           >
             <RechartsTooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
-                  const node = payload[0].payload;
+                  const item = payload[0].payload;
                   return (
-                    <div className="rounded-xl border border-border/75 bg-surface/95 p-3 shadow-panel backdrop-blur-md">
-                      <p className="text-[10px] uppercase tracking-widest text-muted/60 font-bold mb-1">{node.name}</p>
-                      <p className="text-sm font-bold text-primary">
-                        {maskValue(formatCurrency(node.size, currency))}
+                    <div className="rounded-xl border border-white/10 bg-surface/95 p-3 shadow-2xl backdrop-blur-md">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted/50 mb-1">{item.name}</p>
+                      <p className="text-sm font-bold text-text">
+                        {maskValue(formatCurrency(item.size, currency))}
+                      </p>
+                      <p className="text-[10px] font-medium text-success mt-1">
+                         {((item.size / (totalPortfolioValue || 1)) * 100).toFixed(1)}% del total
                       </p>
                     </div>
                   );

@@ -235,7 +235,7 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                   </div>
                 </th>
               ))}
-              <th className="px-4 py-3.5 font-semibold">Señales</th>
+              <th className="px-4 py-3.5 font-semibold text-right">Análisis</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70 text-text">
@@ -262,12 +262,12 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                 return (
                   <tr
                     key={holding.ticker}
-                    className="group cursor-pointer transition-colors hover:bg-surface-muted/40"
+                    className="group cursor-pointer transition-all duration-200 hover:bg-white/[0.03] active:bg-white/[0.05]"
                     onClick={() => onSelect?.(holding.ticker)}
                   >
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8 shrink-0 shadow-glow" />
+                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8 shrink-0 shadow-glow transition-transform group-hover:scale-110" />
                         <div className="flex flex-col">
                           <span className="max-w-[180px] truncate font-bold text-text">
                             {holding.ticker}
@@ -340,13 +340,13 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                         )}
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-text font-semibold">
-                       {formatPercent(weight / 100)}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {financialInfo ? <Badge tone={financialInfo.tone}>{financialInfo.label}</Badge> : null}
-                        {riskInfo ? <Badge tone={riskInfo.tone}>{riskInfo.label}</Badge> : null}
+                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono text-sm text-primary/90">
+                        {formatPercent(weight / 100)}
+                     </td>
+                     <td className="px-4 py-3.5">
+                       <div className="flex flex-wrap items-center justify-end gap-2">
+                         {financialInfo ? <Badge tone={financialInfo.tone}>{financialInfo.label}</Badge> : null}
+                         {riskInfo ? <Badge tone={riskInfo.tone}>{riskInfo.label}</Badge> : null}
                         {technicalInfo ? (
                           <Badge tone={technicalInfo.tone}>
                             {technicalInfo.label}
