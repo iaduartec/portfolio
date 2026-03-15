@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { Holding } from "@/types/portfolio";
@@ -246,8 +247,8 @@ export function AgentsCatalog() {
                 key={holding.ticker}
                 onClick={() => setSelected(holding.ticker)}
                 className={cn(
-                  "min-w-[160px] rounded-md border border-border bg-surface px-3 py-2 text-left text-xs transition hover:border-accent/50 hover:bg-surface-muted/60",
-                  isActive && "border-accent/70 bg-surface-muted/70 shadow-panel"
+                  "min-w-[180px] rounded-xl border border-border/70 bg-surface/65 px-3 py-2.5 text-left text-xs transition hover:border-primary/18 hover:bg-surface-muted/55",
+                  isActive && "border-primary/18 bg-primary/[0.08]"
                 )}
               >
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -308,9 +309,9 @@ export function AgentsCatalog() {
                 </div>
               </div>
 
-              <div className="space-y-2 rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+              <div className="space-y-2 rounded-[1.25rem] border border-border/60 bg-surface-muted/35 p-4">
                 <p className="text-xs uppercase tracking-[0.08em] text-muted">Proveedor</p>
-                <div className="flex flex-wrap gap-3 text-xs text-muted">
+                <div className="flex flex-wrap gap-2 text-xs">
                   <label className="flex items-center gap-1">
                     <input
                       type="radio"
@@ -319,7 +320,7 @@ export function AgentsCatalog() {
                       checked={provider === "gemini"}
                       onChange={() => setProvider("gemini")}
                     />
-                    Gemini
+                    <span className={cn("rounded-full border px-2.5 py-1 font-medium", provider === "gemini" ? "border-primary/18 bg-primary/[0.08] text-primary" : "border-border/70 text-text-secondary")}>Gemini</span>
                   </label>
                   <label className="flex items-center gap-1">
                     <input
@@ -329,7 +330,7 @@ export function AgentsCatalog() {
                       checked={provider === "anthropic"}
                       onChange={() => setProvider("anthropic")}
                     />
-                    Anthropic
+                    <span className={cn("rounded-full border px-2.5 py-1 font-medium", provider === "anthropic" ? "border-primary/18 bg-primary/[0.08] text-primary" : "border-border/70 text-text-secondary")}>Anthropic</span>
                   </label>
                   <label className="flex items-center gap-1">
                     <input
@@ -339,7 +340,7 @@ export function AgentsCatalog() {
                       checked={provider === "openrouter"}
                       onChange={() => setProvider("openrouter")}
                     />
-                    OpenRouter
+                    <span className={cn("rounded-full border px-2.5 py-1 font-medium", provider === "openrouter" ? "border-primary/18 bg-primary/[0.08] text-primary" : "border-border/70 text-text-secondary")}>OpenRouter</span>
                   </label>
                   <label className="flex items-center gap-1">
                     <input
@@ -349,31 +350,31 @@ export function AgentsCatalog() {
                       checked={provider === "ollama"}
                       onChange={() => setProvider("ollama")}
                     />
-                    Ollama
+                    <span className={cn("rounded-full border px-2.5 py-1 font-medium", provider === "ollama" ? "border-primary/18 bg-primary/[0.08] text-primary" : "border-border/70 text-text-secondary")}>Ollama</span>
                   </label>
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <button
+                <Button
                   onClick={runSelected}
                   disabled={loadingAll || loadingTicker === selectedHolding.ticker}
-                  className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-50"
+                  variant="secondary"
                 >
                   {loadingTicker === selectedHolding.ticker ? "Generando..." : "Generar recomendacion"}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => void runAll()}
                   disabled={loadingAll || holdings.length === 0}
-                  className="rounded-lg border border-border px-3 py-2 text-sm font-semibold text-text transition hover:border-accent disabled:opacity-50"
+                  variant="outline"
                 >
                   {loadingAll ? "Analizando cartera..." : "Generar para toda la cartera"}
-                </button>
+                </Button>
               </div>
 
               {error && <p className="text-sm text-danger">{error}</p>}
 
-              <div className="rounded-md border border-border bg-surface p-2 text-sm text-text whitespace-pre-wrap">
+              <div className="rounded-[1.1rem] border border-border/70 bg-surface/75 p-3 text-sm text-text whitespace-pre-wrap">
                 {recommendations[selectedHolding.ticker]
                   ? recommendations[selectedHolding.ticker]
                   : "Sin recomendacion aun."}

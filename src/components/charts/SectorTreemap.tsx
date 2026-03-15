@@ -143,11 +143,14 @@ export function SectorTreemap({ holdings, isPrivate = false }: SectorTreemapProp
 
   return (
     <div className="w-full">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-muted/80 uppercase tracking-widest flex items-center gap-2">
-           <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-           Exposición por Sector
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.12em] text-text-secondary">
+           <div className="h-2 w-2 rounded-full bg-primary" />
+           Exposición por sector
         </h3>
+        <p className="text-xs text-text-tertiary">
+          {data.length} sectores · {maskValue(formatCurrency(totalPortfolioValue, currency))}
+        </p>
       </div>
       <div className="h-[280px]">
         <ResponsiveContainer width="100%" height="100%">
@@ -163,12 +166,12 @@ export function SectorTreemap({ holdings, isPrivate = false }: SectorTreemapProp
                 if (active && payload && payload.length) {
                   const item = payload[0].payload;
                   return (
-                    <div className="rounded-xl border border-white/10 bg-surface/95 p-3 shadow-2xl backdrop-blur-md">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted/50 mb-1">{item.name}</p>
-                      <p className="text-sm font-bold text-text">
+                    <div className="rounded-xl border border-border/70 bg-surface/95 p-3 shadow-panel">
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">{item.name}</p>
+                      <p className="text-sm font-semibold text-text">
                         {maskValue(formatCurrency(item.size, currency))}
                       </p>
-                      <p className="text-[10px] font-medium text-success mt-1">
+                      <p className="mt-1 text-[10px] font-medium text-success">
                          {((item.size / (totalPortfolioValue || 1)) * 100).toFixed(1)}% del total
                       </p>
                     </div>
@@ -179,6 +182,31 @@ export function SectorTreemap({ holdings, isPrivate = false }: SectorTreemapProp
             />
           </Treemap>
         </ResponsiveContainer>
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {data.map((sector) => (
+          <div
+            key={sector.name}
+            className="flex items-center justify-between rounded-[1rem] border border-border/60 bg-surface-muted/30 px-3 py-2"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: sector.color }}
+                aria-hidden="true"
+              />
+              <span className="truncate text-sm text-text">{sector.name}</span>
+            </div>
+            <div className="text-right">
+              <p className="financial-value text-sm font-semibold text-text">
+                {((sector.size / (totalPortfolioValue || 1)) * 100).toFixed(1)}%
+              </p>
+              <p className="text-[11px] text-text-tertiary">
+                {maskValue(formatCurrency(sector.size, currency))}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

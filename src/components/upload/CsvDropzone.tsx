@@ -372,19 +372,20 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between text-sm">
+      <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted">
           Transacciones detectadas:{" "}
           <span className="font-semibold text-text">{transactions.length}</span>
         </p>
-        <button
+        <Button
           type="button"
           onClick={handleSave}
           disabled={!transactions.length}
-          className="rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          variant="secondary"
+          className="w-full sm:w-auto"
         >
           Añadir y combinar
-        </button>
+        </Button>
       </div>
     </div>
   );
