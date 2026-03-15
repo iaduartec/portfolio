@@ -1,0 +1,66 @@
+name: Deploy · Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-production-main
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify before deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - run: corepack enable
+      - run: corepack prepare $(node -p "require('./package.json').packageManager") --activate
+      - run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          pnpm config set store-dir ~/.pnpm-store
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpmstore-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpmstore-
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm build
+
+  deploy:
+    name: Deploy to production server
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script_stop: true
+          script: |
+            cd /srv/apps/portfolio
+            git fetch --prune --no-tags origin
+            git reset --hard origin/main
+            SKIP_GIT_SYNC=1 bash ./scripts/deploy-production.sh
