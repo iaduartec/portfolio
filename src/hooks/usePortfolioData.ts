@@ -260,7 +260,7 @@ function usePortfolioDataValue(): PortfolioDataValue {
   const summary = useMemo(() => computeSummary(holdings), [holdings]);
   
   const realizedTrades = useMemo(() => {
-    const baseTrades = computeRealizedTrades(transactions, fxRate, baseCurrency);
+    const baseTrades = computeRealizedTrades(transactions, priceMap, fxRate, baseCurrency);
     return baseTrades.map((trade) => {
       const quoteName = priceMap[trade.ticker.toUpperCase()]?.name;
       if (trade.name || !quoteName) return trade;

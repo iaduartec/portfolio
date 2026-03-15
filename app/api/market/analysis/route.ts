@@ -64,6 +64,13 @@ const AnalysisSchema = z.object({
   stopLoss: z.string().optional().describe("Nivel de stop-loss sugerido."),
 });
 
+const ResearchFocusSchema = z.object({
+  summary: z.string().describe("Resumen de 1-2 líneas sobre qué hay que mirar antes de valorar el activo."),
+  assetQueries: z.array(z.string()).max(4).describe("Búsquedas de noticias directas sobre el activo o la empresa."),
+  macroQueries: z.array(z.string()).max(4).describe("Búsquedas macro/geopolíticas relevantes para el sector/país."),
+  riskFactors: z.array(z.string()).max(5).describe("Factores de riesgo a vigilar para el activo."),
+});
+
 type AuditNewsItem = {
   title: string;
   publisher: string;
@@ -141,6 +148,18 @@ const fetchAssetProfile = async (origin: string, symbol?: string) => {
     };
   };
   return payload.data?.profile ?? null;
+};
+
+const fetchWorldIndicesNews = async (origin: string) => {
+  const response = await fetch(
+    `${origin}/api/yahoo?action=world-indices-news`,
+    { next: { revalidate: 300 } },
+  );
+  if (!response.ok) return [] as AuditNewsItem[];
+  const payload = (await response.json()) as { items?: AuditNewsItem[] };
+  return Array.isArray(payload.items)
+    ? payload.items.slice(0, 4).map((item) => ({ ...item, scope: "macro" as const }))
+    : [];
 };
 
 const buildExposureText = (name?: string, profile?: AssetProfile | null) =>
@@ -284,6 +303,23 @@ const formatMacroSensitivityContext = (sensitivities: MacroSensitivity[]) => {
   return sensitivities.map((item) => `- ${item.explanation}`).join("\n");
 };
 
+const normalizeQuery = (value: string) => value.trim().replace(/\s+/g, " ");
+
+const dedupeQueries = (queries: string[]) => {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const query of queries.map(normalizeQuery)) {
+    if (!query) continue;
+    const key = query.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(query);
+  }
+
+  return normalized;
+};
+
 const formatPositionContext = (positionContext?: z.infer<typeof PositionContextSchema>) => {
   if (!positionContext?.inPortfolio) {
     return "El usuario no tiene actualmente este valor en cartera.";
@@ -344,12 +380,6 @@ export async function POST(req: Request) {
     const profile = await fetchAssetProfile(origin, symbol);
     const sensitivities = inferMacroSensitivities(symbol ?? "", name, profile);
     const symbolQuery = name?.trim() || symbol?.split(":").pop()?.split(".")[0] || "";
-    const assetNews = symbolQuery ? await fetchNewsByQuery(origin, symbolQuery, "asset") : [];
-    const macroQueries = buildMacroQueries(symbol ?? "", name, profile);
-    const macroNewsGroups = await Promise.all(
-      macroQueries.map((query) => fetchNewsByQuery(origin, query, query === symbolQuery ? "asset" : "macro")),
-    );
-    const newsItems = dedupeNewsItems([...assetNews, ...macroNewsGroups.flat()]).slice(0, 6);
 
     const models = [...getGeminiModels(), ...getOpenRouterModels()];
     if (models.length === 0) {
@@ -359,13 +389,70 @@ export async function POST(req: Request) {
     const symbolLabel = symbol || "el activo";
     const nameLabel = name?.trim() ? `${name} (${symbolLabel})` : symbolLabel;
     const portfolioContextText = formatPositionContext(positionContext);
-    const assetNewsText = formatNewsForPrompt(newsItems.filter((item) => item.scope !== "macro"));
-    const macroNewsText = formatNewsForPrompt(newsItems.filter((item) => item.scope === "macro"));
     const macroSensitivityText = formatMacroSensitivityContext(sensitivities);
     let lastError: unknown;
 
     for (const model of models) {
       try {
+        const { object: researchFocus } = await generateObject({
+          model,
+          schema: ResearchFocusSchema,
+          maxOutputTokens: 400,
+          prompt: `
+Antes de valorar ${nameLabel}, decide qué información externa merece buscar.
+
+Activo: ${nameLabel}
+Sector: ${profile?.sector ?? "N/D"}
+Industria: ${profile?.industry ?? "N/D"}
+País: ${profile?.country ?? "N/D"}
+
+Sensibilidad macro sectorial:
+${macroSensitivityText}
+
+Contexto de cartera:
+${portfolioContextText}
+
+Devuelve:
+- búsquedas directas del activo/empresa
+- búsquedas macro relevantes para su sector o país
+- factores de riesgo concretos
+
+Reglas:
+- Nada de boilerplate.
+- Si el activo es sensible a energía, logística, petróleo o tipos, refléjalo.
+- Usa búsquedas cortas y prácticas.
+- Devuelve todo en español salvo los términos de búsqueda, que pueden ir en inglés si mejoran resultados.
+`,
+        });
+
+        const heuristicMacroQueries = buildMacroQueries(symbol ?? "", name, profile);
+        const assetQueries = dedupeQueries([symbolQuery, ...(researchFocus.assetQueries ?? [])]).slice(0, 4);
+        const macroQueries = dedupeQueries([
+          ...heuristicMacroQueries,
+          ...(researchFocus.macroQueries ?? []),
+        ]).slice(0, 5);
+
+        const assetNewsGroups = await Promise.all(
+          assetQueries.map((query) => fetchNewsByQuery(origin, query, "asset")),
+        );
+        const macroNewsGroups = await Promise.all(
+          macroQueries.map((query) => fetchNewsByQuery(origin, query, "macro")),
+        );
+        const worldIndicesNews = await fetchWorldIndicesNews(origin);
+        const newsItems = dedupeNewsItems([
+          ...assetNewsGroups.flat(),
+          ...macroNewsGroups.flat(),
+          ...worldIndicesNews,
+        ]).slice(0, 10);
+        const assetNewsText = formatNewsForPrompt(newsItems.filter((item) => item.scope !== "macro"));
+        const macroNewsText = formatNewsForPrompt(newsItems.filter((item) => item.scope === "macro"));
+        const researchFocusText = [
+          `Resumen: ${researchFocus.summary}`,
+          `Factores: ${(researchFocus.riskFactors ?? []).join("; ") || "N/D"}`,
+          `Queries activo: ${assetQueries.join(" | ") || "N/D"}`,
+          `Queries macro: ${macroQueries.join(" | ") || "N/D"}`,
+        ].join("\n");
+
         const { object } = await generateObject({
           model,
           schema: AnalysisSchema,
@@ -385,6 +472,9 @@ Perfil del activo:
 
 Sensibilidad macro sectorial esperada:
 ${macroSensitivityText}
+
+Hipótesis de búsqueda construida durante el análisis:
+${researchFocusText}
 
 Contexto de cartera del usuario:
 ${portfolioContextText}

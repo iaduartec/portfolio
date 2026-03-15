@@ -39,4 +39,7 @@ export interface RealizedTrade {
   entryPrice: number;
   exitPrice: number;
   pnlValue: number;
+  currentPrice?: number;
+  postSalePnlValue?: number;
+  postSaleOutcome?: "MISSED_GAIN" | "AVOIDED_LOSS" | "FLAT";
 }

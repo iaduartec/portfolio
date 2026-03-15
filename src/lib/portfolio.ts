@@ -324,6 +324,7 @@ export const computeSummary = (holdings: Holding[]): PortfolioSummary => {
 
 export const computeRealizedTrades = (
   transactions: Transaction[],
+  priceMap: Record<string, PriceSnapshot>,
   fxRate: number,
   baseCurrency: CurrencyCode
 ): RealizedTrade[] => {
@@ -377,6 +378,21 @@ export const computeRealizedTrades = (
       if (soldQuantity > 0) {
         const pnlValue = soldQuantity * priceBase - soldCost - feeBase;
         const entryPrice = soldQuantity > 0 ? soldCost / soldQuantity : 0;
+        const latestPriceRaw = priceMap[tx.ticker.toUpperCase()]?.price;
+        const currentPrice =
+          Number.isFinite(latestPriceRaw)
+            ? convertCurrencyFrom(latestPriceRaw!, currency, baseCurrency, fxRate, baseCurrency)
+            : undefined;
+        const postSalePnlValue =
+          currentPrice !== undefined ? soldQuantity * (currentPrice - priceBase) : undefined;
+        const postSaleOutcome =
+          postSalePnlValue === undefined || Math.abs(postSalePnlValue) < 1e-6
+            ? currentPrice !== undefined
+              ? "FLAT"
+              : undefined
+            : postSalePnlValue > 0
+              ? "MISSED_GAIN"
+              : "AVOIDED_LOSS";
         realized.push({
           id: `${tx.ticker}-${tx.date}-${idx}`,
           ticker: tx.ticker,
@@ -388,6 +404,9 @@ export const computeRealizedTrades = (
           entryPrice,
           exitPrice: priceBase,
           pnlValue,
+          currentPrice,
+          postSalePnlValue,
+          postSaleOutcome,
         });
       }
     }

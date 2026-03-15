@@ -73,10 +73,41 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
     return trimmed;
   };
 
+  const buildPostSaleRead = (trade: RealizedTrade) => {
+    if (trade.postSalePnlValue === undefined || trade.postSaleOutcome === undefined) {
+      return null;
+    }
+
+    if (trade.postSaleOutcome === "MISSED_GAIN") {
+      return {
+        tone: "warning" as const,
+        label: `Dejaste de ganar ${formatCurrency(
+          convertCurrency(trade.postSalePnlValue, currency, fxRate, baseCurrency),
+          currency
+        )}`,
+      };
+    }
+
+    if (trade.postSaleOutcome === "AVOIDED_LOSS") {
+      return {
+        tone: "success" as const,
+        label: `Evitaste perder ${formatCurrency(
+          convertCurrency(Math.abs(trade.postSalePnlValue), currency, fxRate, baseCurrency),
+          currency
+        )}`,
+      };
+    }
+
+    return {
+      tone: "default" as const,
+      label: "Movimiento plano tras la venta",
+    };
+  };
+
   return (
     <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/30 to-surface/90 shadow-panel">
       <div className="overflow-x-auto">
-        <table className="min-w-[720px] w-full table-auto divide-y divide-border/70 text-left text-sm">
+        <table className="min-w-[900px] w-full table-auto divide-y divide-border/70 text-left text-sm">
           <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
               <th className="px-3 py-3 font-semibold">Fecha</th>
@@ -85,11 +116,13 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
               <th className="px-3 py-3 font-semibold text-right">Entrada</th>
               <th className="px-3 py-3 font-semibold text-right">Salida</th>
               <th className="px-3 py-3 font-semibold text-right">P&amp;L</th>
+              <th className="px-3 py-3 font-semibold text-right">Después de vender</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70 text-text">
             {trades.map((trade) => {
               const isPositive = trade.pnlValue >= 0;
+              const postSaleRead = buildPostSaleRead(trade);
               return (
                 <tr key={trade.id} className="transition-colors hover:bg-surface-muted/40">
                   <td className="whitespace-nowrap px-3 py-3 text-muted">
@@ -123,6 +156,24 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
                         currency
                       )}
                     </Badge>
+                  </td>
+                  <td className="px-3 py-3 text-right">
+                    {postSaleRead ? (
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge tone={postSaleRead.tone}>{postSaleRead.label}</Badge>
+                        {trade.currentPrice !== undefined && (
+                          <span className="text-[11px] text-muted">
+                            Ahora cotiza en{" "}
+                            {formatCurrency(
+                              convertCurrency(trade.currentPrice, currency, fxRate, baseCurrency),
+                              currency
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted">Sin referencia actual</span>
+                    )}
                   </td>
                 </tr>
               );

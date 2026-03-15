@@ -56,6 +56,51 @@ const fetchYahoo = async (path: string, ignoreError = false) => {
   throw new Error(`Yahoo request failed (${lastStatus || "unknown"})`);
 };
 
+const fetchYahooNewsSearchHtml = async (query: string) => {
+  const url = `https://news.search.yahoo.com/search?p=${encodeURIComponent(query)}`;
+  const response = await fetch(url, {
+    next: { revalidate: 300 },
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Yahoo News search failed (${response.status})`);
+  }
+  return response.text();
+};
+
+const fetchYahooWorldIndicesHtml = async () => {
+  const url = "https://finance.yahoo.com/markets/world-indices/";
+  const response = await fetch(url, {
+    next: { revalidate: 300 },
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Yahoo world indices failed (${response.status})`);
+  }
+  return response.text();
+};
+
+const decodeYahooRedirectUrl = (rawUrl: string) => {
+  if (!rawUrl) return "";
+  try {
+    const match = rawUrl.match(/\/RU=([^/]+)\//);
+    if (match?.[1]) {
+      return decodeURIComponent(match[1]);
+    }
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+};
+
+const stripHtml = (value: string) => value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
 const quoteFields = (row: Record<string, unknown>) => {
   const price = toNumber(
     row.regularMarketPrice ?? row.postMarketPrice ?? row.preMarketPrice ?? row.previousClose
@@ -108,6 +153,62 @@ const newsFields = (row: Record<string, unknown>) => {
     relatedTickers,
   };
 };
+
+const parseYahooAnchorsToNews = (
+  html: string,
+  options?: {
+    maxItems?: number;
+    hrefPattern?: RegExp;
+    publisher?: string;
+  },
+) => {
+  const articlePattern = /<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gm;
+  const items: Array<ReturnType<typeof newsFields>> = [];
+  const seen = new Set<string>();
+  const hrefPattern = options?.hrefPattern ?? /^https?:\/\//i;
+  let match: RegExpExecArray | null;
+
+  while ((match = articlePattern.exec(html)) !== null) {
+    const href = decodeYahooRedirectUrl(match[1] ?? "");
+    const title = stripHtml(match[2] ?? "");
+
+    if (!href || !title) continue;
+    if (!hrefPattern.test(href)) continue;
+    if (title.length < 20) continue;
+    if (/privacy|cookie settings|terms|search results/i.test(title)) continue;
+
+    const dedupeKey = `${title}|${href}`.toLowerCase();
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    items.push({
+      title,
+      publisher: options?.publisher ?? "Yahoo News",
+      link: href,
+      publishedAt: undefined,
+      summary: "",
+      relatedTickers: [],
+    });
+
+    if (items.length >= (options?.maxItems ?? 8)) break;
+  }
+
+  return items;
+};
+
+const parseYahooNewsSearchHtml = (html: string) =>
+  parseYahooAnchorsToNews(html, {
+    maxItems: 8,
+    hrefPattern: /^https?:\/\//i,
+    publisher: "Yahoo News",
+  });
+
+const parseYahooWorldIndicesHtml = (html: string) =>
+  parseYahooAnchorsToNews(html, {
+    maxItems: 8,
+    hrefPattern: /^https:\/\/(finance|www)\.yahoo\.com\/news\//i,
+    publisher: "Yahoo Finance",
+  });
 
 const quoteSummaryModules = async (symbol: string, modules: string[]) => {
   const path = `/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.join(",")}`;
@@ -207,14 +308,32 @@ export async function GET(request: Request) {
     if (action === "news") {
       const newsQuery = query || symbol || normalizedSymbols[0] || "";
       if (!newsQuery) return NextResponse.json({ action, query: "", items: [] });
-      const json = await fetchYahoo(
-        `/v1/finance/search?q=${encodeURIComponent(newsQuery)}&quotesCount=0&newsCount=6`
-      );
-      const news = Array.isArray(json?.news) ? json.news : [];
-      const items = news
-        .map((row: unknown) => newsFields((row ?? {}) as Record<string, unknown>))
-        .filter((row: ReturnType<typeof newsFields>) => row.title && row.link);
+      let items: Array<ReturnType<typeof newsFields>> = [];
+      try {
+        const html = await fetchYahooNewsSearchHtml(newsQuery);
+        items = parseYahooNewsSearchHtml(html);
+      } catch (error) {
+        console.warn("Yahoo News search HTML fetch failed, falling back to Yahoo Finance news:", error);
+      }
+
+      if (items.length === 0) {
+        const json = await fetchYahoo(
+          `/v1/finance/search?q=${encodeURIComponent(newsQuery)}&quotesCount=0&newsCount=6`,
+          true
+        );
+        const news = Array.isArray(json?.news) ? json.news : [];
+        items = news
+          .map((row: unknown) => newsFields((row ?? {}) as Record<string, unknown>))
+          .filter((row: ReturnType<typeof newsFields>) => row.title && row.link);
+      }
+
       return NextResponse.json({ action, query: newsQuery, items, source: "yahoo-finance" });
+    }
+
+    if (action === "world-indices-news") {
+      const html = await fetchYahooWorldIndicesHtml();
+      const items = parseYahooWorldIndicesHtml(html);
+      return NextResponse.json({ action, items, source: "yahoo-finance-world-indices" });
     }
 
     if (action === "compare" || action === "price" || action === "quote") {

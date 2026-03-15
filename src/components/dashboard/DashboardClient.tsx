@@ -6,6 +6,7 @@ import { AIChat } from "@/components/ai/AIChat";
 
 import { DashboardHero } from "./DashboardHero";
 import { DashboardStats } from "./DashboardStats";
+import { DashboardComposition } from "./DashboardComposition";
 import { DashboardAIPulse } from "./DashboardAIPulse";
 import { DashboardHoldings } from "./DashboardHoldings";
 import { DashboardTradingView } from "./DashboardTradingView";
@@ -54,6 +55,15 @@ export function DashboardClient() {
             totalPnlPercent={totalPnlPercent}
             dailyPnlPercent={dailyPnlPercent}
             isLoading={isLoading}
+          />
+        </section>
+
+        <section>
+          <DashboardComposition
+            holdings={holdings}
+            totalValue={summary.totalValue}
+            activeTicker={activeTicker}
+            onSelectTicker={setSelectedTicker}
           />
         </section>
 
