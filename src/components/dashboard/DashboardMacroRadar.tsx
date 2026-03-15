@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -55,77 +54,88 @@ export function DashboardMacroRadar() {
     };
   }, []);
 
-  const featuredItem = items[0];
-  const secondaryItems = useMemo(() => items.slice(1, 4), [items]);
+  const freshItems = items.slice(0, 3);
+  const remainingItems = items.slice(3);
 
   return (
     <Card
       title="Radar Macro Externo"
-      subtitle="Lecturas editoriales y contexto geopolítico desde Inversiones en el Mundo"
-      footer={
-        <Link
-          href="https://inversionesenelmundo.substack.com?utm_source=navbar&utm_medium=web"
-          target="_blank"
-          rel="noreferrer"
-          className="text-[11px] font-medium text-primary transition-colors hover:text-white"
-        >
-          Abrir fuente
-        </Link>
-      }
+      subtitle="Titulares recientes y contexto macro para seguir el mercado de un vistazo"
     >
       {isLoading ? (
         <p className="text-sm text-muted">Cargando radar macro…</p>
       ) : error ? (
         <p className="text-sm text-danger">{error}</p>
-      ) : featuredItem ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(280px,0.95fr)]">
-          <a
-            href={featuredItem.link}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-2xl border border-border/70 bg-surface-muted/25 p-4 transition-colors hover:border-primary/40 hover:bg-surface-muted/35"
-          >
-            <div className="flex items-center gap-2">
-              <Badge tone="warning">Macro</Badge>
-              {featuredItem.publishedAt && (
-                <span className="text-[11px] text-muted">
-                  {dateFormatter.format(new Date(featuredItem.publishedAt))}
-                </span>
-              )}
+      ) : items.length > 0 ? (
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Titulares</p>
+              <p className="mt-2 text-2xl font-semibold text-white">{items.length}</p>
             </div>
-            <h3 className="mt-3 text-lg font-semibold leading-snug text-white">{featuredItem.title}</h3>
-            {featuredItem.description && (
-              <p className="mt-3 line-clamp-4 text-sm leading-relaxed text-muted">
-                {featuredItem.description}
+            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Más reciente</p>
+              <p className="mt-2 text-sm font-semibold text-white">
+                {items[0]?.publishedAt ? dateFormatter.format(new Date(items[0].publishedAt)) : "Sin fecha"}
               </p>
-            )}
-          </a>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
+              <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Foco</p>
+              <p className="mt-2 text-sm text-text">Contexto macro y mercado para acompañar tus lecturas de activos.</p>
+            </div>
+          </div>
 
-          <div className="space-y-3">
-            {secondaryItems.map((item) => (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {freshItems.map((item) => (
               <a
                 key={item.link}
                 href={item.link}
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-2xl border border-border/70 bg-surface-muted/20 p-3 transition-colors hover:border-primary/35 hover:bg-surface-muted/30"
+                className="block rounded-2xl border border-border/70 bg-surface-muted/20 p-4 transition-colors hover:border-primary/35 hover:bg-surface-muted/30"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <Badge tone="default">Substack</Badge>
+                  <Badge tone="warning">Reciente</Badge>
                   {item.publishedAt && (
                     <span className="text-[11px] text-muted">
                       {dateFormatter.format(new Date(item.publishedAt))}
                     </span>
                   )}
                 </div>
-                <p className="mt-2 text-sm font-medium leading-snug text-text">{item.title}</p>
+                <p className="mt-3 text-sm font-medium leading-snug text-text">{item.title}</p>
               </a>
             ))}
-
-            {secondaryItems.length === 0 && (
-              <p className="text-sm text-muted">No hay más publicaciones recientes para mostrar.</p>
-            )}
           </div>
+
+          {remainingItems.length > 0 && (
+            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Más titulares</p>
+                <Badge tone="default">{remainingItems.length} adicionales</Badge>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {remainingItems.map((item) => (
+                  <a
+                    key={item.link}
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-xl border border-border/60 bg-surface/40 p-3 transition-colors hover:border-primary/35 hover:bg-surface/55"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <Badge tone="default">Macro</Badge>
+                      {item.publishedAt && (
+                        <span className="text-[11px] text-muted">
+                          {dateFormatter.format(new Date(item.publishedAt))}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 text-sm font-medium leading-snug text-text">{item.title}</p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-sm text-muted">No hay publicaciones recientes disponibles.</p>

@@ -154,6 +154,94 @@ const newsFields = (row: Record<string, unknown>) => {
   };
 };
 
+const normalizeNewsText = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+const tokenizeNewsQuery = (value: string) =>
+  Array.from(
+    new Set(
+      normalizeNewsText(value)
+        .split(/[^a-z0-9]+/i)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 2)
+    )
+  );
+
+const extractQueryHints = (query: string) => {
+  const normalized = normalizeSymbol(query);
+  const rawSymbol = query.split(":").pop()?.split(".")[0]?.trim().toUpperCase() ?? "";
+  const normalizedSymbol = normalized.split(":").pop()?.split(".")[0]?.trim().toUpperCase() ?? rawSymbol;
+  const queryTokens = tokenizeNewsQuery(query);
+  const symbolTokens = [rawSymbol, normalizedSymbol].filter(Boolean);
+  return { queryTokens, symbolTokens };
+};
+
+const computeNewsRelevance = (
+  item: ReturnType<typeof newsFields>,
+  hints: ReturnType<typeof extractQueryHints>,
+) => {
+  const haystack = normalizeNewsText(`${item.title} ${item.summary ?? ""}`);
+  let score = 0;
+
+  for (const symbol of hints.symbolTokens) {
+    const normalizedSymbol = symbol.toLowerCase();
+    if (!normalizedSymbol) continue;
+    if (item.relatedTickers.some((ticker) => ticker.toUpperCase() === symbol)) {
+      score += 8;
+    }
+    if (haystack.includes(normalizedSymbol)) {
+      score += 5;
+    }
+  }
+
+  for (const token of hints.queryTokens) {
+    if (haystack.includes(token)) {
+      score += token.length >= 4 ? 2 : 1;
+    }
+  }
+
+  if (item.publishedAt) {
+    const ageHours = (Date.now() - Date.parse(item.publishedAt)) / (1000 * 60 * 60);
+    if (Number.isFinite(ageHours)) {
+      if (ageHours <= 24) score += 4;
+      else if (ageHours <= 72) score += 3;
+      else if (ageHours <= 168) score += 2;
+      else if (ageHours <= 336) score += 1;
+    }
+  }
+
+  return score;
+};
+
+const dedupeNews = (items: Array<ReturnType<typeof newsFields>>) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.title}|${item.link}`.toLowerCase();
+    if (!item.title || !item.link || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const rankNewsItems = (items: Array<ReturnType<typeof newsFields>>, query: string, maxItems = 8) => {
+  const hints = extractQueryHints(query);
+  return dedupeNews(items)
+    .map((item) => ({
+      item,
+      score: computeNewsRelevance(item, hints),
+      publishedAtTs: item.publishedAt ? Date.parse(item.publishedAt) : 0,
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.publishedAtTs - a.publishedAtTs;
+    })
+    .slice(0, maxItems)
+    .map((entry) => entry.item);
+};
+
 const parseYahooAnchorsToNews = (
   html: string,
   options?: {
@@ -278,6 +366,18 @@ const getFallbackFundamentals = async (origin: string, normalized: string) => {
     : null;
 };
 
+const shouldFetchChartFallback = (quote: ReturnType<typeof quoteFields> | null, summary: unknown) => {
+  if (!summary) return true;
+  if (!quote) return true;
+  return (
+    quote.price === undefined ||
+    quote.dayChangePercent === undefined ||
+    quote.fiftyTwoWeekLow === undefined ||
+    quote.fiftyTwoWeekHigh === undefined ||
+    quote.volume === undefined
+  );
+};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const origin = new URL(request.url).origin;
@@ -327,12 +427,23 @@ export async function GET(request: Request) {
           .filter((row: ReturnType<typeof newsFields>) => row.title && row.link);
       }
 
-      return NextResponse.json({ action, query: newsQuery, items, source: "yahoo-finance" });
+      const rankedItems = rankNewsItems(items, newsQuery, 8);
+
+      return NextResponse.json({
+        action,
+        query: newsQuery,
+        items: rankedItems,
+        source: "yahoo-finance",
+        meta: {
+          totalCandidates: items.length,
+          returnedItems: rankedItems.length,
+        },
+      });
     }
 
     if (action === "world-indices-news") {
       const html = await fetchYahooWorldIndicesHtml();
-      const items = parseYahooWorldIndicesHtml(html);
+      const items = rankNewsItems(parseYahooWorldIndicesHtml(html), "world indices macro market", 8);
       return NextResponse.json({ action, items, source: "yahoo-finance-world-indices" });
     }
 
@@ -468,7 +579,7 @@ export async function GET(request: Request) {
         console.error(`Snapshot summary modules failed for ${normalized}:`, err);
       }
 
-      const chartData = !summary ? await fetchYahooChart(normalized) : null;
+      const chartData = shouldFetchChartFallback(q, summary) ? await fetchYahooChart(normalized) : null;
       const chartMeta = chartData?.meta;
 
       const details = summary?.summaryDetail ?? {};
@@ -478,11 +589,20 @@ export async function GET(request: Request) {
 
       // If quote API failed, enrich q with chart data
       if (q && chartMeta) {
+        q.name = q.name || chartMeta.longName || chartMeta.shortName || q.name;
+        q.exchange = q.exchange || chartMeta.exchangeName || q.exchange;
+        q.currency = q.currency || chartMeta.currency || q.currency;
         q.price = q.price ?? toNumber(chartMeta.regularMarketPrice);
         q.dayChange = q.dayChange ?? (chartMeta.regularMarketPrice && chartMeta.chartPreviousClose ? chartMeta.regularMarketPrice - chartMeta.chartPreviousClose : undefined);
+        q.dayChangePercent =
+          q.dayChangePercent ??
+          (chartMeta.regularMarketPrice && chartMeta.chartPreviousClose
+            ? ((chartMeta.regularMarketPrice - chartMeta.chartPreviousClose) / chartMeta.chartPreviousClose) * 100
+            : undefined);
         q.fiftyTwoWeekLow = q.fiftyTwoWeekLow ?? toNumber(chartMeta.fiftyTwoWeekLow);
         q.fiftyTwoWeekHigh = q.fiftyTwoWeekHigh ?? toNumber(chartMeta.fiftyTwoWeekHigh);
         q.volume = q.volume ?? toNumber(chartMeta.regularMarketVolume);
+        q.avgVolume = q.avgVolume ?? toNumber(chartMeta.regularMarketVolume);
       } else if (!q && chartMeta) {
         q = {
           symbol: normalized,
@@ -558,7 +678,13 @@ export async function GET(request: Request) {
       return NextResponse.json({
         action,
         data,
-        source: summary ? "yahoo-finance" : "yahoo-finance-partial"
+        source: summary ? "yahoo-finance" : "yahoo-finance-partial",
+        meta: {
+          hasQuote: Boolean(q),
+          hasSummary: Boolean(summary),
+          usedChartFallback: Boolean(chartData),
+          hasFundamentals,
+        },
       });
     }
 

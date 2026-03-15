@@ -9,6 +9,7 @@ type Quote = {
   dayChangePercent?: number;
   asOf?: string;
   sourceSymbol?: string;
+  source?: "yahoo" | "stooq" | "alphavantage";
 };
 
 const CACHE_TTL_MS = 60_000;
@@ -148,6 +149,7 @@ const fetchStooqQuote = async (ticker: string): Promise<Quote | null> => {
     return {
       ...quote,
       ticker,
+      source: "stooq",
     };
   } catch (err) {
     console.error("stooq fetch failed", { ticker, err });
@@ -180,6 +182,7 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
       dayChangePercent,
       asOf: data["07. latest trading day"] ?? undefined,
       sourceSymbol: targetSymbol,
+      source: "alphavantage" as const,
     };
   };
   try {
@@ -241,6 +244,7 @@ const fetchYahooQuote = async (ticker: string): Promise<Quote | null> => {
       dayChangePercent,
       asOf: meta?.regularMarketTime ? String(meta.regularMarketTime) : undefined,
       sourceSymbol: symbol,
+      source: "yahoo" as const,
     };
   } catch (err) {
     console.error("yahoo fetch failed", { ticker, err });
@@ -267,30 +271,37 @@ export async function GET(request: Request) {
   try {
     const results: Quote[] = [];
 
+    const selectBestQuote = (candidates: Array<Quote | null>) => {
+      const valid = candidates.filter((candidate): candidate is Quote => Boolean(candidate));
+      if (valid.length === 0) return null;
+
+      const sourceRank: Record<NonNullable<Quote["source"]>, number> = {
+        yahoo: 3,
+        stooq: 2,
+        alphavantage: 1,
+      };
+
+      return valid.sort((a, b) => {
+        const aScore = (sourceRank[a.source ?? "alphavantage"] ?? 0) + (a.name ? 1 : 0);
+        const bScore = (sourceRank[b.source ?? "alphavantage"] ?? 0) + (b.name ? 1 : 0);
+        return bScore - aScore;
+      })[0];
+    };
+
     for (const ticker of missingTickers) {
-      // 1. Try Yahoo Finance First (Preferred for names and reliability)
-      const yahooQuote = await fetchYahooQuote(ticker);
-      if (yahooQuote) {
-        setCachedQuote(yahooQuote);
-        results.push(yahooQuote);
-        continue;
-      }
+      const providerResults = await Promise.allSettled([
+        fetchYahooQuote(ticker),
+        fetchStooqQuote(ticker),
+        alphaKey ? fetchAlphaQuote(ticker, alphaKey) : Promise.resolve(null),
+      ]);
 
-      // 2. Try Stooq as fallback
-      const stooqQuote = await fetchStooqQuote(ticker);
-      if (stooqQuote) {
-        setCachedQuote(stooqQuote);
-        results.push(stooqQuote);
-        continue;
-      }
+      const bestQuote = selectBestQuote(
+        providerResults.map((result) => (result.status === "fulfilled" ? result.value : null))
+      );
 
-      // 3. Try AlphaVantage if Key exists
-      if (alphaKey) {
-        const alphaQuote = await fetchAlphaQuote(ticker, alphaKey);
-        if (alphaQuote) {
-          setCachedQuote(alphaQuote);
-          results.push(alphaQuote);
-        }
+      if (bestQuote) {
+        setCachedQuote(bestQuote);
+        results.push(bestQuote);
       }
     }
 

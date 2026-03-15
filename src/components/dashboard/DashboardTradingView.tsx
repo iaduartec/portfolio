@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { PortfolioValueChart } from "@/components/charts/PortfolioValueChart";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
@@ -55,7 +55,7 @@ type ProfileSnapshot = {
 };
 
 const toCompactNumber = (value?: number) => {
-  if (value === undefined || !Number.isFinite(value)) return "N/D";
+  if (value === undefined || !Number.isFinite(value)) return "No disponible";
   return new Intl.NumberFormat("es-ES", {
     notation: "compact",
     maximumFractionDigits: 2,
@@ -69,7 +69,7 @@ const toneClass = (value?: number) => {
 
 const recommendationLabel = (ratings: RatingsSnapshot | null) => {
   const raw = (ratings?.recommendationKey ?? "").replace(/_/g, " ").trim();
-  if (!raw) return "N/D";
+  if (!raw) return "Sin consenso";
   return raw.charAt(0).toUpperCase() + raw.slice(1);
 };
 
@@ -102,8 +102,72 @@ const buildTechnicalRead = (holding: Holding, quote: QuoteSnapshot | null) => {
 };
 
 const trimSummary = (text?: string) => {
-  if (!text) return "Sin resumen disponible.";
+  if (!text) return "Sin resumen disponible para este activo.";
   return text.length > 420 ? `${text.slice(0, 417)}...` : text;
+};
+
+const formatMetricValue = (value?: number, digits = 2) =>
+  value !== undefined && Number.isFinite(value) ? value.toFixed(digits) : "No disponible";
+
+const formatPercentMetric = (value?: number) =>
+  value !== undefined && Number.isFinite(value) ? formatPercent(value) : "No disponible";
+
+const buildDataQualityLabel = (
+  quote: QuoteSnapshot | null,
+  fundamentals: FundamentalsSnapshot | null,
+  ratings: RatingsSnapshot | null,
+  dividends: DividendsSnapshot | null,
+  profile: ProfileSnapshot | null,
+) => {
+  const loadedBlocks = [quote, fundamentals, ratings, dividends, profile].filter(Boolean).length;
+  if (loadedBlocks >= 4) return "Cobertura alta";
+  if (loadedBlocks >= 2) return "Cobertura media";
+  return "Cobertura limitada";
+};
+
+const buildExecutiveSummary = (
+  holding: Holding,
+  quote: QuoteSnapshot | null,
+  fundamentals: FundamentalsSnapshot | null,
+  ratings: RatingsSnapshot | null,
+) => {
+  const dayMove = quote?.dayChangePercent ?? holding.dayChangePercent;
+  const pnl = holding.pnlPercent;
+  const recMean = ratings?.recommendationMean;
+  const valuation = valuationLabel(fundamentals);
+
+  if (dayMove !== undefined && dayMove >= 2 && pnl >= 0) {
+    return "Impulso favorable y posición en verde; el foco debería estar en gestionar continuación y no en rescatar la posición.";
+  }
+  if (dayMove !== undefined && dayMove <= -2 && pnl < 0) {
+    return "Sesgo débil en precio y en cartera; aquí importa más proteger capital que buscar rebote sin confirmación.";
+  }
+  if (recMean !== undefined && recMean <= 2.2 && valuation !== "Exigente") {
+    return "El consenso acompaña y la valoración no parece extrema; es una de las configuraciones más limpias del panel.";
+  }
+  if (valuation === "Exigente" && pnl >= 10) {
+    return "La posición ha funcionado, pero la valoración exige disciplina para no confundir calidad con precio infinito.";
+  }
+  return "El activo no está roto ni claro; conviene leerlo como seguimiento táctico y esperar mejor confirmación para mover tamaño.";
+};
+
+const buildDistanceLabel = (
+  currentValue: number | undefined,
+  referenceValue: number | undefined,
+  currency: CurrencyCode,
+) => {
+  if (
+    currentValue === undefined ||
+    referenceValue === undefined ||
+    !Number.isFinite(currentValue) ||
+    !Number.isFinite(referenceValue)
+  ) {
+    return "No disponible";
+  }
+
+  const diff = currentValue - referenceValue;
+  const pct = referenceValue !== 0 ? diff / referenceValue : 0;
+  return `${diff >= 0 ? "+" : ""}${formatCurrency(diff, currency)} · ${formatPercent(pct)}`;
 };
 
 export function DashboardTradingView({ selectedHolding }: DashboardTradingViewProps) {
@@ -175,22 +239,6 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
   const profile = panelData.ticker === activeTicker ? panelData.profile : null;
   const isLoading = Boolean(activeTicker) && panelData.ticker !== activeTicker;
 
-  const holdingCurrency = useMemo<CurrencyCode>(
-    () => selectedHolding?.currency ?? inferCurrencyFromTicker(selectedHolding?.ticker ?? ""),
-    [selectedHolding?.currency, selectedHolding?.ticker]
-  );
-
-  const displayedPrice = useMemo(() => {
-    if (!selectedHolding) return undefined;
-    const rawPrice = quote?.price ?? selectedHolding.currentPrice;
-    return convertCurrencyFrom(rawPrice, holdingCurrency, currency, fxRate, baseCurrency);
-  }, [baseCurrency, currency, fxRate, holdingCurrency, quote?.price, selectedHolding]);
-
-  const displayedTarget =
-    fundamentals?.targetMeanPrice === undefined
-      ? undefined
-      : convertCurrencyFrom(fundamentals.targetMeanPrice, holdingCurrency, currency, fxRate, baseCurrency);
-
   if (!selectedHolding) {
     return (
       <section aria-labelledby="local-market-panel-title">
@@ -204,6 +252,43 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
     );
   }
 
+  const holdingCurrency: CurrencyCode =
+    selectedHolding.currency ?? inferCurrencyFromTicker(selectedHolding.ticker ?? "");
+
+  const displayedPrice = convertCurrencyFrom(
+    quote?.price ?? selectedHolding.currentPrice,
+    holdingCurrency,
+    currency,
+    fxRate,
+    baseCurrency
+  );
+
+  const displayedTarget =
+    fundamentals?.targetMeanPrice === undefined
+      ? undefined
+      : convertCurrencyFrom(fundamentals.targetMeanPrice, holdingCurrency, currency, fxRate, baseCurrency);
+
+  const displayedRangeLow =
+    quote?.fiftyTwoWeekLow === undefined
+      ? undefined
+      : convertCurrencyFrom(quote.fiftyTwoWeekLow, holdingCurrency, currency, fxRate, baseCurrency);
+
+  const displayedRangeHigh =
+    quote?.fiftyTwoWeekHigh === undefined
+      ? undefined
+      : convertCurrencyFrom(quote.fiftyTwoWeekHigh, holdingCurrency, currency, fxRate, baseCurrency);
+
+  const displayedAverageBuyPrice = convertCurrencyFrom(
+    selectedHolding.averageBuyPrice,
+    holdingCurrency,
+    currency,
+    fxRate,
+    baseCurrency
+  );
+
+  const dataQualityLabel = buildDataQualityLabel(quote, fundamentals, ratings, dividends, profile);
+  const executiveSummary = buildExecutiveSummary(selectedHolding, quote, fundamentals, ratings);
+
   return (
     <section aria-labelledby="local-market-panel-title">
       <Card
@@ -213,6 +298,20 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
         } · Gráfico propio, fundamentales y señal resumida`}
       >
         <div className="grid gap-6">
+          <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Lectura ejecutiva</p>
+                <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text/90">{executiveSummary}</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Tag>{dataQualityLabel}</Tag>
+                <Tag>{valuationLabel(fundamentals)}</Tag>
+                <Tag>{recommendationLabel(ratings)}</Tag>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
             <PortfolioValueChart
               ticker={selectedHolding.ticker}
@@ -230,7 +329,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                   <div>
                     <p className="text-xs text-muted">Precio actual</p>
                     <p className="mt-1 text-2xl font-semibold text-white">
-                      {displayedPrice !== undefined ? formatCurrency(displayedPrice, currency) : "N/D"}
+                      {displayedPrice !== undefined ? formatCurrency(displayedPrice, currency) : "No disponible"}
                     </p>
                   </div>
                   <div>
@@ -238,7 +337,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                     <p className={`mt-1 text-xl font-semibold ${toneClass(quote?.dayChangePercent ?? selectedHolding.dayChangePercent)}`}>
                       {quote?.dayChangePercent !== undefined || selectedHolding.dayChangePercent !== undefined
                         ? formatPercent(((quote?.dayChangePercent ?? selectedHolding.dayChangePercent ?? 0) as number) / 100)
-                        : "N/D"}
+                        : "No disponible"}
                     </p>
                   </div>
                   <div>
@@ -246,6 +345,10 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                     <p className={`mt-1 text-xl font-semibold ${toneClass(selectedHolding.pnlPercent)}`}>
                       {formatPercent(selectedHolding.pnlPercent / 100)}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Precio medio</p>
+                    <p className="mt-1 text-xl font-semibold text-white">{formatCurrency(displayedAverageBuyPrice, currency)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Lectura táctica</p>
@@ -257,14 +360,14 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
               <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
                 <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Snapshot fundamental</p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Metric label="PER" value={fundamentals?.trailingPE?.toFixed(2) ?? "N/D"} />
-                  <Metric label="P/B" value={fundamentals?.priceToBook?.toFixed(2) ?? "N/D"} />
-                  <Metric label="ROE" value={fundamentals?.returnOnEquity !== undefined ? formatPercent(fundamentals.returnOnEquity) : "N/D"} />
+                  <Metric label="PER" value={formatMetricValue(fundamentals?.trailingPE)} />
+                  <Metric label="P/B" value={formatMetricValue(fundamentals?.priceToBook)} />
+                  <Metric label="ROE" value={formatPercentMetric(fundamentals?.returnOnEquity)} />
                   <Metric label="Valuación" value={valuationLabel(fundamentals)} />
                   <Metric label="Mkt Cap" value={toCompactNumber(fundamentals?.marketCap)} />
                   <Metric
                     label="Precio objetivo"
-                    value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "N/D"}
+                    value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "No disponible"}
                   />
                 </div>
               </div>
@@ -273,14 +376,14 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                 <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Consenso y flujo</p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <Metric label="Consenso" value={recommendationLabel(ratings)} />
-                  <Metric label="Score analistas" value={ratings?.recommendationMean?.toFixed(2) ?? "N/D"} />
+                  <Metric label="Score analistas" value={formatMetricValue(ratings?.recommendationMean)} />
                   <Metric
                     label="Dividendo"
-                    value={dividends?.dividendYield !== undefined ? formatPercent(dividends.dividendYield) : "N/D"}
+                    value={formatPercentMetric(dividends?.dividendYield)}
                   />
                   <Metric
                     label="Payout"
-                    value={dividends?.payoutRatio !== undefined ? formatPercent(dividends.payoutRatio) : "N/D"}
+                    value={formatPercentMetric(dividends?.payoutRatio)}
                   />
                   <Metric label="Volumen" value={toCompactNumber(quote?.volume)} />
                   <Metric label="Vol. medio" value={toCompactNumber(quote?.avgVolume)} />
@@ -296,7 +399,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                 {profile?.sector && <Tag>{profile.sector}</Tag>}
                 {profile?.industry && <Tag>{profile.industry}</Tag>}
                 {profile?.country && <Tag>{profile.country}</Tag>}
-                {!profile?.sector && !profile?.industry && !profile?.country && <Tag>N/D</Tag>}
+                {!profile?.sector && !profile?.industry && !profile?.country && <Tag>Perfil limitado</Tag>}
               </div>
               <p className="mt-4 text-sm leading-relaxed text-text/90">{trimSummary(profile?.longBusinessSummary)}</p>
               {profile?.website && (
@@ -317,30 +420,22 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                 <Metric
                   label="52w mínimo"
                   value={
-                    quote?.fiftyTwoWeekLow !== undefined
-                      ? formatCurrency(
-                          convertCurrencyFrom(quote.fiftyTwoWeekLow, holdingCurrency, currency, fxRate, baseCurrency),
-                          currency
-                        )
-                      : "N/D"
+                    displayedRangeLow !== undefined ? formatCurrency(displayedRangeLow, currency) : "No disponible"
                   }
                 />
                 <Metric
                   label="52w máximo"
                   value={
-                    quote?.fiftyTwoWeekHigh !== undefined
-                      ? formatCurrency(
-                          convertCurrencyFrom(quote.fiftyTwoWeekHigh, holdingCurrency, currency, fxRate, baseCurrency),
-                          currency
-                        )
-                      : "N/D"
+                    displayedRangeHigh !== undefined ? formatCurrency(displayedRangeHigh, currency) : "No disponible"
                   }
                 />
                 <Metric label="Valor posición" value={formatCurrency(selectedHolding.marketValue, currency)} />
-                <Metric label="Cargando datos" value={isLoading ? "Sí" : "No"} />
+                <Metric label="Vs precio medio" value={buildDistanceLabel(displayedPrice, displayedAverageBuyPrice, currency)} />
+                <Metric label="Vs objetivo" value={buildDistanceLabel(displayedTarget, displayedPrice, currency)} />
+                <Metric label="Estado de carga" value={isLoading ? "Actualizando" : "Listo"} />
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted">
-                Este panel ya no usa embeds de TradingView. Tira de histórico local, Yahoo y tus métricas de cartera.
+                Este panel combina histórico local, snapshot de Yahoo y datos reales de tu cartera para darte una lectura más operativa.
               </p>
             </div>
           </div>

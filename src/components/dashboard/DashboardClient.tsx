@@ -8,6 +8,7 @@ import { DashboardHero } from "./DashboardHero";
 import { DashboardStats } from "./DashboardStats";
 import { DashboardComposition } from "./DashboardComposition";
 import { DashboardMarketBoard } from "./DashboardMarketBoard";
+import { DashboardFuturesRadar } from "./DashboardFuturesRadar";
 import { DashboardAIPulse } from "./DashboardAIPulse";
 import { DashboardHoldings } from "./DashboardHoldings";
 import { DashboardTradingView } from "./DashboardTradingView";
@@ -44,12 +45,25 @@ export function DashboardClient() {
     [holdings]
   );
 
+  const topHoldingWeight = useMemo(() => {
+    if (!holdings.length || summary.totalValue <= 0) return 0;
+    const topValue = Math.max(...holdings.map((holding) => holding.marketValue || 0));
+    return (topValue / summary.totalValue) * 100;
+  }, [holdings, summary.totalValue]);
+
+  const marketTone = dailyPnlPercent >= 0 ? "sesgo favorable" : "sesgo defensivo";
+
   return (
     <div className="flex flex-col gap-10 pb-20">
       <DashboardHero />
 
       <div className="flex flex-col gap-12">
-        <section>
+        <section className="grid gap-5">
+          <SectionHeading
+            eyebrow="Resumen ejecutivo"
+            title="Empieza por capital, riesgo y foco"
+            description="Primero vemos el tamaño real de la cartera y qué posición explica más comportamiento."
+          />
           <DashboardStats
             summary={summary}
             realizedTotal={realizedTotal}
@@ -59,32 +73,58 @@ export function DashboardClient() {
           />
         </section>
 
-        <section>
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
           <DashboardComposition
             holdings={holdings}
             totalValue={summary.totalValue}
             activeTicker={activeTicker}
             onSelectTicker={setSelectedTicker}
           />
+          <aside className="rounded-2xl border border-border/80 bg-surface/70 p-6 shadow-panel backdrop-blur-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+              Prioridad de lectura
+            </p>
+            <div className="mt-4 grid gap-3">
+              <PriorityItem
+                step="1"
+                title="Capital en juego"
+                description={`La primera posición concentra ${topHoldingWeight.toFixed(1)}% del valor; úsala como referencia de riesgo inmediato.`}
+              />
+              <PriorityItem
+                step="2"
+                title="Activo activo"
+                description={
+                  selectedHolding
+                    ? `El panel financiero está preparado para ${selectedHolding.ticker} y debe ser la siguiente parada.`
+                    : "Selecciona una posición dominante para abrir el panel financiero local."
+                }
+              />
+              <PriorityItem
+                step="3"
+                title="Contexto de sesión"
+                description={`El mercado abre con ${marketTone}; confirma esa lectura con mercado, futuros y radar macro.`}
+              />
+            </div>
+          </aside>
         </section>
 
-        <section>
-          <DashboardMarketBoard holdings={holdings} />
-        </section>
-
-        <section>
-          <DashboardAIPulse />
-        </section>
-
-        <section>
-          <DashboardSkillIntel portfolioTickers={portfolioTickers} />
-        </section>
-
-        <section id="holdings-section" className="scroll-mt-20">
-          <div className="mb-6 flex items-center gap-2">
-            <div className="h-6 w-1 rounded-full bg-primary" />
-            <h2 className="section-title text-xl font-semibold text-white">Tu cartera</h2>
+        <section className="grid gap-5">
+          <SectionHeading
+            eyebrow="Foco principal"
+            title="Activa el análisis sobre la posición que más importa"
+            description="Movemos el panel local antes del resto de inteligencia para que el activo seleccionado tenga prioridad."
+          />
+          <div className="min-h-[600px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1">
+            <DashboardTradingView selectedHolding={selectedHolding} />
           </div>
+        </section>
+
+        <section id="holdings-section" className="scroll-mt-20 grid gap-5">
+          <SectionHeading
+            eyebrow="Posiciones"
+            title="Detalle de cartera"
+            description="Después del activo priorizado, aquí queda el resto de posiciones para comparar y rotar el foco."
+          />
           <DashboardHoldings
             holdings={holdings}
             activeTicker={activeTicker}
@@ -94,12 +134,76 @@ export function DashboardClient() {
           />
         </section>
 
-        <section className="min-h-[600px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1">
-          <DashboardTradingView selectedHolding={selectedHolding} />
+        <section className="grid gap-5">
+          <SectionHeading
+            eyebrow="Mercado"
+            title="Tono de sesión y drivers cruzados"
+            description="Aquí agrupamos apertura, amplitud y macro para que el contexto global quede junto."
+          />
+          <div className="grid gap-6">
+            <DashboardMarketBoard holdings={holdings} />
+            <DashboardFuturesRadar />
+          </div>
+        </section>
+
+        <section className="grid gap-5">
+          <SectionHeading
+            eyebrow="Inteligencia"
+            title="Señales y contexto complementario"
+            description="La capa IA queda después del mercado para complementar la decisión, no para competir con lo crítico."
+          />
+          <DashboardAIPulse />
+          <DashboardSkillIntel portfolioTickers={portfolioTickers} />
         </section>
       </div>
 
       <AIChat />
+    </div>
+  );
+}
+
+function SectionHeading({
+  eyebrow,
+  title,
+  description,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/85">{eyebrow}</p>
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h2 className="section-title text-xl font-semibold text-white">{title}</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PriorityItem({
+  step,
+  title,
+  description,
+}: {
+  step: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-surface-muted/30 p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+          {step}
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-white">{title}</p>
+          <p className="mt-1 text-sm leading-relaxed text-text/85">{description}</p>
+        </div>
+      </div>
     </div>
   );
 }

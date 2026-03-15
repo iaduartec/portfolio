@@ -10,30 +10,46 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({
-    summary,
-    realizedTotal,
-    totalPnlPercent,
-    dailyPnlPercent,
-    isLoading
+  summary,
+  realizedTotal,
+  totalPnlPercent,
+  dailyPnlPercent,
+  isLoading
 }: DashboardStatsProps) {
-    return (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard label="Valor total" value={summary.totalValue} isLoading={isLoading} />
-            <StatCard
-                label="P&L día"
-                value={summary.dailyPnl}
-                change={dailyPnlPercent}
-                changeVariant="percent"
-                isLoading={isLoading}
-            />
-            <StatCard
-                label="P&L abierto"
-                value={summary.totalPnl}
-                change={totalPnlPercent}
-                changeVariant="percent"
-                isLoading={isLoading}
-            />
-            <StatCard label="P&L realizado" value={realizedTotal} isLoading={isLoading} />
-        </section>
-    );
+  return (
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
+      <div className="xl:col-span-4">
+        <StatCard
+          label="Valor total"
+          value={summary.totalValue}
+          isLoading={isLoading}
+          emphasis="primary"
+          hint="Base operativa de toda la cartera"
+        />
+      </div>
+      <div className="xl:col-span-4">
+        <StatCard
+          label="P&L abierto"
+          value={summary.totalPnl}
+          change={totalPnlPercent}
+          changeVariant="percent"
+          isLoading={isLoading}
+          emphasis="primary"
+          hint="Lo que realmente manda el riesgo actual"
+        />
+      </div>
+      <div className="xl:col-span-2">
+        <StatCard
+          label="P&L día"
+          value={summary.dailyPnl}
+          change={dailyPnlPercent}
+          changeVariant="percent"
+          isLoading={isLoading}
+        />
+      </div>
+      <div className="xl:col-span-2">
+        <StatCard label="P&L realizado" value={realizedTotal} isLoading={isLoading} />
+      </div>
+    </section>
+  );
 }

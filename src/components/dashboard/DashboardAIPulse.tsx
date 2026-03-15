@@ -259,12 +259,21 @@ export function DashboardAIPulse() {
           <ScenarioBuilder />
         </div>
         <DashboardMacroRadar />
-        <Card title="Analisis de IA" subtitle="Mercado global y cartera en tiempo real">
-          <p className="text-muted-foreground text-sm p-4">
-            El pulso de arriba resume sentimiento general de mercado con indices amplios y volatilidad, no tus
-            posiciones. El asistente de IA puede analizar tus participaciones concretas y escenarios sobre la
-            cartera.
-          </p>
+        <Card title="Cómo leer el panel" subtitle="Qué te aporta cada bloque antes de entrar en un valor.">
+          <div className="grid gap-3 p-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/70 bg-surface-muted/25 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Pulso</p>
+              <p className="mt-2 text-sm text-text/85">Mide apetito por riesgo con índices amplios y volatilidad.</p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-surface-muted/25 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Radar macro</p>
+              <p className="mt-2 text-sm text-text/85">Te da titulares recientes para contexto sectorial y global.</p>
+            </div>
+            <div className="rounded-xl border border-border/70 bg-surface-muted/25 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Escenarios</p>
+              <p className="mt-2 text-sm text-text/85">Sirve para traducir movimiento macro en impacto sobre tu cartera.</p>
+            </div>
+          </div>
         </Card>
       </div>
     </section>

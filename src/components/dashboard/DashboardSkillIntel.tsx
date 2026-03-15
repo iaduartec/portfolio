@@ -99,6 +99,30 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+const buildInsiderOnlySignal = (summary: InsiderSummary) => {
+  let score = 0;
+
+  if (summary.buyCount > summary.sellCount) score += 1;
+  if (summary.sellCount > summary.buyCount) score -= 1;
+  if (summary.netValue > 0) score += 1;
+  if (summary.netValue < 0) score -= 1;
+
+  if (score >= 2) {
+    return { label: "Compra", tone: "success" as const, score };
+  }
+  if (score <= -2) {
+    return { label: "Venta", tone: "danger" as const, score };
+  }
+  return { label: "Neutral", tone: "warning" as const, score };
+};
+
+const formatTradeTypeLabel = (tradeType: string) => {
+  const normalized = tradeType.toLowerCase();
+  if (normalized.startsWith("p")) return "Compra";
+  if (normalized.startsWith("s")) return "Venta";
+  return tradeType;
+};
+
 const normalizeQuotes = (rows: Quote[]) => {
   const map = new Map(
     rows
@@ -200,24 +224,33 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     [portfolioTickers]
   );
 
+  const portfolioInsiderTickers = useMemo(
+    () => Array.from(new Set(supportedPortfolioTickers)).slice(0, 5),
+    [supportedPortfolioTickers]
+  );
+
+  const generalInsiderTickers = useMemo(
+    () => DEFAULT_INSIDER_TICKERS.filter((ticker) => !portfolioInsiderTickers.includes(ticker)),
+    [portfolioInsiderTickers]
+  );
+
   const insiderTickers = useMemo(() => {
     const merged = Array.from(
       new Set([
-        ...supportedPortfolioTickers,
+        ...portfolioInsiderTickers,
+        ...generalInsiderTickers,
         ...customTickers.map(normalizeInsiderTicker),
       ].filter((ticker) => /^[A-Z][A-Z0-9-]{0,14}$/.test(ticker)))
     ).slice(0, 8);
     return merged.length > 0 ? merged : DEFAULT_INSIDER_TICKERS;
-  }, [supportedPortfolioTickers, customTickers]);
-
-  const isUsingFallbackInsiderTickers =
-    customTickers.length === 0 && supportedPortfolioTickers.length === 0;
+  }, [portfolioInsiderTickers, generalInsiderTickers, customTickers]);
 
   useEffect(() => {
-    if (!insiderTickers.includes(selectedInsiderTicker)) {
-      setSelectedInsiderTicker(insiderTickers[0]);
+    const preferredTicker = portfolioInsiderTickers[0] ?? insiderTickers[0];
+    if (!insiderTickers.includes(selectedInsiderTicker) && preferredTicker) {
+      setSelectedInsiderTicker(preferredTicker);
     }
-  }, [insiderTickers, selectedInsiderTicker]);
+  }, [insiderTickers, portfolioInsiderTickers, selectedInsiderTicker]);
 
   useEffect(() => {
     const query = normalizeSearchValue(deferredCustomTickerInput);
@@ -433,6 +466,41 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     [insiderSummaryByTicker, selectedInsiderTicker, selectedInsiderTrades]
   );
 
+  const automaticSignals = useMemo(
+    () =>
+      insiderTickers
+        .map((ticker) => {
+          const summary = insiderSummaryByTicker[ticker] ?? {
+            totalTrades: 0,
+            buyCount: 0,
+            sellCount: 0,
+            buyValue: 0,
+            sellValue: 0,
+            netValue: 0,
+          };
+          return {
+            ticker,
+            summary,
+            signal: buildInsiderOnlySignal(summary),
+            source: portfolioInsiderTickers.includes(ticker) ? "Cartera" : "General",
+          };
+        })
+        .sort((a, b) => {
+          if (a.source !== b.source) return a.source === "Cartera" ? -1 : 1;
+          const signalDiff = Math.abs(b.signal.score) - Math.abs(a.signal.score);
+          if (signalDiff !== 0) return signalDiff;
+          return b.summary.totalTrades - a.summary.totalTrades;
+        }),
+    [insiderTickers, insiderSummaryByTicker, portfolioInsiderTickers]
+  );
+
+  const insiderOverview = useMemo(() => {
+    const portfolioCount = automaticSignals.filter((item) => item.source === "Cartera").length;
+    const generalCount = automaticSignals.filter((item) => item.source === "General").length;
+    const actionableCount = automaticSignals.filter((item) => item.signal.label !== "Neutral").length;
+    return { portfolioCount, generalCount, actionableCount };
+  }, [automaticSignals]);
+
   const signal = useMemo(() => {
     let score = 0;
 
@@ -583,7 +651,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
           <div>
             <p className="text-xs uppercase tracking-[0.16em] text-primary/85">Capa de Inteligencia de Skills</p>
             <h2 className="section-title mt-2 text-2xl font-semibold text-white">
-              Senales accionables con tus nuevas skills
+              Señales accionables para cartera y mercado
             </h2>
           </div>
           <Badge className="bg-surface-muted/60">
@@ -674,12 +742,12 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </div>
               </div>
               <p className="mt-2 text-[11px] text-muted">
-                Semaforo = insiders recientes + rating de consenso + valuacion (PE/PB).
+                Semáforo = insiders recientes + rating de consenso + valoración relativa (PE/PB).
               </p>
               <div className="mt-3 rounded-xl border border-border/80 bg-background/35 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Prediction Meter</p>
-                  <Badge tone={predictionMeter.tone}>Action: {predictionMeter.action}</Badge>
+                  <p className="text-[11px] uppercase tracking-[0.08em] text-muted">Medidor de señal</p>
+                  <Badge tone={predictionMeter.tone}>Acción: {predictionMeter.action}</Badge>
                 </div>
                 <div className="relative">
                   <div className="grid h-3 grid-cols-3 overflow-hidden rounded-full border border-border/70">
@@ -712,7 +780,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 OpenInsider Radar
               </span>
             }
-            subtitle="Movimientos insider en cartera y tickers bajo analisis"
+            subtitle="Señales automáticas para tus posiciones y una cesta general, sin seleccionar nada"
             footer={
               <button
                 type="button"
@@ -725,6 +793,20 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               </button>
             }
           >
+            <div className="mb-3 grid gap-2 sm:grid-cols-3">
+              <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
+                <p className="text-[11px] text-muted">Tickers cartera</p>
+                <p className="text-sm font-semibold text-white">{insiderOverview.portfolioCount}</p>
+              </div>
+              <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
+                <p className="text-[11px] text-muted">Tickers generales</p>
+                <p className="text-sm font-semibold text-white">{insiderOverview.generalCount}</p>
+              </div>
+              <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
+                <p className="text-[11px] text-muted">Señales activas</p>
+                <p className="text-sm font-semibold text-white">{insiderOverview.actionableCount}</p>
+              </div>
+            </div>
             <div className="mb-3 inline-flex rounded-full border border-border/80 bg-surface-muted/20 p-1">
               {[7, 30, 90].map((days) => (
                 <button
@@ -741,6 +823,34 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </button>
               ))}
             </div>
+            <div className="mb-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {automaticSignals.map(({ ticker, summary, signal: tickerSignal, source }) => (
+                <button
+                  key={ticker}
+                  type="button"
+                  onClick={() => setSelectedInsiderTicker(ticker)}
+                  className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                    selectedInsiderTicker === ticker
+                      ? "border-accent/70 bg-accent/15"
+                      : "border-border/80 bg-surface-muted/20 hover:border-accent/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-white">{ticker}</span>
+                      <Badge tone={source === "Cartera" ? "success" : "default"}>{source}</Badge>
+                    </div>
+                    <Badge tone={tickerSignal.tone}>{tickerSignal.label}</Badge>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-muted">
+                    <span>C {summary.buyCount}</span>
+                    <span>V {summary.sellCount}</span>
+                    <span className="text-right">{summary.totalTrades} ops</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
             <div className="mb-3 flex flex-wrap gap-2">
               {insiderTickers.map((ticker) => (
                 <button
@@ -758,12 +868,9 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               ))}
             </div>
 
-            {isUsingFallbackInsiderTickers && (
-              <p className="mb-3 rounded-lg border border-border/70 bg-surface-muted/20 px-3 py-2 text-xs text-muted">
-                OpenInsider cubre sobre todo acciones USA. Como tu cartera actual no aporta tickers compatibles,
-                muestro una lista por defecto para que el radar no quede vacio.
-              </p>
-            )}
+            <p className="mb-3 rounded-lg border border-border/70 bg-surface-muted/20 px-3 py-2 text-xs text-muted">
+              El radar mezcla automáticamente tus acciones compatibles con OpenInsider y una cesta general USA.
+            </p>
 
             <form onSubmit={addCustomTicker} className="mb-3 flex gap-2">
               <label htmlFor="insider-custom-ticker" className="sr-only">
@@ -884,7 +991,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                               : "default"
                         }
                       >
-                        {trade.tradeType}
+                        {formatTradeTypeLabel(trade.tradeType)}
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted">

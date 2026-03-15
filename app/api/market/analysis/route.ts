@@ -51,13 +51,13 @@ const AnalysisSchema = z.object({
   ),
   macroContext: z
     .string()
-    .describe("Lectura geopolítica/macro muy breve en español antes de la valoración técnica."),
+    .describe("Lectura geopolítica/macro muy breve en español basada solo en noticias recientes verificables."),
   portfolioContext: z
     .string()
     .describe("Cómo afecta al usuario según si ya la tiene en cartera, su precio medio y su P/L."),
   newsImpact: z
     .string()
-    .describe("Resumen breve del impacto de las noticias recientes sobre el activo."),
+    .describe("Resumen breve del impacto de titulares recientes verificables sobre el activo, con anclaje a fecha o fuente cuando exista."),
   summary: z.string().describe("Resumen técnico final de 4-5 líneas en español."),
   entry: z.string().optional().describe("Punto de entrada sugerido."),
   target: z.string().optional().describe("Objetivo o salida sugerida."),
@@ -295,14 +295,6 @@ const buildMacroQueries = (symbol: string, name?: string, profile?: AssetProfile
   return Array.from(queries).slice(0, 3);
 };
 
-const formatMacroSensitivityContext = (sensitivities: MacroSensitivity[]) => {
-  if (sensitivities.length === 0) {
-    return "No se detectó una sensibilidad sectorial macro especial aparte del contexto general de mercado.";
-  }
-
-  return sensitivities.map((item) => `- ${item.explanation}`).join("\n");
-};
-
 const normalizeQuery = (value: string) => value.trim().replace(/\s+/g, " ");
 
 const dedupeQueries = (queries: string[]) => {
@@ -378,7 +370,6 @@ export async function POST(req: Request) {
     const recentData = candles.slice(-100);
     const origin = new URL(req.url).origin;
     const profile = await fetchAssetProfile(origin, symbol);
-    const sensitivities = inferMacroSensitivities(symbol ?? "", name, profile);
     const symbolQuery = name?.trim() || symbol?.split(":").pop()?.split(".")[0] || "";
 
     const models = [...getGeminiModels(), ...getOpenRouterModels()];
@@ -389,7 +380,6 @@ export async function POST(req: Request) {
     const symbolLabel = symbol || "el activo";
     const nameLabel = name?.trim() ? `${name} (${symbolLabel})` : symbolLabel;
     const portfolioContextText = formatPositionContext(positionContext);
-    const macroSensitivityText = formatMacroSensitivityContext(sensitivities);
     let lastError: unknown;
 
     for (const model of models) {
@@ -406,11 +396,8 @@ Sector: ${profile?.sector ?? "N/D"}
 Industria: ${profile?.industry ?? "N/D"}
 País: ${profile?.country ?? "N/D"}
 
-Sensibilidad macro sectorial:
-${macroSensitivityText}
-
-Contexto de cartera:
-${portfolioContextText}
+ Contexto de cartera:
+ ${portfolioContextText}
 
 Devuelve:
 - búsquedas directas del activo/empresa
@@ -446,20 +433,13 @@ Reglas:
         ]).slice(0, 10);
         const assetNewsText = formatNewsForPrompt(newsItems.filter((item) => item.scope !== "macro"));
         const macroNewsText = formatNewsForPrompt(newsItems.filter((item) => item.scope === "macro"));
-        const researchFocusText = [
-          `Resumen: ${researchFocus.summary}`,
-          `Factores: ${(researchFocus.riskFactors ?? []).join("; ") || "N/D"}`,
-          `Queries activo: ${assetQueries.join(" | ") || "N/D"}`,
-          `Queries macro: ${macroQueries.join(" | ") || "N/D"}`,
-        ].join("\n");
-
         const { object } = await generateObject({
           model,
           schema: AnalysisSchema,
           maxOutputTokens: 1600,
           prompt: `
 Analiza ${nameLabel} con este orden y sin saltarte pasos:
-1. Primero haz una lectura geopolítica/macro muy rápida. Usa el perfil del activo y los titulares macro recientes. No inventes datos.
+1. Primero haz una lectura geopolítica/macro muy rápida. Usa solo titulares recientes del activo, de su sector o macro globales. No inventes datos.
 2. Después valora cómo encaja en la cartera del usuario. Si ya está dentro, compara claramente el precio medio de entrada con el precio actual y el P/L.
 3. Resume si las noticias recientes del activo y las macro cambian materialmente el sesgo.
 4. Solo después da la valoración técnica con patrones, niveles y plan de trading.
@@ -470,14 +450,8 @@ Perfil del activo:
 - Industria: ${profile?.industry ?? "N/D"}
 - País: ${profile?.country ?? "N/D"}
 
-Sensibilidad macro sectorial esperada:
-${macroSensitivityText}
-
-Hipótesis de búsqueda construida durante el análisis:
-${researchFocusText}
-
-Contexto de cartera del usuario:
-${portfolioContextText}
+ Contexto de cartera del usuario:
+ ${portfolioContextText}
 
 Titulares recientes del activo:
 ${assetNewsText}
@@ -494,17 +468,23 @@ ${JSON.stringify(recentData.map((candle) => ({
   c: candle.close,
 })))}
 
-Reglas:
-- Devuelve todo en español.
-- Sé concreto y breve.
-- No uses TWR, IRR ni métricas que no se han pedido.
-- Si hay un driver macro activo como guerra, petróleo, gas, tarifas o disrupción logística y afecta al sector/país del activo, priorízalo sobre boilerplate genérico.
-- Si el activo es automoción, industriales, aerolíneas o químicas europeas, considera el estrechamiento/cierre de Ormuz y el shock del crudo como driver bajista principal salvo evidencia en contra.
-- Si el activo es defensa u oil & gas, revisa si el mismo evento cambia a sesgo neutral/alcista.
-- No digas "no hay noticias relevantes" si sí hay titulares macro relevantes para el sector.
-- Si faltan noticias claras, dilo explícitamente y apóyate en el gráfico.
-- Para cada patrón, devuelve coordenadas reales de tiempo y precio.
-`,
+ Reglas:
+ - Devuelve todo en español.
+ - Sé concreto y breve.
+ - No uses TWR, IRR ni métricas que no se han pedido.
+ - macroContext debe salir solo de titulares recientes incluidos arriba.
+ - No uses la sensibilidad sectorial esperada, factores de riesgo, hipótesis de búsqueda ni conocimiento general como si fueran hechos actuales.
+ - No enumeres riesgos latentes, estructurales o inherentes si no están respaldados por titulares recientes.
+ - Si hay un driver macro activo como guerra, petróleo, gas, tarifas o disrupción logística y aparece en los titulares, priorízalo sobre boilerplate genérico.
+ - Si no hay noticias recientes suficientemente claras para el sector o macro global, di explícitamente que no hay un driver macro reciente confirmado y no rellenes con especulación.
+ - newsImpact debe resumir únicamente el impacto de los titulares aportados arriba.
+ - newsImpact no puede usar conocimiento general, hipótesis, sensibilidad sectorial ni riesgos estructurales si no aparecen en los titulares listados.
+ - Si hay noticias, newsImpact debe mencionar al menos una fecha, medio o hecho concreto de esos titulares.
+ - Si no hay noticias claras del activo ni del sector con impacto material, newsImpact debe decirlo de forma explícita y breve.
+ - No escribas frases vagas como "persiste la incertidumbre", "se mantiene como riesgo latente" o equivalentes salvo que un titular lo justifique.
+ - portfolioContext debe centrarse solo en la posición del usuario, no en noticias.
+ - Para cada patrón, devuelve coordenadas reales de tiempo y precio.
+ `,
         });
 
         return Response.json({

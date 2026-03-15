@@ -35,7 +35,8 @@ import type { Route } from "next";
 
 
 type PortfolioAccountView = "all" | "brokerage" | "robo";
-type PerformancePoint = { label: string; value: number };
+type PortfolioDateRange = "all" | "1m" | "3m" | "6m" | "ytd" | "1y";
+type PerformancePoint = { label: string; value: number; timestamp: number };
 type IncomePoint = { label: string; value: number };
 type HistoryClosePoint = { timestamp: number; close: number };
 type AccountSeries = {
@@ -53,6 +54,14 @@ type AccountMetrics = {
 };
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const DATE_RANGE_OPTIONS: Array<{ value: PortfolioDateRange; label: string }> = [
+  { value: "all", label: "Desde el principio" },
+  { value: "1m", label: "1 mes" },
+  { value: "3m", label: "3 meses" },
+  { value: "6m", label: "6 meses" },
+  { value: "ytd", label: "Este año" },
+  { value: "1y", label: "1 año" },
+];
 
 const toTimestamp = (value: string) => {
   const raw = String(value ?? "").trim();
@@ -111,6 +120,29 @@ const getDayStart = (timestamp: number) => {
 };
 const getNextDayStart = (dayStart: number) => dayStart + 24 * 60 * 60 * 1000;
 const getDayEnd = (dayStart: number) => getNextDayStart(dayStart) - 1;
+const getRangeStartTimestamp = (range: PortfolioDateRange, now = Date.now()) => {
+  if (range === "all") return null;
+
+  const date = new Date(now);
+  switch (range) {
+    case "1m":
+      date.setUTCMonth(date.getUTCMonth() - 1);
+      return date.getTime();
+    case "3m":
+      date.setUTCMonth(date.getUTCMonth() - 3);
+      return date.getTime();
+    case "6m":
+      date.setUTCMonth(date.getUTCMonth() - 6);
+      return date.getTime();
+    case "1y":
+      date.setUTCFullYear(date.getUTCFullYear() - 1);
+      return date.getTime();
+    case "ytd":
+      return Date.UTC(date.getUTCFullYear(), 0, 1);
+    default:
+      return null;
+  }
+};
 
 const formatMonthLabel = (monthStart: number, includeYear: boolean) => {
   const date = new Date(monthStart);
@@ -386,7 +418,8 @@ const buildPerformanceSeries = (
     .sort((a, b) => a.timestamp - b.timestamp);
 
   if (ordered.length === 0) {
-    const empty = [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: 0 }];
+    const nowMonth = getMonthStart(Date.now());
+    const empty = [{ label: formatMonthLabel(nowMonth, false), timestamp: nowMonth, value: 0 }];
     return { valuePoints: empty, gainLossPoints: empty, roiPoints: empty };
   }
 
@@ -436,14 +469,17 @@ const buildPerformanceSeries = (
 
     valuePoints.push({
       label: formatMonthLabel(month, includeYear),
+      timestamp: monthEnd,
       value: Number(equity.toFixed(2)),
     });
     gainLossPoints.push({
       label: formatMonthLabel(month, includeYear),
+      timestamp: monthEnd,
       value: Number(gainLoss.toFixed(2)),
     });
     roiPoints.push({
       label: formatMonthLabel(month, includeYear),
+      timestamp: monthEnd,
       value: Number(roiPercent.toFixed(2)),
     });
   }
@@ -612,15 +648,18 @@ const buildPerformanceSeriesWithHistory = async (
 
     valuePoints.push({
       label: formatDayLabel(day, includeYear),
+      timestamp: dayEnd,
       value: Number(equity.toFixed(2)),
     });
     roiPoints.push({
       label: formatDayLabel(day, includeYear),
+      timestamp: dayEnd,
       value: Number(roiPercent.toFixed(2)),
     });
 
     gainLossPoints.push({
       label: formatDayLabel(day, includeYear),
+      timestamp: dayEnd,
       value: Number(convertCurrencyFrom(gainLoss, baseCurrency, baseCurrency, dayFxRate, baseCurrency).toFixed(2)),
     });
   }
@@ -789,6 +828,7 @@ export function PortfolioClient() {
   const [valueSeries, setValueSeries] = useState<PerformancePoint[]>([]);
   const [profitSeries, setProfitSeries] = useState<PerformancePoint[]>([]);
   const [roiSeries, setRoiSeries] = useState<PerformancePoint[]>([]);
+  const [dateRange, setDateRange] = useState<PortfolioDateRange>("all");
   const accountView: PortfolioAccountView =
     searchParams.get("account") === "brokerage"
       ? "brokerage"
@@ -800,8 +840,13 @@ export function PortfolioClient() {
   const handleAccountViewChange = (nextView: PortfolioAccountView) => {
     if (nextView === accountView) return;
     const next = new URLSearchParams(searchParams.toString());
-    next.set("account", nextView);
-    router.replace(`${pathname}?${next.toString()}` as Route, { scroll: false });
+    if (nextView === "all") {
+      next.delete("account");
+    } else {
+      next.set("account", nextView);
+    }
+    const query = next.toString();
+    router.replace((query ? `${pathname}?${query}` : pathname) as Route, { scroll: false });
   };
 
   const brokerageTransactions = useMemo(
@@ -876,12 +921,6 @@ export function PortfolioClient() {
     [selectedHoldings, selectedSummary.totalValue],
   );
 
-  const accountLabel =
-    accountView === "brokerage"
-      ? "Cuenta de corretaje"
-      : accountView === "robo"
-        ? "Robo advisor"
-        : "Todas las cuentas de inversión";
   const heroTitle =
     accountView === "brokerage"
       ? "Cuenta de corretaje"
@@ -894,12 +933,33 @@ export function PortfolioClient() {
       : accountView === "robo"
         ? "Lectura consolidada del robo advisor con cierres, fees de gestión y evolución histórica."
         : "Consolida corretaje y robo advisor en una sola lectura, con métricas cercanas a la analítica de Revolut.";
+  const filteredValueSeries = useMemo(() => {
+    const startTimestamp = getRangeStartTimestamp(dateRange);
+    if (startTimestamp === null) return valueSeries;
+    const filtered = valueSeries.filter((point) => point.timestamp >= startTimestamp);
+    return filtered.length > 0 ? filtered : valueSeries.slice(-1);
+  }, [dateRange, valueSeries]);
+  const filteredProfitSeries = useMemo(() => {
+    const startTimestamp = getRangeStartTimestamp(dateRange);
+    if (startTimestamp === null) return profitSeries;
+    const filtered = profitSeries.filter((point) => point.timestamp >= startTimestamp);
+    return filtered.length > 0 ? filtered : profitSeries.slice(-1);
+  }, [dateRange, profitSeries]);
+  const filteredRoiSeries = useMemo(() => {
+    const startTimestamp = getRangeStartTimestamp(dateRange);
+    if (startTimestamp === null) return roiSeries;
+    const filtered = roiSeries.filter((point) => point.timestamp >= startTimestamp);
+    return filtered.length > 0 ? filtered : roiSeries.slice(-1);
+  }, [dateRange, roiSeries]);
   const displayedValueChange =
-    valueSeries.length >= 2
-      ? (valueSeries[valueSeries.length - 1]?.value ?? 0) - (valueSeries[0]?.value ?? 0)
+    filteredValueSeries.length >= 2
+      ? (filteredValueSeries[filteredValueSeries.length - 1]?.value ?? 0) - (filteredValueSeries[0]?.value ?? 0)
       : selectedMetrics.totalValue;
-  const displayedProfitChange = selectedMetrics.totalPnl;
-  const displayedReturnPct = roiSeries[roiSeries.length - 1]?.value ?? selectedMetrics.roi;
+  const displayedProfitChange =
+    filteredProfitSeries.length >= 2
+      ? (filteredProfitSeries[filteredProfitSeries.length - 1]?.value ?? 0) - (filteredProfitSeries[0]?.value ?? 0)
+      : filteredProfitSeries[filteredProfitSeries.length - 1]?.value ?? selectedMetrics.totalPnl;
+  const displayedReturnPct = filteredRoiSeries[filteredRoiSeries.length - 1]?.value ?? selectedMetrics.roi;
 
   const fallbackPerformanceSeries = useMemo(
     () => buildPerformanceSeries(selectedTransactions, fxRate, baseCurrency),
@@ -1010,14 +1070,37 @@ export function PortfolioClient() {
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between px-2 pt-2">
-            <div className="flex flex-col">
-              <h2 className="text-2xl font-bold tracking-tight text-white">Análisis</h2>
-              <div className="mt-4 flex items-center gap-1.5 text-sm font-medium text-muted/60">
-                {accountLabel}
-                <span className="text-[10px] opacity-40">▼</span>
+              <div className="flex flex-col">
+                <h2 className="text-2xl font-bold tracking-tight text-white">Análisis</h2>
+                <label className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-muted/80">
+                  <span className="sr-only">Seleccionar cuenta</span>
+                  <select
+                    aria-label="Seleccionar cuenta"
+                    className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-sm font-medium text-text outline-none transition focus:border-primary/70"
+                    value={accountView}
+                    onChange={(event) => handleAccountViewChange(event.target.value as PortfolioAccountView)}
+                  >
+                    <option value="all">Todas las cuentas de inversión</option>
+                    <option value="brokerage">Cuenta de corretaje</option>
+                    <option value="robo">Robo advisor</option>
+                  </select>
+                </label>
               </div>
-            </div>
-            <button className="text-sm font-semibold text-primary/90 hover:opacity-80">Desde el principio</button>
+            <label className="inline-flex items-center">
+              <span className="sr-only">Seleccionar rango temporal</span>
+              <select
+                aria-label="Seleccionar rango temporal"
+                className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-sm font-semibold text-primary/90 outline-none transition focus:border-primary/70"
+                value={dateRange}
+                onChange={(event) => setDateRange(event.target.value as PortfolioDateRange)}
+              >
+                {DATE_RANGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           <Card className="overflow-hidden border-none bg-[#1C1C1E] p-6 shadow-2xl transition-all hover:bg-[#2C2C2E]">
@@ -1033,9 +1116,9 @@ export function PortfolioClient() {
                 </div>
               </div>
             </div>
-            <div className="h-[180px] -mx-6 -mb-6 mt-4">
-              <RevolutSparkline 
-                data={valueSeries} 
+              <div className="h-[180px] -mx-6 -mb-6 mt-4">
+                <RevolutSparkline 
+                data={filteredValueSeries} 
                 height={180} 
                 color={displayedValueChange >= 0 ? "#22c55e" : "#ef4444"} 
               />
@@ -1052,7 +1135,7 @@ export function PortfolioClient() {
               </div>
               <div className="mt-6 h-[80px]">
                 <RevolutSparkline 
-                  data={roiSeries} 
+                  data={filteredRoiSeries} 
                   height={80} 
                   color={displayedReturnPct >= 0 ? "#22c55e" : "#ef4444"} 
                 />
@@ -1068,7 +1151,7 @@ export function PortfolioClient() {
               </div>
               <div className="mt-6 h-[80px]">
                 <RevolutSparkline 
-                  data={profitSeries} 
+                  data={filteredProfitSeries} 
                   height={80} 
                   color={displayedProfitChange >= 0 ? "#22c55e" : "#ef4444"} 
                 />

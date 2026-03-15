@@ -87,6 +87,21 @@ const buildMacroDrivers = (quotes: QuoteRow[]) => {
   return items.slice(0, 3);
 };
 
+const buildMarketBreadthLabel = (quotes: QuoteRow[]) => {
+  const equityMoves = ["^GSPC", "^IXIC", "^STOXX50E", "^IBEX"]
+    .map((symbol) => quotes.find((quote) => quote.symbol === symbol)?.dayChangePercent)
+    .filter((value): value is number => Number.isFinite(value));
+
+  if (equityMoves.length < 3) {
+    return { label: "Cobertura parcial", tone: "default" as const };
+  }
+
+  const positiveCount = equityMoves.filter((value) => value > 0).length;
+  if (positiveCount >= 3) return { label: "Amplitud positiva", tone: "success" as const };
+  if (positiveCount <= 1) return { label: "Amplitud débil", tone: "danger" as const };
+  return { label: "Sesgo mixto", tone: "warning" as const };
+};
+
 type DashboardMarketBoardProps = {
   holdings: Holding[];
 };
@@ -150,6 +165,18 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
   }, [holdings]);
 
   const macroDrivers = useMemo(() => buildMacroDrivers(quotes), [quotes]);
+  const breadth = useMemo(() => buildMarketBreadthLabel(quotes), [quotes]);
+  const strongestMacroTile = useMemo(() => {
+    const macroTiles = MARKET_TILES.filter((tile) => tile.group === "MACRO")
+      .map((tile) => ({
+        tile,
+        quote: quoteMap.get(tile.symbol.toUpperCase()),
+      }))
+      .filter((entry) => Number.isFinite(entry.quote?.dayChangePercent))
+      .sort((a, b) => Math.abs(b.quote?.dayChangePercent ?? 0) - Math.abs(a.quote?.dayChangePercent ?? 0));
+
+    return macroTiles[0] ?? null;
+  }, [quoteMap]);
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.35fr,0.9fr]">
@@ -157,6 +184,30 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
         title="Mercado hoy"
         subtitle="Panel rápido inspirado en Investing.com: índices, activos macro y lectura táctica."
       >
+        <div className="mb-5 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Cobertura</p>
+            <div className="mt-2 flex items-center gap-2">
+              <Badge tone={breadth.tone}>{breadth.label}</Badge>
+              <span className="text-sm text-text">{quotes.length}/{MARKET_TILES.length} activos</span>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Driver macro</p>
+            <p className="mt-2 text-sm font-semibold text-white">
+              {strongestMacroTile ? strongestMacroTile.tile.label : "Sin señal dominante"}
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              {strongestMacroTile ? formatMove(strongestMacroTile.quote?.dayChangePercent) : "Movimiento limitado"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Lectura rápida</p>
+            <p className="mt-2 text-sm text-text">
+              {macroDrivers[0] ?? "Sin suficiente movimiento para extraer una lectura táctica clara."}
+            </p>
+          </div>
+        </div>
         <div className="grid gap-5 lg:grid-cols-2">
           {[
             { title: "Índices mundiales", items: groupedTiles.indices },
@@ -210,11 +261,12 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
         <Card title="Claves del día" subtitle="Señales rápidas para no mirar solo el ticker.">
           <div className="flex flex-col gap-3">
             {macroDrivers.length > 0 ? (
-              macroDrivers.map((driver) => (
+              macroDrivers.map((driver, index) => (
                 <div
                   key={driver}
                   className="rounded-lg border border-border/60 bg-surface-muted/40 px-3 py-3 text-sm text-text"
                 >
+                  <span className="mr-2 text-xs font-semibold text-primary/85">{index + 1}.</span>
                   {driver}
                 </div>
               ))
@@ -229,8 +281,8 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
         <Card title="Movers de tu cartera" subtitle="Lo que más se mueve hoy dentro de tus posiciones abiertas.">
           <div className="grid gap-4 md:grid-cols-2">
             {[
-              { title: "Mejores", items: dayMovers.top, empty: "Sin ganadores suficientes todavía." },
-              { title: "Peores", items: dayMovers.bottom, empty: "Sin perdedores suficientes todavía." },
+              { title: "Mejores", items: dayMovers.top, empty: "Todavía no hay ganadores claros en cartera." },
+              { title: "Peores", items: dayMovers.bottom, empty: "Todavía no hay perdedores claros en cartera." },
             ].map((group) => (
               <div key={group.title} className="rounded-xl border border-border/60 bg-surface-muted/40 p-4">
                 <p className="mb-3 text-[11px] uppercase tracking-[0.24em] text-muted">{group.title}</p>

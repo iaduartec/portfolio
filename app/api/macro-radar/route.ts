@@ -7,6 +7,7 @@ type MacroRadarItem = {
   link: string;
   publishedAt?: string;
   description?: string;
+  source?: string;
 };
 
 const FEED_URL = "https://inversionesenelmundo.substack.com/feed";
@@ -46,32 +47,75 @@ const parseFeed = (xml: string): MacroRadarItem[] => {
         link,
         description,
         publishedAt,
+        source: "inversionesenelmundo-substack",
       };
     })
     .filter((item) => item.title && item.link)
-    .slice(0, 6);
+    .slice(0, 12);
 };
 
-export async function GET() {
-  try {
-    const response = await fetch(FEED_URL, {
-      next: { revalidate: 900 },
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
-      },
-    });
+const dedupeItems = (items: MacroRadarItem[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.title}|${item.link}`.toLowerCase();
+    if (!item.title || !item.link || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
-    if (!response.ok) {
+export async function GET(req: Request) {
+  try {
+    const origin = new URL(req.url).origin;
+    const [feedResult, yahooResult] = await Promise.allSettled([
+      fetch(FEED_URL, {
+        next: { revalidate: 900 },
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+        },
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error("feed-unavailable");
+        }
+        return parseFeed(await response.text());
+      }),
+      fetch(`${origin}/api/yahoo?action=world-indices-news`, {
+        next: { revalidate: 300 },
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error("yahoo-news-unavailable");
+        }
+        const payload = (await response.json()) as { items?: MacroRadarItem[] };
+        return Array.isArray(payload.items)
+          ? payload.items.map((item) => ({ ...item, source: item.source ?? "yahoo-finance" }))
+          : [];
+      }),
+    ]);
+
+    const feedItems = feedResult.status === "fulfilled" ? feedResult.value : [];
+    const yahooItems = yahooResult.status === "fulfilled" ? yahooResult.value : [];
+    const items = dedupeItems([...feedItems, ...yahooItems])
+      .sort((a, b) => {
+        const aTime = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+        const bTime = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 12);
+
+    if (items.length === 0) {
       return NextResponse.json({ error: "No se pudo cargar el radar macro." }, { status: 502 });
     }
 
-    const xml = await response.text();
-    const items = parseFeed(xml);
-
     return NextResponse.json({
-      source: "inversionesenelmundo-substack",
+      source: "mixed-macro-radar",
       items,
+      meta: {
+        sources: [
+          feedItems.length > 0 ? "inversionesenelmundo-substack" : null,
+          yahooItems.length > 0 ? "yahoo-finance-world-indices" : null,
+        ].filter(Boolean),
+      },
     });
   } catch (error) {
     console.error("Macro radar feed error:", error);
