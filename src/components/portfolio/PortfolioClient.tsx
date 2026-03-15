@@ -9,6 +9,7 @@ import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable"
 import { RevolutTickerIcon } from "@/components/portfolio/RevolutTickerIcon";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
 import {
   Area,
@@ -43,6 +44,11 @@ import type { InvestmentAccount, Transaction } from "@/types/transactions";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
+import { PageIntro } from "@/components/ui/page-intro";
+import { FilterBar } from "@/components/ui/filter-bar";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { MetricCard } from "@/components/ui/metric-card";
 
 
 
@@ -977,186 +983,142 @@ export function PortfolioClient() {
 
   return (
     <div className="relative flex flex-col gap-10">
-      <div className="pointer-events-none absolute inset-x-0 -top-10 -z-10 h-[360px] rounded-[40px] bg-[radial-gradient(circle_at_top,rgba(62,199,255,0.22),rgba(7,11,20,0)_66%)]" />
-      <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-[linear-gradient(180deg,rgba(22,34,57,0.82),rgba(10,16,28,0.9))] px-5 py-8 shadow-panel backdrop-blur-xl md:px-10 md:py-12">
-        <div className="absolute -top-20 right-[-72px] h-56 w-56 rounded-full bg-primary/20 blur-3xl" />
-        <div className="absolute -bottom-24 left-[-72px] h-60 w-60 rounded-full bg-accent/15 blur-3xl" />
-        <div className="relative flex flex-col items-center gap-4 text-center">
-          <div className="inline-flex items-center rounded-full border border-primary/35 bg-primary/10 px-3 py-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/90">Gestión de inversiones</p>
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-text md:text-6xl">
-            {heroTitle}
-          </h1>
-          <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-            {heroDescription}
-          </p>
-          <Link
-            href="/lab"
-            className="inline-flex items-center gap-2 rounded-lg border border-accent/45 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors duration-200 hover:bg-accent/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
-          >
-            Analizar en Lab
-          </Link>
-          <div className="mt-1 inline-flex rounded-xl border border-border/70 bg-background/45 p-1.5">
-            <button
-              type="button"
-              onClick={() => handleAccountViewChange("all")}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-semibold transition",
-                accountView === "all"
-                  ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
-                  : "text-muted hover:text-text"
-              )}
-            >
-              Todas
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAccountViewChange("brokerage")}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-semibold transition",
-                accountView === "brokerage"
-                  ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
-                  : "text-muted hover:text-text"
-              )}
-            >
-              Corretaje
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAccountViewChange("robo")}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-semibold transition",
-                accountView === "robo"
-                  ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
-                  : "text-muted hover:text-text"
-              )}
-            >
-              Robo
-            </button>
-          </div>
-        </div>
-      </section>
+      <PageIntro
+        eyebrow="Gestión de inversiones"
+        title={heroTitle}
+        description={heroDescription}
+        actions={
+          <Button asChild variant="secondary">
+            <Link href="/lab">Analizar en Lab</Link>
+          </Button>
+        }
+      />
       {showBootstrapState ? (
         <div className="flex flex-col gap-6">
           <Skeleton className="h-[300px] w-full rounded-3xl" />
-          <div className="grid grid-cols-2 gap-6">
+          <div className="grid gap-6 md:grid-cols-2">
             <Skeleton className="h-[200px] w-full rounded-3xl" />
             <Skeleton className="h-[200px] w-full rounded-3xl" />
           </div>
         </div>
       ) : transactions.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-border/80 bg-surface/70 py-24 text-center shadow-panel backdrop-blur-xl md:py-32">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-2">
-            <UploadCloud size={28} className="text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
-            Aún no hay datos
-          </h2>
-          <p className="max-w-md px-6 text-sm leading-relaxed text-muted md:text-base">
-            Importa tus transacciones desde un archivo CSV para generar el análisis automático de tu portfolio de inversión.
-          </p>
-          <div className="mt-4">
-            <Link
-              href="/upload"
-              className="inline-flex items-center gap-2 rounded-xl border border-primary/45 bg-primary/15 px-6 py-3 text-sm font-semibold text-primary shadow-[0_0_15px_rgba(62,199,255,0.15)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-            >
-              <UploadCloud size={16} />
-              Importar transacciones
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          icon={<UploadCloud size={26} />}
+          title="Aún no hay datos cargados"
+          description="Importa tus transacciones desde un CSV para construir la cartera, calcular rentabilidad y activar todo el análisis automático."
+          action={
+            <Button asChild size="lg">
+              <Link href="/upload" className="gap-2">
+                <UploadCloud size={16} />
+                Importar transacciones
+              </Link>
+            </Button>
+          }
+        />
       ) : (
-        <div id="portfolio-snapshot" className="flex flex-col gap-6 bg-background rounded-b-3xl pb-2">
-          <div className="flex items-center justify-between px-2 pt-2">
-              <div className="flex flex-col">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-bold tracking-tight text-white">Análisis</h2>
-                  <TearSheetExportButton targetId="portfolio-snapshot" />
-                </div>
-                <label className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-muted/80">
-                  <span className="sr-only">Seleccionar cuenta</span>
-                  <select
-                    aria-label="Seleccionar cuenta"
-                    className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-sm font-medium text-text outline-none transition focus:border-primary/70"
-                    value={accountView}
-                    onChange={(event) => handleAccountViewChange(event.target.value as PortfolioAccountView)}
+        <div id="portfolio-snapshot" className="flex flex-col gap-6 pb-2">
+          <SectionHeading
+            eyebrow="Análisis"
+            title="Workspace financiero"
+            description="Explora valor, rentabilidad, composición y evolución de la cartera con controles compactos y lectura rápida."
+            actions={<TearSheetExportButton targetId="portfolio-snapshot" />}
+          />
+
+          <FilterBar>
+            <div className="flex flex-col gap-3">
+              <p className="financial-label">Cuenta</p>
+              <div className="inline-flex rounded-full border border-border/70 bg-background/55 p-1">
+                {[
+                  { value: "all", label: "Todas" },
+                  { value: "brokerage", label: "Corretaje" },
+                  { value: "robo", label: "Robo" },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleAccountViewChange(option.value as PortfolioAccountView)}
+                    className={cn(
+                      "rounded-full px-4 py-2 text-sm font-semibold transition",
+                      accountView === option.value
+                        ? "bg-primary text-background"
+                        : "text-text-tertiary hover:text-text"
+                    )}
                   >
-                    <option value="all">Todas las cuentas de inversión</option>
-                    <option value="brokerage">Cuenta de corretaje</option>
-                    <option value="robo">Robo advisor</option>
-                  </select>
-                </label>
+                    {option.label}
+                  </button>
+                ))}
               </div>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-2">
-              {DATE_RANGE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setDateRange(opt.value)}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-xs font-semibold transition-all border",
-                    dateRange === opt.value 
-                      ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
-                      : "bg-surface-muted/30 text-muted border-border/60 hover:border-primary/40"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
             </div>
-            <button
-              onClick={() => setIsPrivate(!isPrivate)}
-              className={cn(
-                "group flex items-center gap-3 rounded-full border p-1.5 pr-4 transition-all active:scale-95 cursor-pointer shadow-lg",
-                isPrivate 
-                  ? "bg-primary/10 border-primary/30 text-primary shadow-primary/5 hover:bg-primary/20" 
-                  : "bg-surface/40 border-white/10 text-muted hover:text-white hover:bg-surface/60 shadow-black/20"
-              )}
-              title={isPrivate ? "Mostrar valores" : "Ocultar valores"}
-            >
-              <div className="relative">
-                {isPrivate ? <EyeOff size={14} className="animate-in fade-in zoom-in duration-300" /> : <Eye size={14} className="animate-in fade-in zoom-in duration-300" />}
+            <div className="flex flex-col gap-3 lg:items-end">
+              <p className="financial-label">Rango y privacidad</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {DATE_RANGE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDateRange(opt.value)}
+                      className={cn(
+                        "rounded-full border px-4 py-2 text-xs font-semibold transition-all",
+                        dateRange === opt.value
+                          ? "border-primary/20 bg-primary/12 text-primary"
+                          : "border-border/70 bg-surface-muted/30 text-text-tertiary hover:border-primary/24 hover:text-text"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setIsPrivate(!isPrivate)}
+                  className={cn(
+                    "group inline-flex items-center gap-3 rounded-full border px-3 py-2 transition-all",
+                    isPrivate
+                      ? "border-primary/24 bg-primary/10 text-primary"
+                      : "border-border/70 bg-surface/40 text-text-tertiary hover:text-text"
+                  )}
+                  title={isPrivate ? "Mostrar valores" : "Ocultar valores"}
+                >
+                  {isPrivate ? <EyeOff size={14} /> : <Eye size={14} />}
+                  <span className="text-[10px] font-bold uppercase tracking-wider select-none">
+                    {isPrivate ? "Privado" : "Público"}
+                  </span>
+                </button>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider select-none">
-                {isPrivate ? "Privado" : "Público"}
-              </span>
-            </button>
-          </div>
-        </div>
+            </div>
+          </FilterBar>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              {highlights && (
                 <>
-                  <Card className="flex items-center gap-4 transition-all hover:border-success/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
-                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success transition-transform group-hover:scale-110">
+                  <Card className="surface-panel flex min-h-[104px] items-center gap-4 border-success/12">
+                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success">
                         <TrendingUp size={20} />
                      </div>
                      <div className="min-w-0">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted/50">Top Impulsor</p>
-                        <p className="text-sm font-bold text-text truncate">
+                        <p className="financial-label">Top impulsor</p>
+                        <p className="mt-2 text-sm font-semibold text-text truncate">
                           {highlights.best.ticker} <span className="text-success ml-1 font-mono">+{maskValue(formatCurrency(convertCurrency(highlights.best.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
                         </p>
                      </div>
                   </Card>
-                  <Card className="flex items-center gap-4 transition-all hover:border-danger/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
-                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/10 text-danger transition-transform group-hover:scale-110">
+                  <Card className="surface-panel flex min-h-[104px] items-center gap-4 border-danger/12">
+                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-danger/10 text-danger">
                         <TrendingDown size={20} />
                      </div>
                      <div className="min-w-0">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted/50">Detractor</p>
-                        <p className="text-sm font-bold text-text truncate">
+                        <p className="financial-label">Detractor</p>
+                        <p className="mt-2 text-sm font-semibold text-text truncate">
                           {highlights.worst.ticker} <span className="text-danger ml-1 font-mono">{maskValue(formatCurrency(convertCurrency(highlights.worst.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
                         </p>
                      </div>
                   </Card>
-                  <Card className="flex items-center gap-4 transition-all hover:border-primary/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98] md:col-span-2">
-                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
+                  <Card className="surface-panel flex min-h-[104px] items-center gap-4 border-primary/12 md:col-span-2">
+                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                         <Activity size={20} />
                      </div>
                      <div className="min-w-0">
-                        <p className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted/50">Estrategia</p>
-                        <p className="text-sm font-bold text-text truncate">
+                        <p className="financial-label">Estrategia</p>
+                        <p className="mt-2 text-sm font-semibold text-text truncate">
                           {highlights.diversity} <span className="text-muted/40 font-medium px-1">·</span> 
                           <span className="text-primary font-mono">{maskValue(formatCurrency(convertCurrency(selectedSummary.totalValue - (highlights.best.pnlValue + highlights.worst.pnlValue), currency, fxRate, baseCurrency), currency), isPrivate)}</span>
                           <span className="text-[10px] text-muted/40 ml-1">({selectedHoldings.length} pos)</span>
@@ -1213,30 +1175,31 @@ export function PortfolioClient() {
             ];
 
             return (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {pills.map((pill) => (
-                  <div
+                  <MetricCard
                     key={pill.label}
-                    className={cn(
-                      "flex flex-col gap-1 rounded-xl border px-4 py-3",
-                      pill.colorClass
-                    )}
-                  >
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] opacity-70">
-                      {pill.label}
-                    </p>
-                    <p className="text-sm font-bold">{pill.value}</p>
-                  </div>
+                    label={pill.label}
+                    value={<span className="text-lg font-semibold">{pill.value}</span>}
+                    tone={
+                      pill.colorClass.includes("success")
+                        ? "success"
+                        : pill.colorClass.includes("danger")
+                          ? "danger"
+                          : "primary"
+                    }
+                    className="min-h-[118px]"
+                  />
                 ))}
               </div>
             );
           })()}
 
-          <Card className="overflow-hidden border-none bg-[#1C1C1E] p-6 shadow-2xl transition-all hover:bg-[#2C2C2E]">
+          <Card className="overflow-hidden p-6">
             <div className="mb-4">
-              <p className="text-sm font-medium text-muted/60">Valor total</p>
+              <p className="financial-label">Valor total</p>
               <div className="mt-1 flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-text">
+                <p className="financial-value text-3xl font-bold text-text">
                   {maskValue(formatCurrency(convertCurrency(selectedMetrics.totalValue, currency, fxRate, baseCurrency), currency), isPrivate)}
                 </p>
                 <div className={cn("flex items-center gap-1 text-sm font-semibold", (displayedValueChange >= 0 ? "text-success" : "text-danger"))}>
@@ -1255,11 +1218,11 @@ export function PortfolioClient() {
               </div>
           </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-            <Card className="flex flex-col justify-between transition-all hover:border-success/20 cursor-pointer hover:scale-[1.01] active:scale-[0.99] group">
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card className="flex flex-col justify-between">
               <div>
-                <p className="text-sm font-medium text-muted/60">Rendimiento</p>
-                <p className={cn("mt-1 text-2xl font-bold", displayedReturnPct >= 0 ? "text-success" : "text-danger")}>
+                <p className="financial-label">Rentabilidad</p>
+                <p className={cn("financial-value mt-2 text-2xl font-bold", displayedReturnPct >= 0 ? "text-success" : "text-danger")}>
                   {maskValue(`${displayedReturnPct >= 0 ? "+" : ""}${formatPercent(displayedReturnPct / 100)}`, isPrivate)}
                 </p>
               </div>
@@ -1273,10 +1236,10 @@ export function PortfolioClient() {
               </div>
             </Card>
 
-            <Card className="flex flex-col justify-between transition-all hover:border-primary/20 cursor-pointer hover:scale-[1.01] active:scale-[0.99] group">
+            <Card className="flex flex-col justify-between">
               <div>
-                <p className="text-sm font-medium text-muted/60">Ganancias y Pérdidas</p>
-                <p className={cn("mt-1 text-2xl font-bold", displayedProfitChange >= 0 ? "text-success" : "text-danger")}>
+                <p className="financial-label">Ganancias y pérdidas</p>
+                <p className={cn("financial-value mt-2 text-2xl font-bold", displayedProfitChange >= 0 ? "text-success" : "text-danger")}>
                   {maskValue(`${displayedProfitChange >= 0 ? "+" : ""}${formatCurrency(convertCurrency(displayedProfitChange, currency, fxRate, baseCurrency), currency)}`, isPrivate)}
                 </p>
               </div>
@@ -1305,7 +1268,7 @@ export function PortfolioClient() {
             </Card>
           </div>
 
-          <Card className="relative overflow-hidden min-h-[220px]">
+          <Card className="relative min-h-[220px] overflow-hidden">
              <div className="flex flex-col md:flex-row justify-between items-start gap-6">
                <div className="flex-1">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted/50 mb-6">Asignación estratégica</p>
@@ -1334,19 +1297,19 @@ export function PortfolioClient() {
                   </div>
                 </div>
 
-                <div className="flex items-end gap-4 h-[160px] pt-8 bg-surface-muted/10 rounded-2xl px-6 pb-4 border border-white/5">
+                <div className="surface-panel flex h-[160px] items-end gap-4 rounded-[1.5rem] px-6 pb-4 pt-8">
                   {selectedAllocation.slice(0, 3).map((holding, idx) => (
-                    <div key={holding.ticker} className="flex flex-col items-center gap-4 group">
+                    <div key={holding.ticker} className="flex flex-col items-center gap-4">
                        <div className="relative w-12 flex flex-col justify-end h-full">
                          <div 
-                            className="w-full rounded-t-md bg-gradient-to-t from-primary/80 to-primary/40 shadow-glow transition-all duration-300 group-hover:scale-x-110" 
+                            className="w-full rounded-t-md bg-primary/75" 
                             style={{ 
                               opacity: 1 - (idx * 0.25),
                               height: `${Math.max(20, (holding.marketValue / (selectedAllocation[0]?.marketValue || 1)) * 100)}%` 
                             }} 
                           />
                         </div>
-                        <RevolutTickerIcon ticker={holding.ticker} className="h-9 w-9 shadow-glow transition-transform group-hover:scale-110" />
+                        <RevolutTickerIcon ticker={holding.ticker} className="h-9 w-9" />
                     </div>
                   ))}
                </div>
@@ -1355,7 +1318,7 @@ export function PortfolioClient() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <Card className="overflow-hidden flex flex-col justify-center">
-              <p className="text-sm font-medium text-muted/60 mb-3">Dividendos cobrados (LTM) y rentabilidad base</p>
+              <p className="financial-label mb-3">Dividendos cobrados (LTM) y rentabilidad base</p>
               <div className="h-[260px] w-full pt-4">
                 <PortfolioDividendsChart 
                   transactions={selectedTransactions} 
@@ -1369,7 +1332,7 @@ export function PortfolioClient() {
             </Card>
           </div>
 
-          <div className="mt-10 grid gap-10 opacity-60 hover:opacity-100 transition-opacity">
+          <div className="mt-10 grid gap-10">
             <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Posiciones Abiertas">
                <HoldingsTable 
                   holdings={selectedHoldings} 

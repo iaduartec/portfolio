@@ -17,8 +17,8 @@ export function DashboardStats({
   isLoading
 }: DashboardStatsProps) {
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
-      <div className="xl:col-span-4">
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="xl:col-span-1">
         <StatCard
           label="Valor total"
           value={summary.totalValue}
@@ -27,7 +27,7 @@ export function DashboardStats({
           hint="Base operativa de toda la cartera"
         />
       </div>
-      <div className="xl:col-span-4">
+      <div className="xl:col-span-1">
         <StatCard
           label="P&L abierto"
           value={summary.totalPnl}
@@ -38,7 +38,7 @@ export function DashboardStats({
           hint="Lo que realmente manda el riesgo actual"
         />
       </div>
-      <div className="xl:col-span-2">
+      <div className="xl:col-span-1">
         <StatCard
           label="P&L día"
           value={summary.dailyPnl}
@@ -47,7 +47,7 @@ export function DashboardStats({
           isLoading={isLoading}
         />
       </div>
-      <div className="xl:col-span-2">
+      <div className="xl:col-span-1">
         <StatCard label="P&L realizado" value={realizedTotal} isLoading={isLoading} />
       </div>
     </section>

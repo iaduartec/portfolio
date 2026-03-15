@@ -4,6 +4,7 @@ import { RealizedTrade } from "@/types/portfolio";
 import { formatCurrency, formatTradeDate } from "@/lib/formatters";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
+import { TableShell } from "@/components/ui/table-shell";
 
 interface RealizedTradesTableProps {
   trades: RealizedTrade[];
@@ -49,10 +50,10 @@ export function RealizedTradesTable({ trades, isPrivate = false }: RealizedTrade
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/30 to-surface/90 shadow-panel">
+    <TableShell>
       <div className="overflow-x-auto">
         <table className="min-w-[1000px] w-full table-auto divide-y divide-border/70 text-left text-sm">
-          <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
+          <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-text-tertiary">
             <tr>
               <th className="px-4 py-3.5 font-semibold">Fecha</th>
               <th className="px-4 py-3.5 font-semibold">Activo</th>
@@ -69,14 +70,14 @@ export function RealizedTradesTable({ trades, isPrivate = false }: RealizedTrade
               const postSaleRead = buildPostSaleRead(trade);
               
               return (
-                <tr key={trade.id} className="transition-colors hover:bg-surface-muted/40">
-                  <td className="whitespace-nowrap px-4 py-3.5 text-muted/60 font-mono text-xs">
+                <tr key={trade.id} className="transition-colors hover:bg-surface-muted/35">
+                  <td className="whitespace-nowrap px-4 py-3.5 text-text-tertiary font-mono text-xs">
                     {formatTradeDate(trade.date)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5">
                     <div className="flex flex-col">
-                      <span className="font-bold text-text">{trade.name || trade.ticker}</span>
-                      <span className="text-[10px] text-muted/50 font-bold uppercase tracking-wider">{trade.ticker}</span>
+                      <span className="font-semibold text-text">{trade.name || trade.ticker}</span>
+                      <span className="text-[10px] text-text-tertiary font-bold uppercase tracking-wider">{trade.ticker}</span>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3.5 text-right font-medium">
@@ -131,7 +132,7 @@ export function RealizedTradesTable({ trades, isPrivate = false }: RealizedTrade
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted/40 italic">Sin cotización actual</span>
+                      <span className="text-xs italic text-text-tertiary">Sin cotización actual</span>
                     )}
                   </td>
                 </tr>
@@ -140,6 +141,6 @@ export function RealizedTradesTable({ trades, isPrivate = false }: RealizedTrade
           </tbody>
         </table>
       </div>
-    </div>
+    </TableShell>
   );
 }

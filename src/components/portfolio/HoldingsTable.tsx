@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RevolutTickerIcon } from "@/components/portfolio/RevolutTickerIcon";
+import { TableShell } from "@/components/ui/table-shell";
 
 type SortKey =
   | "ticker"
@@ -213,10 +214,10 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/30 to-surface/90 shadow-panel">
+    <TableShell>
       <div className="overflow-x-auto">
         <table className="min-w-[1240px] w-full table-auto divide-y divide-border/70 text-left text-sm">
-          <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
+          <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-text-tertiary">
             <tr>
               {columns.map((col) => (
                 <th
@@ -262,25 +263,25 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                 return (
                   <tr
                     key={holding.ticker}
-                    className="group cursor-pointer transition-all duration-200 hover:bg-white/[0.03] active:bg-white/[0.05]"
+                    className="group cursor-pointer transition-all duration-200 hover:bg-surface-muted/35 active:bg-surface-muted/45"
                     onClick={() => onSelect?.(holding.ticker)}
                   >
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-3">
-                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8 shrink-0 shadow-glow transition-transform group-hover:scale-110" />
+                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8 shrink-0" />
                         <div className="flex flex-col">
-                          <span className="max-w-[180px] truncate font-bold text-text">
+                          <span className="max-w-[180px] truncate font-semibold text-text">
                             {holding.ticker}
                           </span>
-                          <span className="max-w-[180px] truncate text-xs text-muted/60">
+                          <span className="max-w-[180px] truncate text-xs text-text-tertiary">
                             {maskValue(quantityFormatter.format(holding.totalQuantity), isPrivate)} {holding.ticker.includes(":") ? "acciones" : "unidades"} · {holding.name || holding.ticker}
                           </span>
                         </div>
                       </div>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-muted">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-text-secondary">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-base font-semibold text-text">
+                        <span className="financial-value text-base font-semibold text-text">
                           {maskValue(formatCurrency(holding.averageBuyPrice, currency), isPrivate)}
                         </span>
                         {holding.averageBuyPriceRaw !== undefined && holding.currency !== currency && (
@@ -292,7 +293,7 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right text-text">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-base font-semibold text-text">
+                        <span className="financial-value text-base font-semibold text-text">
                           {maskValue(formatCurrency(holding.currentPrice, currency), isPrivate)}
                         </span>
                         {holding.currentPriceRaw !== undefined && holding.currency !== currency && (
@@ -308,7 +309,7 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                           {maskValue(formatPercent(holding.pnlPercent / 100), isPrivate)}
                         </Badge>
                         {holding.pnlStockValue !== undefined && holding.pnlFxValue !== undefined && (
-                          <div className="flex flex-col items-end text-[10px] leading-tight text-muted font-mono">
+                          <div className="flex flex-col items-end text-[10px] leading-tight text-text-tertiary font-mono">
                             <span className={holding.pnlStockValue >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}>
                               P: {maskValue(formatCurrency(holding.pnlStockValue, currency), isPrivate)}
                             </span>
@@ -325,12 +326,12 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                           {formatPercent(holding.dayChangePercent / 100)}
                         </Badge>
                       ) : (
-                        <span className="text-xs text-muted">—</span>
+                        <span className="text-xs text-text-tertiary">—</span>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-medium text-text">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-base font-semibold text-text">
+                        <span className="financial-value text-base font-semibold text-text">
                           {maskValue(formatCurrency(holding.marketValue, currency), isPrivate)}
                         </span>
                         {holding.marketValueRaw !== undefined && holding.currency !== currency && (
@@ -340,7 +341,7 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
                         )}
                       </div>
                     </td>
-                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-mono text-sm text-primary/90">
+                     <td className="financial-value whitespace-nowrap px-4 py-3.5 text-right font-mono text-sm text-primary/90">
                         {formatPercent(weight / 100)}
                      </td>
                      <td className="px-4 py-3.5">
@@ -366,6 +367,6 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
           </tbody>
         </table>
       </div>
-    </div>
+    </TableShell>
   );
 }

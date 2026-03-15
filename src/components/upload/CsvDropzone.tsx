@@ -3,6 +3,7 @@
 import { DragEvent, KeyboardEvent, useRef, useState } from "react";
 import Papa, { ParseResult } from "papaparse";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   convertCurrencyFrom,
   formatCurrency,
@@ -191,14 +192,14 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-6 shadow-panel">
+    <div className="surface-card rounded-[1.75rem] p-6 md:p-7">
       <div
         role="button"
         tabIndex={0}
         aria-label="Zona para importar archivo CSV"
         aria-describedby={dropzoneHelpId}
         aria-busy={isParsing}
-        className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border/70 bg-surface-muted/50 px-6 py-10 text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
+        className="flex flex-col items-center justify-center gap-3 rounded-[1.5rem] border border-dashed border-border/70 bg-surface-muted/45 px-6 py-12 text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/70"
         onDragOver={(evt) => {
           evt.preventDefault();
           evt.stopPropagation();
@@ -208,23 +209,23 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
         onKeyDown={handleDropzoneKeyDown}
       >
         <p className="text-sm font-semibold text-text">Arrastra tu CSV aquí</p>
-        <p id={dropzoneHelpId} className="text-xs text-muted">
+        <p id={dropzoneHelpId} className="max-w-md text-xs leading-relaxed text-text-tertiary">
           Formato esperado: date, ticker, type (BUY/SELL), quantity, price, fee
         </p>
-        <Badge tone="default" className="bg-surface text-text">
+        <Badge tone="default">
           Usa PapaParse en cliente para leer el CSV
         </Badge>
-        <button
+        <Button
           type="button"
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
             onBrowse();
           }}
-          className="mt-2 rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white transition hover:brightness-110"
+          className="mt-2"
         >
           Buscar archivo
-        </button>
+        </Button>
         <input
           ref={inputRef}
           id="csv-upload-input"

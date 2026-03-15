@@ -4,6 +4,7 @@ import { convertCurrency, formatCurrency, formatPercent, type CurrencyCode } fro
 import { cn } from "@/lib/utils";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MetricCard } from "@/components/ui/metric-card";
 
 type StatVariant = "currency" | "percent";
 
@@ -35,65 +36,44 @@ export function StatCard({
   const effectiveChangeVariant = changeVariant ?? variant;
   const isPositive = (change ?? 0) >= 0;
   const isPrimary = emphasis === "primary";
+  const displayedValue = formatByVariant(
+    convertCurrency(value, currency, fxRate, baseCurrency),
+    variant,
+    currency
+  );
+  const displayedChange = change !== undefined
+    ? formatByVariant(
+        convertCurrency(Math.abs(change), currency, fxRate, baseCurrency),
+        effectiveChangeVariant,
+        currency
+      )
+    : null;
+
+  if (isLoading) {
+    return (
+      <div className="surface-panel rounded-[1.5rem] p-5">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="mt-5 h-10 w-32" />
+        <Skeleton className="mt-3 h-4 w-24" />
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border/80 bg-surface/80 p-5 backdrop-blur-md transition-colors duration-200 hover:border-primary/45 hover:bg-surface",
-        isPrimary && "border-primary/25 bg-primary/[0.08] shadow-[0_0_0_1px_rgba(115,204,255,0.06)]"
-      )}
-    >
-      <div
-        className={cn(
-          "absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/70 to-transparent opacity-80",
-          isPrimary && "via-accent"
-        )}
-      />
-
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted">{label}</p>
-
-      <div className="mt-3 flex items-end justify-between">
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-24 bg-white/10" />
-            <Skeleton className="h-4 w-16 bg-white/10" />
-          </div>
-        ) : (
-          <div className="flex flex-col">
-            <p
-              className={cn(
-                "font-semibold tracking-tight text-white transition-colors group-hover:text-primary",
-                isPrimary ? "text-3xl" : "text-2xl"
-              )}
-            >
-              {formatByVariant(
-                convertCurrency(value, currency, fxRate, baseCurrency),
-                variant,
-                currency
-              )}
-            </p>
-            {change !== undefined && (
-              <div
-                className={cn(
-                  "mt-1 inline-flex items-center gap-1 text-xs font-medium",
-                  isPositive ? "text-success" : "text-danger"
-                )}
-              >
-                <span>{isPositive ? "▲" : "▼"}</span>
-                <span>
-                  {formatByVariant(
-                    convertCurrency(Math.abs(change), currency, fxRate, baseCurrency),
-                    effectiveChangeVariant,
-                    currency
-                  )}
-                </span>
-                <span className="text-muted">vs ayer</span>
-              </div>
-            )}
-            {hint ? <p className="mt-2 text-xs text-muted">{hint}</p> : null}
-          </div>
-        )}
-      </div>
-    </div>
+    <MetricCard
+      label={label}
+      value={<span className={cn("financial-value", isPrimary ? "text-[2.15rem]" : "text-[1.85rem]")}>{displayedValue}</span>}
+      change={
+        displayedChange ? (
+          <span className={cn("inline-flex items-center gap-1.5", isPositive ? "text-success" : "text-danger")}>
+            <span aria-hidden="true">{isPositive ? "▲" : "▼"}</span>
+            <span>{displayedChange}</span>
+            <span className="text-text-tertiary">vs ayer</span>
+          </span>
+        ) : undefined
+      }
+      hint={hint}
+      tone={isPrimary ? "primary" : "default"}
+    />
   );
 }

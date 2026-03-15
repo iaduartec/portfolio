@@ -8,17 +8,17 @@ interface BadgeProps {
 }
 
 const toneStyles: Record<NonNullable<BadgeProps["tone"]>, string> = {
-  default: "bg-surface-muted text-text border-border",
-  success: "bg-emerald-500/10 text-success border-emerald-500/30",
-  danger: "bg-red-500/10 text-danger border-red-500/30",
-  warning: "bg-amber-500/10 text-warning border-amber-500/30",
+  default: "bg-surface-muted/70 text-text-secondary border-border/80",
+  success: "bg-success/10 text-success border-success/25",
+  danger: "bg-danger/10 text-danger border-danger/25",
+  warning: "bg-warning/10 text-warning border-warning/25",
 };
 
 export function Badge({ children, tone = "default", className }: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
+        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium tracking-[0.02em]",
         toneStyles[tone],
         className
       )}

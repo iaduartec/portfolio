@@ -14,6 +14,8 @@ import { DashboardHoldings } from "./DashboardHoldings";
 import { DashboardTradingView } from "./DashboardTradingView";
 import { DashboardSkillIntel } from "./DashboardSkillIntel";
 import { DashboardNewsFeed } from "./DashboardNewsFeed";
+import { SectionHeading } from "@/components/ui/section-heading";
+import { Card } from "@/components/ui/card";
 
 export function DashboardClient() {
   const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
@@ -81,7 +83,7 @@ export function DashboardClient() {
             activeTicker={activeTicker}
             onSelectTicker={setSelectedTicker}
           />
-          <aside className="rounded-2xl border border-border/80 bg-surface/70 p-4 shadow-panel backdrop-blur-xl md:p-6">
+          <Card className="h-full">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
               Prioridad de lectura
             </p>
@@ -106,7 +108,7 @@ export function DashboardClient() {
                 description={`El sesgo de sesión actual es ${marketTone.replace("sesgo ", "")}. Contrasta este rendimiento con los futuros y la salud macro del mercado.`}
               />
             </div>
-          </aside>
+          </Card>
         </section>
 
         <section className="grid gap-4 md:gap-5">
@@ -116,7 +118,7 @@ export function DashboardClient() {
             description="Gráfico avanzado con soporte para indicadores técnicos y acción de precio en vivo del activo seleccionado."
           />
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.5fr)]">
-            <div className="min-h-[520px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
+            <div className="min-h-[520px] overflow-hidden rounded-[1.5rem] border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
               <DashboardTradingView selectedHolding={selectedHolding} />
             </div>
             <div className="min-h-[520px] md:min-h-[600px]">
@@ -168,28 +170,6 @@ export function DashboardClient() {
   );
 }
 
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex flex-col gap-2 border-l border-primary/20 pl-4 md:pl-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/85">{eyebrow}</p>
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h2 className="section-title text-lg font-semibold text-white md:text-xl">{title}</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted md:max-w-3xl">{description}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function PriorityItem({
   step,
   title,
@@ -200,9 +180,9 @@ function PriorityItem({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-surface-muted/30 p-3.5 md:p-4">
+    <div className="surface-panel rounded-[1.35rem] p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-sm font-semibold text-primary">
           {step}
         </div>
         <div>

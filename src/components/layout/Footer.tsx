@@ -48,15 +48,15 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="mt-auto w-full border-t border-border/70 bg-surface/45 backdrop-blur-sm">
-      <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-8 sm:px-6 lg:px-8 md:py-12">
+    <footer className="mt-auto w-full border-t border-border/70 bg-background/72 backdrop-blur-sm">
+      <div className="mx-auto flex w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-10 md:py-12">
         <div className="grid gap-8 md:grid-cols-4 lg:gap-12">
           <div className="md:col-span-2">
             <Link href="/" className="mb-4 inline-flex items-center gap-2 text-lg font-semibold tracking-tight">
               <span className="text-white">MyInvest</span>
               <span className="text-primary">View</span>
             </Link>
-            <p className="max-w-sm text-sm leading-relaxed text-muted">
+            <p className="max-w-sm text-sm leading-relaxed text-text-secondary">
               Convierte datos dispersos en decisiones de inversión con contexto IA y visualización financiera de nivel profesional.
             </p>
             <div className="mt-4">
@@ -66,7 +66,7 @@ export function Footer() {
 
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Plataforma</h3>
-            <ul className="space-y-2 text-sm text-muted">
+            <ul className="space-y-2 text-sm text-text-tertiary">
               <li><Link href="/" className="transition-colors hover:text-primary">Inicio</Link></li>
               <li><Link href="/portfolio" className="transition-colors hover:text-primary">Portfolio</Link></li>
               <li><Link href="/lab" className="transition-colors hover:text-primary">Lab</Link></li>
@@ -76,7 +76,7 @@ export function Footer() {
 
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Legal</h3>
-            <ul className="space-y-2 text-sm text-muted">
+            <ul className="space-y-2 text-sm text-text-tertiary">
               <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Términos de Servicio</Link></li>
               <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Política de Privacidad</Link></li>
               <li><Link href={{ pathname: "/legal/riesgo" }} className="transition-colors hover:text-primary">Aviso de riesgo</Link></li>

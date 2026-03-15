@@ -100,15 +100,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <CurrencyProvider>
           <PortfolioDataProvider>
             <GridBackground />
-            <div className="w-full border-b border-border/60 bg-surface/50 backdrop-blur-md sticky top-0 z-[100]">
-              <div className="w-full px-0">
+            <div className="sticky top-0 z-[100] w-full border-b border-border/60 bg-background/88 backdrop-blur-xl">
+              <div className="w-full">
                 <TradingViewTickerTape />
               </div>
             </div>
             <Header />
             <main
               id="main-content"
-              className="w-full flex-1 pb-[max(1rem,env(safe-area-inset-bottom))]"
+              className="page-shell w-full flex-1 pb-[max(1rem,env(safe-area-inset-bottom))]"
               tabIndex={-1}
             >
               {children}

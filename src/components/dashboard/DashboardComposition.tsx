@@ -94,10 +94,10 @@ export function DashboardComposition({
                   type="button"
                   onClick={() => onSelectTicker(holding.ticker)}
                   className={cn(
-                    "w-full rounded-2xl border border-border/70 bg-surface-muted/20 p-3 text-left transition-colors",
+                    "surface-panel w-full rounded-[1.35rem] p-3.5 text-left transition-colors",
                     isSelected
-                      ? "border-primary/55 bg-primary/10"
-                      : "hover:border-primary/35 hover:bg-surface-muted/35",
+                      ? "border-primary/35 bg-primary/10"
+                      : "hover:border-primary/24 hover:bg-surface-muted/35",
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -111,8 +111,8 @@ export function DashboardComposition({
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-semibold text-white">{formatPercent(holding.weight / 100)}</p>
-                      <p className="text-[11px] text-muted">{formatCurrency(holding.marketValue, "EUR")}</p>
+                      <p className="financial-value text-sm font-semibold text-white">{formatPercent(holding.weight / 100)}</p>
+                      <p className="financial-value text-[11px] text-text-tertiary">{formatCurrency(holding.marketValue, "EUR")}</p>
                     </div>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface/80">
@@ -130,24 +130,24 @@ export function DashboardComposition({
           </div>
 
           <div className="grid gap-3">
-            <div className="rounded-2xl border border-border/70 bg-surface-muted/25 p-4">
+            <div className="surface-panel rounded-[1.35rem] p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Mayor peso</p>
-              <p className="mt-2 text-2xl font-semibold text-white">
+              <p className="financial-value mt-2 text-2xl font-semibold text-white">
                 {topPosition ? formatPercent(topPosition.weight / 100) : "0,00 %"}
               </p>
-              <p className="mt-1 text-sm text-muted">
+              <p className="mt-1 text-sm text-text-secondary">
                 {topPosition ? `${topPosition.name || topPosition.ticker}` : "Sin posición dominante"}
               </p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-surface-muted/25 p-4">
+            <div className="surface-panel rounded-[1.35rem] p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Top 3</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{formatPercent(topThreeWeight / 100)}</p>
-              <p className="mt-1 text-sm text-muted">{buildRiskLabel(topPosition?.weight ?? 0, topThreeWeight)}</p>
+              <p className="financial-value mt-2 text-2xl font-semibold text-white">{formatPercent(topThreeWeight / 100)}</p>
+              <p className="mt-1 text-sm text-text-secondary">{buildRiskLabel(topPosition?.weight ?? 0, topThreeWeight)}</p>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-surface-muted/25 p-4">
+            <div className="surface-panel rounded-[1.35rem] p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Posiciones en verde</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{formatPercent(profitableRatio / 100)}</p>
-              <p className="mt-1 text-sm text-muted">
+              <p className="financial-value mt-2 text-2xl font-semibold text-white">{formatPercent(profitableRatio / 100)}</p>
+              <p className="mt-1 text-sm text-text-secondary">
                 {profitableCount} de {weightedHoldings.length} posiciones abiertas en beneficio
               </p>
             </div>
@@ -165,8 +165,8 @@ export function DashboardComposition({
               <div className="mb-1.5 flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-text">{row.label}</p>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-white">{formatPercent(row.weight / 100)}</p>
-                  <p className="text-[11px] text-muted">{formatCurrency(row.marketValue, "EUR")}</p>
+                  <p className="financial-value text-sm font-semibold text-white">{formatPercent(row.weight / 100)}</p>
+                  <p className="financial-value text-[11px] text-text-tertiary">{formatCurrency(row.marketValue, "EUR")}</p>
                 </div>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-surface/80">
@@ -185,9 +185,9 @@ export function DashboardComposition({
             </div>
           ))}
 
-          <div className="rounded-2xl border border-border/70 bg-surface-muted/25 p-4">
+          <div className="surface-panel rounded-[1.35rem] p-4">
             <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Lectura rápida</p>
-            <p className="mt-2 text-sm leading-relaxed text-text/90">
+            <p className="mt-2 text-sm leading-relaxed text-text-secondary">
               {topPosition && topPosition.weight >= 30
                 ? `La cartera depende bastante de ${topPosition.name || topPosition.ticker}; cualquier sorpresa en esa posición dominará el comportamiento del conjunto.`
                 : `El riesgo está más repartido y ninguna posición domina por sí sola el comportamiento total.`}

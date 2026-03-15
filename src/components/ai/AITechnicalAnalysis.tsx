@@ -117,7 +117,7 @@ export function AITechnicalAnalysis() {
                     <Button
                         onClick={handleAnalyze}
                         disabled={isLoading || analyzing || holdings.length === 0}
-                        className="bg-accent text-white"
+                        variant="secondary"
                     >
                         {isLoading || analyzing ? "Procesando..." : "Generar Recomendaciones"}
                     </Button>

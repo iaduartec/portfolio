@@ -43,38 +43,34 @@ export function AIChat() {
       <button
         type="button"
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-3 right-3 z-50 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/12 text-white shadow-[0_0_20px_rgba(41,98,255,0.2)] backdrop-blur-xl transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 sm:bottom-6 sm:right-6 sm:h-auto sm:w-auto sm:gap-3 sm:rounded-2xl sm:px-5 sm:py-3"
+        className="surface-card fixed bottom-3 right-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-2xl border-primary/16 text-text shadow-elevated transition-colors duration-200 hover:border-primary/28 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 sm:bottom-6 sm:right-6 sm:h-auto sm:w-auto sm:gap-3 sm:px-5 sm:py-3"
         aria-label="Abrir chat de Gemini"
       >
-        <Sparkles size={16} className="animate-pulse text-primary" aria-hidden="true" />
-        <span className="hidden text-sm font-bold sm:inline">Consultar IA</span>
+        <Sparkles size={16} className="text-primary" aria-hidden="true" />
+        <span className="hidden text-sm font-semibold sm:inline">Consultar IA</span>
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-3 right-3 z-50 flex h-[78vh] w-[calc(100vw-1.5rem)] max-w-[400px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-surface/80 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px]">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b border-white/5 bg-white/5 p-4">
+    <div className="surface-card fixed bottom-3 right-3 z-50 flex h-[78vh] w-[calc(100vw-1.5rem)] max-w-[400px] flex-col overflow-hidden rounded-[1.75rem] sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px]">
+      <div className="flex items-center justify-between gap-2 border-b border-border/70 bg-surface/45 p-4">
         <div className="flex items-center gap-3">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-md rounded-full animate-pulse" />
-            <div className="relative rounded-xl bg-primary/10 p-2 text-primary border border-primary/20">
-              <Bot size={20} />
-            </div>
+          <div className="rounded-xl border border-primary/16 bg-primary/10 p-2 text-primary">
+            <Bot size={20} />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Analista Gemini</h3>
+            <h3 className="text-sm font-semibold text-text">Analista IA</h3>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Sincronizado</span>
+              <div className="h-1.5 w-1.5 rounded-full bg-success" />
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">Sincronizado</span>
             </div>
           </div>
         </div>
         <button
           type="button"
           onClick={() => setIsMinimized(true)}
-          className="rounded-xl border border-white/5 bg-white/5 p-2 text-white/60 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
+          className="rounded-xl border border-border/70 bg-surface/60 p-2 text-text-tertiary transition-colors duration-200 hover:border-border-strong hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
           aria-label="Minimizar chat"
         >
           <Minus size={18} aria-hidden="true" />
@@ -84,23 +80,23 @@ export function AIChat() {
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="flex flex-col gap-6">
           {messages.length === 0 && !error && (
-            <div className="text-center py-12 px-6 flex flex-col items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-primary/40">
+            <div className="flex flex-col items-center gap-4 px-6 py-12 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-primary/12 bg-primary/8 text-primary/70">
                 <MessageCircle size={32} />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-white">¿En qué puedo ayudarte hoy?</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm font-semibold text-text">¿En qué puedo ayudarte hoy?</p>
+                <p className="text-xs leading-relaxed text-text-tertiary">
                   Puedo analizar tu rentabilidad, detectar riesgos o darte información sobre cualquier activo.
                 </p>
               </div>
-              <div className="flex flex-col gap-2 w-full mt-4">
+              <div className="mt-4 flex w-full flex-col gap-2">
                 {["¿Cómo va mi cartera hoy?", "¿Es buen momento para comprar AAPL?", "Analiza mi exposición al riesgo"].map((q) => (
                   <button
                     key={q}
                     type="button"
                     onClick={() => sendMessage({ text: q })}
-                    className="text-left py-2 px-3 rounded-lg bg-white/5 border border-white/5 text-[11px] text-white/70 transition-colors duration-200 hover:bg-white/10 hover:border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
+                    className="rounded-xl border border-border/70 bg-surface/60 px-3 py-2 text-left text-[11px] text-text-secondary transition-colors duration-200 hover:border-primary/18 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
                   >
                     {q}
                   </button>
@@ -110,7 +106,7 @@ export function AIChat() {
           )}
 
           {error && (
-            <div className="flex items-center gap-3 p-4 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-2xl">
+            <div className="flex items-center gap-3 rounded-2xl border border-danger/18 bg-danger/[0.08] p-4 text-sm text-danger">
               <AlertCircle size={20} className="shrink-0" />
               <span className="font-medium">Error de conexión. Verifica tu API Key de Gemini.</span>
             </div>
@@ -140,10 +136,10 @@ export function AIChat() {
               >
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border",
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border",
                     m.role === "user"
-                      ? "bg-primary text-white border-primary-foreground/20"
-                      : "bg-surface border-white/10 text-primary"
+                      ? "border-primary/20 bg-primary text-background"
+                      : "border-border/70 bg-surface text-primary"
                   )}
                 >
                   {m.role === "user" ? <User size={16} /> : <Bot size={16} />}
@@ -153,10 +149,10 @@ export function AIChat() {
                   {messageText && (
                     <div
                       className={cn(
-                        "p-4 rounded-2xl leading-relaxed shadow-sm",
+                        "rounded-2xl p-4 leading-relaxed shadow-sm",
                         m.role === "user"
-                          ? "bg-primary text-white rounded-tr-none font-medium"
-                          : "bg-white/5 border border-white/10 text-white/90 rounded-tl-none ai-analysis-output"
+                          ? "rounded-tr-none bg-primary text-background font-medium"
+                          : "ai-analysis-output rounded-tl-none border border-border/70 bg-surface/60 text-text"
                       )}
                     >
                       <MemoizedMarkdown id={m.id} content={messageText} />
@@ -178,10 +174,10 @@ export function AIChat() {
                     return (
                       <div
                         key={toolCallId}
-                        className="flex items-center gap-3 text-[11px] font-bold text-muted-foreground animate-pulse p-4 border border-dashed border-white/10 rounded-2xl bg-white/3"
+                        className="flex animate-pulse items-center gap-3 rounded-2xl border border-dashed border-border/70 bg-surface/35 p-4 text-[11px] font-semibold text-text-tertiary"
                       >
                         <Bot size={14} className="text-primary" />
-                        EJECUTANDO ANALISIS DE VALOR...
+                        Ejecutando análisis de valor...
                       </div>
                     );
                   })}
@@ -243,12 +239,12 @@ function MessageInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="p-4 border-t border-white/5 bg-white/3 flex gap-2">
+    <form onSubmit={handleSubmit} className="flex gap-2 border-t border-border/70 bg-surface/40 p-4">
       <Input
         value={input}
         onChange={(e) => setInput(e.target.value)}
         placeholder="¿Consultar a Gemini?"
-        className="flex-1 bg-surface border-white/10 rounded-xl focus-visible:ring-primary h-12"
+        className="h-12 flex-1 rounded-xl"
         disabled={isLoading}
         name="gemini_prompt"
         autoComplete="off"

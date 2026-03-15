@@ -52,9 +52,9 @@ export function StockCard({ symbol, price: initialPrice, change: initialChange, 
 
     if (loading) {
         return (
-            <Card className="w-full max-w-[300px] p-4 flex items-center justify-center gap-3 bg-surface/50 backdrop-blur-sm border-white/5">
+            <Card className="surface-card-muted flex w-full max-w-[300px] items-center justify-center gap-3 p-4">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-xs font-medium">Obteniendo datos de {symbol}...</span>
+                <span className="text-xs font-medium text-text-secondary">Obteniendo datos de {symbol}...</span>
             </Card>
         );
     }
@@ -64,42 +64,41 @@ export function StockCard({ symbol, price: initialPrice, change: initialChange, 
     const isPositive = data.change >= 0;
 
     return (
-        <Card className="w-full max-w-[320px] overflow-hidden border-white/10 bg-surface/40 backdrop-blur-md hover:bg-surface/60 transition-colors group">
+        <Card className="surface-card-muted w-full max-w-[320px] overflow-hidden">
             <div className="p-4">
-                <div className="flex justify-between items-start mb-4">
+                <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="flex flex-col">
-                        <span className="text-2xl font-black tracking-tight text-white group-hover:text-primary transition-colors">{symbol}</span>
-                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{data.name}</span>
+                        <span className="text-2xl font-semibold tracking-tight text-text">{symbol}</span>
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">{data.name}</span>
                     </div>
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black uppercase ${isPositive ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                    <div className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${isPositive ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
                         {isPositive ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                         {data.changePercent.toFixed(2)}%
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-0.5 mb-4">
-                    <span className="text-3xl font-mono font-bold tracking-tighter text-white">
+                <div className="mb-4 flex flex-col gap-0.5">
+                    <span className="financial-value text-3xl font-semibold tracking-tight text-text">
                         {formatCurrency(data.price, currency)}
                     </span>
-                    <span className={`text-xs font-medium ${isPositive ? 'text-green-500/80' : 'text-red-500/80'}`}>
+                    <span className={`text-xs font-medium ${isPositive ? 'text-success' : 'text-danger'}`}>
                         {isPositive ? '+' : ''}{formatCurrency(data.change, currency)} hoy
                     </span>
                 </div>
 
                 {analysis && (
-                    <div className="mt-4 pt-4 border-t border-white/5">
-                        <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-primary uppercase tracking-tighter">
+                    <div className="mt-4 border-t border-border/60 pt-4">
+                        <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
                             <TrendingUp size={12} />
-                            Análisis Flash
+                            Análisis flash
                         </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed italic">
+                        <p className="text-xs leading-relaxed text-text-secondary">
                             &quot;{analysis}&quot;
                         </p>
                     </div>
                 )}
             </div>
-            {/* Visual bottom bar */}
-            <div className={`h-1 w-full ${isPositive ? 'bg-green-500/30' : 'bg-red-500/30'}`} />
+            <div className={`h-1 w-full ${isPositive ? 'bg-success/40' : 'bg-danger/40'}`} />
         </Card>
     );
 }

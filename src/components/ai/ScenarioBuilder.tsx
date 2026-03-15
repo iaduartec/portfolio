@@ -23,18 +23,16 @@ export function ScenarioBuilder() {
     };
 
     return (
-        <Card className="relative overflow-hidden border-white/5 bg-surface/30 backdrop-blur-md p-5 group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/5 blur-3xl -z-10" />
-
-            <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-purple-500/10 rounded-xl text-purple-400 border border-purple-500/20">
+        <Card className="surface-card-muted p-5">
+            <div className="mb-4 flex items-center gap-3">
+                <div className="rounded-xl border border-accent/18 bg-accent/10 p-2 text-accent">
                     <BrainCircuit size={18} />
                 </div>
                 <div>
-                    <h3 className="font-bold text-sm text-white uppercase tracking-wider">Simulador de Escenarios</h3>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-text">Simulador de escenarios</h3>
                     <div className="flex items-center gap-1.5">
-                        <Sparkles size={10} className="text-purple-400" />
-                        <span className="text-[10px] text-muted-foreground font-bold">MONTE CARLO AI</span>
+                        <Sparkles size={10} className="text-accent" />
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">Escenario guiado</span>
                     </div>
                 </div>
             </div>
@@ -44,26 +42,26 @@ export function ScenarioBuilder() {
                     placeholder="p.ej. ¿Subida de tipos +1%?"
                     value={scenario}
                     onChange={(e) => setScenario(e.target.value)}
-                    className="bg-white/5 border-white/10 rounded-xl focus-visible:ring-purple-500 h-10 text-sm"
+                    className="h-11 text-sm"
                 />
                 <Button
                     onClick={handleSimulate}
                     disabled={loading || !scenario}
-                    className="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-xl h-10 shadow-lg shadow-purple-500/20 transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                    className="h-11 w-full"
                 >
                     {loading ? (
                         <>
                             <Loader2 size={16} className="mr-2 animate-spin" />
-                            PROCESANDO…
+                            Procesando…
                         </>
                     ) : (
-                        "SIMULAR IMPACTO"
+                        "Simular impacto"
                     )}
                 </Button>
 
                 {result && (
-                    <div className="mt-2 p-3 bg-purple-500/10 rounded-xl text-[11px] border border-purple-500/20 text-purple-200 leading-relaxed animate-in fade-in slide-in-from-top-2">
-                        <span className="font-black text-purple-400 mr-1">IA:</span>
+                    <div className="animate-in fade-in slide-in-from-top-2 mt-2 rounded-[1.25rem] border border-accent/18 bg-accent/[0.08] p-4 text-[11px] leading-relaxed text-text-secondary">
+                        <span className="mr-1 font-semibold text-accent">IA:</span>
                         {result}
                     </div>
                 )}

@@ -3,6 +3,8 @@
 import { convertCurrencyFrom, formatCurrency, inferCurrencyFromTicker } from "@/lib/formatters";
 import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableShell } from "@/components/ui/table-shell";
 
 interface TransactionsTableProps {
   transactions: Transaction[];
@@ -12,17 +14,23 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
   const { currency, baseCurrency, fxRate } = useCurrency();
   if (!transactions.length) {
     return (
-      <p className="text-sm text-muted">
-        No hay transacciones guardadas todavía. Sube un CSV y pulsa “Guardar en local”.
-      </p>
+      <EmptyState
+        title="No hay transacciones guardadas"
+        description="Sube un CSV, revisa la vista previa y guarda los movimientos para empezar a construir el portfolio."
+        className="min-h-[220px]"
+      />
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface card-glow">
+    <TableShell
+      title="Movimientos cargados"
+      subtitle="Resumen local de la sesión importada, listo para consolidarse en la cartera."
+      className="card-glow"
+    >
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-border/70 text-left text-sm">
-          <thead className="bg-surface-muted/60 text-xs uppercase tracking-[0.08em] text-muted">
+          <thead className="bg-surface-muted/60 text-xs uppercase tracking-[0.08em] text-text-tertiary">
             <tr>
               <th className="px-4 py-3 font-semibold">Fecha</th>
               <th className="px-4 py-3 font-semibold">Ticker</th>
@@ -34,14 +42,14 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
           </thead>
           <tbody className="divide-y divide-border/70 text-text">
             {transactions.map((tx, idx) => (
-              <tr key={`${tx.ticker}-${tx.date}-${idx}`} className="hover:bg-surface-muted/40">
-                <td className="whitespace-nowrap px-4 py-3 text-muted">{tx.date}</td>
-                <td className="whitespace-nowrap px-4 py-3 font-semibold">{tx.ticker}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-xs uppercase tracking-[0.08em] text-muted">
+              <tr key={`${tx.ticker}-${tx.date}-${idx}`} className="hover:bg-surface-muted/35">
+                <td className="whitespace-nowrap px-4 py-3 text-text-tertiary">{tx.date}</td>
+                <td className="whitespace-nowrap px-4 py-3 font-semibold text-text">{tx.ticker}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-xs uppercase tracking-[0.08em] text-text-tertiary">
                   {tx.type}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right">{tx.quantity}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right">
+                <td className="financial-value whitespace-nowrap px-4 py-3 text-right text-text">{tx.quantity}</td>
+                <td className="financial-value whitespace-nowrap px-4 py-3 text-right text-text">
                   {formatCurrency(
                     convertCurrencyFrom(
                       tx.price,
@@ -53,7 +61,7 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
                     currency
                   )}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right">
+                <td className="financial-value whitespace-nowrap px-4 py-3 text-right text-text">
                   {tx.fee !== undefined
                     ? formatCurrency(
                         convertCurrencyFrom(
@@ -72,6 +80,6 @@ export function TransactionsTable({ transactions }: TransactionsTableProps) {
           </tbody>
         </table>
       </div>
-    </div>
+    </TableShell>
   );
 }

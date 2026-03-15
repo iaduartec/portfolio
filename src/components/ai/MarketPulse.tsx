@@ -11,51 +11,46 @@ export function MarketPulse({ sentiment, score, insight }: MarketPulseProps) {
     const normalizedScore = Math.max(0, Math.min(100, Math.round(score)));
 
     return (
-        <Card className="relative overflow-hidden border-white/5 bg-surface/30 backdrop-blur-md p-5 group">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl -z-10" />
-
-            <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-primary/10 rounded-xl text-primary border border-primary/20">
+        <Card className="surface-card-muted p-5">
+            <div className="mb-4 flex items-center gap-3">
+                <div className="rounded-xl border border-primary/18 bg-primary/10 p-2 text-primary">
                     <Activity size={18} />
                 </div>
                 <div>
-                    <h3 className="font-bold text-sm text-white uppercase tracking-wider">Pulso de mercado</h3>
-                    <div className="flex items-center gap-1.5">
-                        <span className="w-1 h-1 rounded-full bg-primary animate-ping" />
-                        <span className="text-[10px] text-muted-foreground font-bold">LIVE ANALYSIS</span>
-                    </div>
+                    <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-text">Pulso de mercado</h3>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">Lectura agregada</p>
                 </div>
             </div>
 
             <div className="flex flex-col gap-4">
-                <div className="flex justify-between items-end">
+                <div className="flex items-end justify-between gap-4">
                     <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-black text-muted-foreground/60 tracking-widest">Sentimiento Dominante</span>
-                        <span className="text-xl font-bold text-white group-hover:text-primary transition-colors">{sentiment}</span>
+                        <span className="financial-label">Sentimiento dominante</span>
+                        <span className="mt-2 text-xl font-semibold text-text">{sentiment}</span>
                     </div>
                     <div className="text-right">
-                        <span className="text-2xl font-black text-primary">{normalizedScore}</span>
-                        <span className="text-[10px] text-muted-foreground font-bold ml-1">/100</span>
+                        <span className="financial-value text-2xl font-semibold text-primary">{normalizedScore}</span>
+                        <span className="ml-1 text-[10px] font-semibold text-text-tertiary">/100</span>
                     </div>
                 </div>
 
                 <div className="space-y-1.5">
-                    <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-surface/80">
                         <div
-                            className="bg-gradient-to-r from-primary to-cyan-400 h-full rounded-full transition-[width] duration-1000 ease-out"
+                            className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
                             style={{ width: `${normalizedScore}%` }}
                         />
                     </div>
-                    <div className="flex justify-between text-[9px] font-black text-muted-foreground/40 uppercase tracking-tighter">
+                    <div className="flex justify-between text-[9px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">
                         <span>Bajista</span>
                         <span>Neutral</span>
                         <span>Alcista</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/10">
+                <div className="flex items-start gap-2 rounded-[1.1rem] border border-primary/14 bg-primary/[0.07] p-3">
                     <Zap size={12} className="text-primary" />
-                    <p className="text-[10px] text-primary/80 leading-tight font-medium">
+                    <p className="text-[11px] font-medium leading-relaxed text-text-secondary">
                         {insight}
                     </p>
                 </div>
