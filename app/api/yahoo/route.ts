@@ -25,23 +25,34 @@ const parseSymbols = (raw: string) =>
 
 const normalizeSymbol = (symbol: string) => resolveYahooSymbol(symbol, exchangeYahooSuffixMap);
 
-const fetchYahoo = async (path: string) => {
+const fetchYahoo = async (path: string, ignoreError = false) => {
   let lastStatus = 0;
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+    "Referer": "https://finance.yahoo.com/",
+    "Origin": "https://finance.yahoo.com"
+  };
+
   for (const base of YAHOO_BASES) {
-    const res = await fetch(`${base}${path}`, {
-      next: { revalidate: 60 },
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-        Accept: "application/json",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-    if (res.ok) return res.json();
-    lastStatus = res.status;
-    if (![401, 403, 429, 500, 502, 503].includes(res.status)) {
-      break;
+    try {
+      const res = await fetch(`${base}${path}`, {
+        next: { revalidate: 60 },
+        headers
+      });
+      if (res.ok) return res.json();
+      lastStatus = res.status;
+      // If we get 401, Yahoo is asking for a crumb/session which we don't have.
+      // We'll try common bases but if all fail, we handle it based on ignoreError.
+      if (![401, 403, 429, 500, 502, 503].includes(res.status)) {
+        break;
+      }
+    } catch (err) {
+      if (!ignoreError) console.error(`fetchYahoo connection error to ${base}:`, err);
     }
   }
+  if (ignoreError) return null;
   throw new Error(`Yahoo request failed (${lastStatus || "unknown"})`);
 };
 
@@ -74,11 +85,35 @@ const quoteFields = (row: Record<string, unknown>) => {
 };
 
 const quoteSummaryModules = async (symbol: string, modules: string[]) => {
-  const path = `/v10/finance/quoteSummary/${encodeURIComponent(
-    symbol
-  )}?modules=${encodeURIComponent(modules.join(","))}`;
-  const json = await fetchYahoo(path);
-  return json?.quoteSummary?.result?.[0] ?? null;
+  const path = `/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.join(",")}`;
+  try {
+    const json = await fetchYahoo(path);
+    return json?.quoteSummary?.result?.[0] ?? null;
+  } catch (err) {
+    console.error(`Snapshot summary modules failed for ${symbol}:`, err);
+    if (modules.length > 2) {
+      try {
+        const essentialPath = `/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.slice(0, 2).join(",")}`;
+        const json = await fetchYahoo(essentialPath, true);
+        return json?.quoteSummary?.result?.[0] ?? null;
+      } catch (innerErr) {
+        console.error(`Failed to fetch fallback modules for ${symbol}:`, innerErr);
+        return null;
+      }
+    }
+    return null;
+  }
+};
+
+const fetchYahooChart = async (symbol: string) => {
+  const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+  try {
+    const json = await fetchYahoo(path, true);
+    return json?.chart?.result?.[0] ?? null;
+  } catch (err) {
+    console.error(`Failed to fetch Yahoo chart for ${symbol}:`, err);
+    return null;
+  }
 };
 
 const chartHistory = async (symbol: string, range = "1mo", interval = "1d", events = "history") => {
@@ -229,9 +264,14 @@ export async function GET(request: Request) {
       let q: ReturnType<typeof quoteFields> | null = null;
       try {
         const quoteJson = await fetchYahoo(`/v7/finance/quote?symbols=${encodeURIComponent(normalized)}`);
-        const quoteRow = Array.isArray(quoteJson?.quoteResponse?.result) ? quoteJson.quoteResponse.result[0] : {};
+        const quoteRow = Array.isArray(quoteJson?.quoteResponse?.result) ? quoteJson.quoteResponse.result[0] : null;
         q = quoteRow ? quoteFields(quoteRow) : null;
-      } catch {
+      } catch (err) {
+        console.warn(`Snapshot quote fetch failed for ${normalized}:`, err);
+      }
+
+      // Try fallback for quote if Yahoo main failed
+      if (!q) {
         try {
           const fallback = await fetch(`${origin}/api/quotes?tickers=${encodeURIComponent(normalized)}`);
           const fallbackJson = await fallback.json();
@@ -253,75 +293,116 @@ export async function GET(request: Request) {
               fiftyTwoWeekHigh: undefined,
             };
           }
-        } catch {
-          // completely ignored
+        } catch (err) {
+          console.error("Yahoo search error:", err);
         }
       }
 
+      let summary: any = null;
       try {
-        const summary = await quoteSummaryModules(normalized, [
+        summary = await quoteSummaryModules(normalized, [
           "summaryDetail",
           "defaultKeyStatistics",
           "financialData",
           "recommendationTrend",
           "assetProfile"
         ]);
-
-        const details = summary?.summaryDetail ?? {};
-        const keyStats = summary?.defaultKeyStatistics ?? {};
-        const financialData = summary?.financialData ?? {};
-        const profile = summary?.assetProfile ?? {};
-
-        const data = {
-          ticker: normalized,
-          quote: q,
-          fundamentals: {
-            trailingPE: toNumber(keyStats.trailingPE?.raw ?? details.trailingPE?.raw),
-            forwardPE: toNumber(details.forwardPE?.raw),
-            priceToBook: toNumber(keyStats.priceToBook?.raw),
-            priceToSalesTtm: toNumber(details.priceToSalesTrailing12Months?.raw),
-            marketCap: toNumber(details.marketCap?.raw ?? q?.marketCap),
-            enterpriseToEbitda: toNumber(keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw),
-            trailingEps: toNumber(keyStats.trailingEps?.raw),
-            returnOnEquity: toNumber(financialData.returnOnEquity?.raw),
-            returnOnAssets: toNumber(financialData.returnOnAssets?.raw),
-            targetMeanPrice: toNumber(financialData.targetMeanPrice?.raw),
-          },
-          ratings: {
-            recommendationMean: toNumber(financialData.recommendationMean?.raw),
-            recommendationKey: financialData.recommendationKey,
-            recommendationTrend: summary?.recommendationTrend?.trend ?? [],
-          },
-          dividends: {
-            dividendYield: toNumber(details.dividendYield?.raw),
-            payoutRatio: toNumber(details.payoutRatio?.raw),
-          },
-          profile: {
-            sector: profile.sector,
-            industry: profile.industry,
-            country: profile.country,
-            website: profile.website,
-            longBusinessSummary: profile.longBusinessSummary,
-          }
-        };
-
-        return NextResponse.json({ action, data, source: "yahoo-finance" });
-      } catch {
-        // Fallback or partial
-        const fallbackData = await getFallbackFundamentals(origin, normalized);
-        return NextResponse.json({
-          action,
-          data: {
-             ticker: normalized,
-             quote: q,
-             fundamentals: fallbackData,
-             ratings: null,
-             dividends: null,
-             profile: null
-          },
-          source: fallbackData ? "yahoo-finance-fallback" : "yahoo-finance-unavailable",
-        });
+      } catch (err) {
+        console.error(`Snapshot summary modules failed for ${normalized}:`, err);
       }
+
+      const chartData = !summary ? await fetchYahooChart(normalized) : null;
+      const chartMeta = chartData?.meta;
+
+      const details = summary?.summaryDetail ?? {};
+      const keyStats = summary?.defaultKeyStatistics ?? {};
+      const financialData = summary?.financialData ?? {};
+      const profile = summary?.assetProfile ?? {};
+
+      // If quote API failed, enrich q with chart data
+      if (q && chartMeta) {
+        q.price = q.price ?? toNumber(chartMeta.regularMarketPrice);
+        q.dayChange = q.dayChange ?? (chartMeta.regularMarketPrice && chartMeta.chartPreviousClose ? chartMeta.regularMarketPrice - chartMeta.chartPreviousClose : undefined);
+        q.fiftyTwoWeekLow = q.fiftyTwoWeekLow ?? toNumber(chartMeta.fiftyTwoWeekLow);
+        q.fiftyTwoWeekHigh = q.fiftyTwoWeekHigh ?? toNumber(chartMeta.fiftyTwoWeekHigh);
+        q.volume = q.volume ?? toNumber(chartMeta.regularMarketVolume);
+      } else if (!q && chartMeta) {
+        q = {
+          symbol: normalized,
+          name: chartMeta.longName || chartMeta.shortName || "",
+          exchange: chartMeta.exchangeName || "",
+          currency: chartMeta.currency || "USD",
+          marketState: "",
+          price: toNumber(chartMeta.regularMarketPrice),
+          dayChange: (chartMeta.regularMarketPrice && chartMeta.chartPreviousClose ? chartMeta.regularMarketPrice - chartMeta.chartPreviousClose : undefined),
+          dayChangePercent: (chartMeta.regularMarketPrice && chartMeta.chartPreviousClose ? ((chartMeta.regularMarketPrice - chartMeta.chartPreviousClose) / chartMeta.chartPreviousClose) * 100 : undefined),
+          marketCap: undefined,
+          volume: toNumber(chartMeta.regularMarketVolume),
+          avgVolume: undefined,
+          fiftyTwoWeekLow: toNumber(chartMeta.fiftyTwoWeekLow),
+          fiftyTwoWeekHigh: toNumber(chartMeta.fiftyTwoWeekHigh),
+        };
+      }
+
+      // If we got NO summary data from Yahoo's v10 API, try enrichment/fallback
+      let fundamentals = {
+        trailingPE: toNumber(keyStats.trailingPE?.raw ?? details.trailingPE?.raw),
+        forwardPE: toNumber(details.forwardPE?.raw),
+        priceToBook: toNumber(keyStats.priceToBook?.raw),
+        priceToSalesTtm: toNumber(details.priceToSalesTrailing12Months?.raw),
+        marketCap: toNumber(details.marketCap?.raw ?? q?.marketCap),
+        enterpriseToEbitda: toNumber(keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw),
+        trailingEps: toNumber(keyStats.trailingEps?.raw),
+        returnOnEquity: toNumber(financialData.returnOnEquity?.raw),
+        returnOnAssets: toNumber(financialData.returnOnAssets?.raw),
+        targetMeanPrice: toNumber(financialData.targetMeanPrice?.raw),
+      };
+
+      const hasFundamentals = Object.values(fundamentals).some(v => v !== undefined);
+      if (!hasFundamentals) {
+        try {
+          const fallbackData = await getFallbackFundamentals(origin, normalized);
+          if (fallbackData) {
+            fundamentals = {
+              ...fundamentals,
+              trailingPE: fallbackData.trailingPE ?? fundamentals.trailingPE,
+              priceToBook: fallbackData.priceToBook ?? fundamentals.priceToBook,
+              enterpriseToEbitda: fallbackData.enterpriseToEbitda ?? fundamentals.enterpriseToEbitda,
+              priceToSalesTtm: fallbackData.priceToSalesTtm ?? fundamentals.priceToSalesTtm,
+            };
+          }
+        } catch (err) {
+          console.error("Yahoo history error:", err);
+        }
+      }
+
+      const data = {
+        ticker: normalized,
+        quote: q,
+        fundamentals,
+        ratings: summary ? {
+          recommendationMean: toNumber(financialData.recommendationMean?.raw),
+          recommendationKey: financialData.recommendationKey,
+          recommendationTrend: summary?.recommendationTrend?.trend ?? [],
+        } : null,
+        dividends: summary ? {
+          dividendYield: toNumber(details.dividendYield?.raw),
+          payoutRatio: toNumber(details.payoutRatio?.raw),
+        } : null,
+        profile: summary ? {
+          sector: profile.sector,
+          industry: profile.industry,
+          country: profile.country,
+          website: profile.website,
+          longBusinessSummary: profile.longBusinessSummary,
+        } : null
+      };
+
+      return NextResponse.json({
+        action,
+        data,
+        source: summary ? "yahoo-finance" : "yahoo-finance-partial"
+      });
     }
 
     if (action === "fundamentals") {
@@ -579,7 +660,7 @@ export async function GET(request: Request) {
             symbol: normalized,
             range,
             interval,
-            points: points.filter((p) => p.close !== undefined),
+            points: points.filter((p) => p.close !== undefined && p.close > 0),
           },
           source: "yahoo-finance",
         });
@@ -592,18 +673,29 @@ export async function GET(request: Request) {
         );
         const fallbackJson = await fallback.json();
         const points: HistoryPoint[] = Array.isArray(fallbackJson?.candles)
-          ? fallbackJson.candles.map((c: Record<string, unknown>) => ({
-              timestamp: toNumber(c.timestamp),
-              open: toNumber(c.open),
-              high: toNumber(c.high),
-              low: toNumber(c.low),
-              close: toNumber(c.close),
-              volume: toNumber(c.volume),
-            }))
+          ? fallbackJson.candles.map((c: Record<string, unknown>) => {
+              const dateStr = String(c.time || c.date || "");
+              const ts = dateStr.includes("-")
+                ? Date.parse(dateStr)
+                : toNumber(c.timestamp ?? c.time);
+              return {
+                timestamp: ts && !isNaN(ts) ? (ts < 1_000_000_000_000 ? ts * 1000 : ts) / 1000 : undefined,
+                open: toNumber(c.open),
+                high: toNumber(c.high),
+                low: toNumber(c.low),
+                close: toNumber(c.close),
+                volume: toNumber(c.volume),
+              };
+            })
           : [];
         return NextResponse.json({
           action,
-          data: { symbol: normalized, range, interval, points },
+          data: {
+            symbol: normalized,
+            range,
+            interval,
+            points: points.filter((p) => p.timestamp && p.close && p.close > 0),
+          },
           source: "yahoo-finance-fallback",
         });
       }

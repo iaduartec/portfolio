@@ -123,41 +123,6 @@ const fetchYahooOHLC = async (ticker: string, interval: string = "1d", range: st
   }
 };
 
-// Generate mock data for demonstration when API key is missing AND Yahoo fails
-const generateMockData = (symbol: string, days = 100) => {
-  const candles = [];
-  const volumes = [];
-  let price = 150.0;
-  const now = new Date();
-
-  for (let i = days; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    // Skip weekends
-    if (date.getDay() === 0 || date.getDay() === 6) continue;
-
-    const time = date.toISOString().split('T')[0];
-    const volatility = price * 0.02;
-    const change = (Math.random() - 0.5) * volatility;
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * volatility * 0.5;
-    const low = Math.min(open, close) - Math.random() * volatility * 0.5;
-    const volume = Math.floor(Math.random() * 1000000) + 500000;
-
-    candles.push({ time, open, high, low, close });
-    volumes.push({
-      time,
-      value: volume,
-      color: close >= open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)"
-    });
-
-    price = close;
-  }
-
-  return { symbol, candles, volumes, source: "mock-data" };
-};
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbolParam = searchParams.get("symbol");
@@ -264,7 +229,9 @@ export async function GET(req: Request) {
     }
   }
 
-  // 3. Fallback to Mock Data
-  console.warn(`No data found for ${rawSymbol}, returning mock data`);
-  return NextResponse.json(generateMockData(rawSymbol));
+  // 3. Fallback: No data found
+  return NextResponse.json(
+    { error: `No historical data found for ${rawSymbol}`, candles: [], volumes: [] },
+    { status: 404 }
+  );
 }

@@ -1,0 +1,56 @@
+[   34972ms] Error: Hydration failed because the server rendered text didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <DashboardClient>
+      <div className="flex flex-...">
+        <DashboardHero>
+        <div className="flex flex-...">
+          <section>
+          <section>
+            <DashboardAIPulse>
+              <section className="grid gap-6...">
+                <div className="md:col-spa...">
+                  <div className="grid gap-4...">
+                    <MarketPulse sentiment="Presion ba..." score={23} insight="Mercado a ...">
+                      <Card className="relative o...">
+                        <div className="rounded-2x...">
+                          <div>
+                            <div>
+                            <div>
+                            <div className="flex flex-...">
+                              <div className="flex justi...">
+                                <div className="flex flex-col">
+                                  <span>
+                                  <span
+                                    className="text-xl font-bold text-white group-hover:text-primary transition-colors"
+                                  >
++                                   Presion bajista
+-                                   Neutral
+                                ...
+                              ...
+                    ...
+                  ...
+          ...
+        ...
+
+    at throwOnHydrationMismatch (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:3348:56)
+    at prepareToHydrateHostInstance (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:3402:23)
+    at completeWork (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:6934:60)
+    at runWithFiberInDEV (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:965:74)
+    at completeUnitOfWork (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:9627:23)
+    at performUnitOfWork (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:9564:28)
+    at workLoopConcurrentByScheduler (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:9558:58)
+    at renderRootConcurrent (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:9541:71)
+    at performWorkOnRoot (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:9068:150)
+    at performWorkOnRootViaSchedulerTask (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_react-dom_9c2b5dd7._.js:10230:9)
+    at MessagePort.performWorkUntilDeadline (http://127.0.0.1:3000/_next/static/chunks/79e1e_next_dist_compiled_41b6d015._.js:2647:64)

@@ -1,29 +1,62 @@
 @import "tailwindcss";
-@config "../tailwind.config.ts";
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes ticker-slide-left {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes enter {
+  from { opacity: var(--tw-enter-opacity, 1); transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1)) rotate(var(--tw-enter-rotate, 0)); }
+}
+
+@keyframes exit {
+  to { opacity: var(--tw-exit-opacity, 1); transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0)); }
+}
+
+@theme {
+  --color-background: #070b14;
+  --color-surface: #101829;
+  --color-surface-muted: #162239;
+  --color-border: #243452;
+  --color-text: #e6eefc;
+  --color-muted: #99abc9;
+  --color-accent: #7c9bff;
+  --color-success: #1ecb88;
+  --color-danger: #f36b7f;
+  --color-warning: #f0b24d;
+  --color-primary: #3ec7ff;
+
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-pulse-soft: pulse-soft 3.2s ease-in-out infinite;
+  --animate-ticker-slide-left: ticker-slide-left 34s linear infinite;
+  --animate-in: enter 0.2s ease-out;
+  --animate-out: exit 0.2s ease-in;
+}
 
 :root {
   --background: 216 49% 5%;
   --foreground: 216 100% 96%;
-
   --primary: 199 100% 62%;
   --primary-foreground: 216 49% 5%;
-
   --accent: 226 100% 74%;
   --accent-foreground: 216 100% 96%;
-
   --card: 215 43% 11%;
   --card-foreground: 216 100% 96%;
-
   --border: 216 36% 24%;
   --input: 216 36% 24%;
-
   --surface: #101829;
   --surface-muted: #162239;
-
   --radius: 0.875rem;
-}
-
-:root {
   color-scheme: dark;
 }
 
@@ -80,24 +113,17 @@ textarea {
   box-shadow: 0 0 0 1px rgba(62, 199, 255, 0.25), 0 24px 56px rgba(0, 0, 0, 0.44);
 }
 
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
-  100% { transform: translateY(0px); }
-}
-
 .animate-float {
-  animation: float 7s ease-in-out infinite;
-}
-
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  animation: var(--animate-float);
 }
 
 .animate-pulse-soft {
-  animation: pulse-soft 3.2s ease-in-out infinite;
+  animation: var(--animate-pulse-soft);
 }
+
+.fade-in { --tw-enter-opacity: 0; }
+.slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
+.slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
 
 .ticker-tape-shell {
   width: 100%;
@@ -115,7 +141,8 @@ textarea {
   min-width: max-content;
   height: 100%;
   padding-inline: 0.75rem;
-  animation: ticker-slide-left 34s linear infinite;
+  animation: ticker-slide-left 34s linear infinite !important;
+  will-change: transform;
 }
 
 .ticker-pill {
@@ -157,14 +184,7 @@ textarea {
   color: #96aac8;
 }
 
-@keyframes ticker-slide-left {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
+
 
 .section-title {
   font-family: var(--font-sora), system-ui, sans-serif;

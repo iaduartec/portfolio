@@ -1,0 +1,383 @@
+- generic [active] [ref=e1]:
+  - link "Saltar al contenido" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]: SPY
+      - generic [ref=e9]: "--"
+    - generic [ref=e10]:
+      - generic [ref=e11]: QQQ
+      - generic [ref=e12]: "--"
+    - generic [ref=e13]:
+      - generic [ref=e14]: DIA
+      - generic [ref=e15]: "--"
+    - generic [ref=e16]:
+      - generic [ref=e17]: AAPL
+      - generic [ref=e18]: "--"
+    - generic [ref=e19]:
+      - generic [ref=e20]: NVDA
+      - generic [ref=e21]: "--"
+    - generic [ref=e22]:
+      - generic [ref=e23]: MSFT
+      - generic [ref=e24]: "--"
+    - generic [ref=e25]:
+      - generic [ref=e26]: TSLA
+      - generic [ref=e27]: "--"
+    - generic [ref=e28]:
+      - generic [ref=e29]: BTC-USD
+      - generic [ref=e30]: "--"
+    - generic [ref=e31]:
+      - generic [ref=e32]: ETH-USD
+      - generic [ref=e33]: "--"
+    - generic [ref=e34]:
+      - generic [ref=e35]: EURUSD=X
+      - generic [ref=e36]: "--"
+    - generic [ref=e37]:
+      - generic [ref=e38]: SPY
+      - generic [ref=e39]: "--"
+    - generic [ref=e40]:
+      - generic [ref=e41]: QQQ
+      - generic [ref=e42]: "--"
+    - generic [ref=e43]:
+      - generic [ref=e44]: DIA
+      - generic [ref=e45]: "--"
+    - generic [ref=e46]:
+      - generic [ref=e47]: AAPL
+      - generic [ref=e48]: "--"
+    - generic [ref=e49]:
+      - generic [ref=e50]: NVDA
+      - generic [ref=e51]: "--"
+    - generic [ref=e52]:
+      - generic [ref=e53]: MSFT
+      - generic [ref=e54]: "--"
+    - generic [ref=e55]:
+      - generic [ref=e56]: TSLA
+      - generic [ref=e57]: "--"
+    - generic [ref=e58]:
+      - generic [ref=e59]: BTC-USD
+      - generic [ref=e60]: "--"
+    - generic [ref=e61]:
+      - generic [ref=e62]: ETH-USD
+      - generic [ref=e63]: "--"
+    - generic [ref=e64]:
+      - generic [ref=e65]: EURUSD=X
+      - generic [ref=e66]: "--"
+  - banner [ref=e67]:
+    - generic [ref=e69]:
+      - link "MyInvestView Logo MyInvestView" [ref=e70] [cursor=pointer]:
+        - /url: /
+        - img "MyInvestView Logo" [ref=e73]
+        - generic [ref=e74]: MyInvestView
+      - generic [ref=e75]:
+        - navigation "Navegación principal" [ref=e76]:
+          - link "Inicio" [ref=e77] [cursor=pointer]:
+            - /url: /
+          - link "Portfolio" [ref=e78] [cursor=pointer]:
+            - /url: /portfolio
+          - link "Lab" [ref=e79] [cursor=pointer]:
+            - /url: /lab
+          - link "Importar" [ref=e80] [cursor=pointer]:
+            - /url: /upload
+        - group "Moneda base" [ref=e82]:
+          - button "EUR" [pressed] [ref=e83] [cursor=pointer]
+          - button "USD" [ref=e84] [cursor=pointer]
+  - main [ref=e85]:
+    - generic [ref=e87]:
+      - generic [ref=e88]:
+        - generic [ref=e90]:
+          - generic [ref=e91]:
+            - img [ref=e92]
+            - text: Control operativo en tiempo real
+          - heading "Convierte datos dispersos en decisiones de inversión con contexto IA" [level=1] [ref=e95]
+          - paragraph [ref=e96]: Consolida posiciones, rendimiento y señales de mercado en un solo panel para actuar con más confianza y menos fricción.
+        - generic [ref=e97]:
+          - link "Ver mi portfolio" [ref=e98] [cursor=pointer]:
+            - /url: /portfolio
+            - img [ref=e99]
+            - text: Ver mi portfolio
+          - link "Importar movimientos" [ref=e102] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=e103]
+            - text: Importar movimientos
+        - generic [ref=e104]:
+          - generic [ref=e105]:
+            - img [ref=e106]
+            - text: Rendimiento diario y acumulado
+          - generic [ref=e110]: Análisis IA + paneles locales
+      - generic [ref=e111]:
+        - generic [ref=e113]:
+          - paragraph [ref=e116]: Valor total
+          - paragraph [ref=e123]: P&L día
+          - paragraph [ref=e130]: P&L abierto
+          - paragraph [ref=e137]: P&L realizado
+        - generic [ref=e144]:
+          - generic [ref=e145]:
+            - generic [ref=e147]:
+              - generic [ref=e149]:
+                - img [ref=e151]
+                - generic [ref=e153]:
+                  - heading "Pulso de mercado" [level=3] [ref=e154]
+                  - generic [ref=e157]: LIVE ANALYSIS
+              - generic [ref=e158]:
+                - generic [ref=e159]:
+                  - generic [ref=e160]:
+                    - generic [ref=e161]: Sentimiento Dominante
+                    - generic [ref=e162]: Neutral
+                  - generic [ref=e163]: 50/100
+                - generic [ref=e167]:
+                  - generic [ref=e168]: Bajista
+                  - generic [ref=e169]: Neutral
+                  - generic [ref=e170]: Alcista
+                - generic [ref=e171]:
+                  - img [ref=e172]
+                  - paragraph [ref=e174]: Cargando sentimiento general de mercado...
+            - generic [ref=e176]:
+              - generic [ref=e178]:
+                - img [ref=e180]
+                - generic [ref=e192]:
+                  - heading "Simulador de Escenarios" [level=3] [ref=e193]
+                  - generic [ref=e194]:
+                    - img [ref=e195]
+                    - generic [ref=e198]: MONTE CARLO AI
+              - generic [ref=e199]:
+                - textbox "p.ej. ¿Subida de tipos +1%?" [ref=e200]
+                - button "SIMULAR IMPACTO" [disabled]
+          - generic [ref=e201]:
+            - generic [ref=e203]:
+              - heading "Analisis de IA" [level=2] [ref=e204]
+              - generic [ref=e205]: Mercado global y cartera en tiempo real
+            - paragraph [ref=e207]: El pulso de arriba resume sentimiento general de mercado con indices amplios y volatilidad, no tus posiciones. El asistente de IA puede analizar tus participaciones concretas y escenarios sobre la cartera.
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - generic [ref=e213]:
+              - paragraph [ref=e214]: Capa de Inteligencia de Skills
+              - heading "Senales accionables con tus nuevas skills" [level=2] [ref=e215]
+            - generic [ref=e216]:
+              - img [ref=e217]
+              - text: Actualizando fuentes
+          - generic [ref=e222]:
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - generic [ref=e225]:
+                  - heading "Yahoo Finance Pulse" [level=2] [ref=e226]:
+                    - generic [ref=e227]:
+                      - img [ref=e228]
+                      - text: Yahoo Finance Pulse
+                  - generic [ref=e232]: Cotizaciones en vivo para priorizar contexto de mercado
+                - button "Actualizar" [ref=e233] [cursor=pointer]
+              - generic [ref=e234]:
+                - generic [ref=e235]:
+                  - generic [ref=e236]:
+                    - generic [ref=e237]: SPY
+                    - generic [ref=e238]:
+                      - generic [ref=e239]: "--"
+                      - generic [ref=e240]: Sin cambio
+                  - generic [ref=e241]:
+                    - generic [ref=e242]: NVDA
+                    - generic [ref=e243]:
+                      - generic [ref=e244]: "--"
+                      - generic [ref=e245]: Sin cambio
+                  - generic [ref=e246]:
+                    - generic [ref=e247]: BTC-USD
+                    - generic [ref=e248]:
+                      - generic [ref=e249]: "--"
+                      - generic [ref=e250]: Sin cambio
+                - generic [ref=e251]:
+                  - generic [ref=e252]:
+                    - paragraph [ref=e253]: "Ticker en foco: NVDA"
+                    - generic [ref=e254]: Neutral
+                  - generic [ref=e255]:
+                    - generic [ref=e256]:
+                      - paragraph [ref=e257]: PE
+                      - paragraph [ref=e258]: N/D
+                    - generic [ref=e259]:
+                      - paragraph [ref=e260]: P/B
+                      - paragraph [ref=e261]: N/D
+                    - generic [ref=e262]:
+                      - paragraph [ref=e263]: Rating
+                      - paragraph [ref=e264]: N/D
+                    - generic [ref=e265]:
+                      - paragraph [ref=e266]: Yield
+                      - paragraph [ref=e267]: N/D
+                  - paragraph [ref=e268]: Semaforo = insiders recientes + rating de consenso + valuacion (PE/PB).
+                  - generic [ref=e269]:
+                    - generic [ref=e270]:
+                      - paragraph [ref=e271]: Prediction Meter
+                      - generic [ref=e272]: "Action: HOLD"
+                    - generic [ref=e279]:
+                      - generic [ref=e280]: SELL
+                      - generic [ref=e281]: HOLD
+                      - generic [ref=e282]: BUY
+                    - paragraph [ref=e283]: Score 0/3 · Confianza 0%
+            - generic [ref=e284]:
+              - generic [ref=e285]:
+                - generic [ref=e286]:
+                  - heading "OpenInsider Radar" [level=2] [ref=e287]:
+                    - generic [ref=e288]:
+                      - img [ref=e289]
+                      - text: OpenInsider Radar
+                  - generic [ref=e296]: Movimientos insider en cartera y tickers bajo analisis
+                - button "Actualizar" [ref=e297] [cursor=pointer]
+              - generic [ref=e298]:
+                - generic [ref=e299]:
+                  - button "7d" [ref=e300] [cursor=pointer]
+                  - button "30d" [ref=e301] [cursor=pointer]
+                  - button "90d" [ref=e302] [cursor=pointer]
+                - generic [ref=e303]:
+                  - button "NVDA" [ref=e304] [cursor=pointer]
+                  - button "MSFT" [ref=e305] [cursor=pointer]
+                  - button "AMZN" [ref=e306] [cursor=pointer]
+                - paragraph [ref=e307]: OpenInsider cubre sobre todo acciones USA. Como tu cartera actual no aporta tickers compatibles, muestro una lista por defecto para que el radar no quede vacio.
+                - generic [ref=e308]:
+                  - generic [ref=e309]: Ticker personalizado
+                  - textbox "Ticker personalizado" [ref=e310]:
+                    - /placeholder: Ticker a analizar (ej. TSLA)…
+                  - button "Agregar" [ref=e311] [cursor=pointer]:
+                    - img [ref=e312]
+                    - text: Agregar
+                - generic [ref=e313]:
+                  - generic [ref=e314]:
+                    - generic [ref=e315]:
+                      - paragraph [ref=e316]: Compras
+                      - paragraph [ref=e317]: "0"
+                    - generic [ref=e318]:
+                      - paragraph [ref=e319]: Ventas
+                      - paragraph [ref=e320]: "0"
+                    - generic [ref=e321]:
+                      - paragraph [ref=e322]: Neto
+                      - paragraph [ref=e323]: 0,00 US$
+                  - paragraph [ref=e324]: "Ventana actual: ultimos 30 dias."
+                  - paragraph [ref=e325]: Sin datos insider para NVDA.
+                - link "Ejecutar flujo insider" [ref=e326] [cursor=pointer]:
+                  - /url: /ai-agents
+                  - text: Ejecutar flujo insider
+                  - img [ref=e327]
+        - generic [ref=e329]:
+          - heading "Tu cartera" [level=2] [ref=e332]
+          - generic [ref=e335]:
+            - generic [ref=e336]:
+              - generic [ref=e337]:
+                - heading "Participaciones" [level=2] [ref=e338]
+                - generic [ref=e339]: Solo posiciones abiertas con su precio promedio
+              - generic [ref=e340]:
+                - paragraph [ref=e341]: Total del fondo
+                - paragraph [ref=e342]: "+0"
+            - table [ref=e346]:
+              - rowgroup [ref=e347]:
+                - row "Símbolo ↓ Precio medio ↓ Precio actual ↓ Ganancia % ↓ P&L día % ↓ Valor de mercado ↓ Señales" [ref=e348]:
+                  - columnheader "Símbolo ↓" [ref=e349] [cursor=pointer]:
+                    - generic [ref=e350]:
+                      - text: Símbolo
+                      - generic [ref=e351]: ↓
+                  - columnheader "Precio medio ↓" [ref=e352] [cursor=pointer]:
+                    - generic [ref=e353]:
+                      - text: Precio medio
+                      - generic [ref=e354]: ↓
+                  - columnheader "Precio actual ↓" [ref=e355] [cursor=pointer]:
+                    - generic [ref=e356]:
+                      - text: Precio actual
+                      - generic [ref=e357]: ↓
+                  - columnheader "Ganancia % ↓" [ref=e358] [cursor=pointer]:
+                    - generic [ref=e359]:
+                      - text: Ganancia %
+                      - generic [ref=e360]: ↓
+                  - columnheader "P&L día % ↓" [ref=e361] [cursor=pointer]:
+                    - generic [ref=e362]:
+                      - text: P&L día %
+                      - generic [ref=e363]: ↓
+                  - columnheader "Valor de mercado ↓" [ref=e364] [cursor=pointer]:
+                    - generic [ref=e365]:
+                      - text: Valor de mercado
+                      - generic [ref=e366]: ↓
+                  - columnheader "Señales" [ref=e367]
+              - rowgroup [ref=e368]:
+                - row [ref=e369]:
+                  - cell [ref=e370]
+                  - cell [ref=e372]
+                  - cell [ref=e374]
+                  - cell [ref=e376]
+                  - cell [ref=e378]
+                  - cell [ref=e380]
+                  - cell [ref=e382]
+                - row [ref=e384]:
+                  - cell [ref=e385]
+                  - cell [ref=e387]
+                  - cell [ref=e389]
+                  - cell [ref=e391]
+                  - cell [ref=e393]
+                  - cell [ref=e395]
+                  - cell [ref=e397]
+                - row [ref=e399]:
+                  - cell [ref=e400]
+                  - cell [ref=e402]
+                  - cell [ref=e404]
+                  - cell [ref=e406]
+                  - cell [ref=e408]
+                  - cell [ref=e410]
+                  - cell [ref=e412]
+                - row [ref=e414]:
+                  - cell [ref=e415]
+                  - cell [ref=e417]
+                  - cell [ref=e419]
+                  - cell [ref=e421]
+                  - cell [ref=e423]
+                  - cell [ref=e425]
+                  - cell [ref=e427]
+                - row [ref=e429]:
+                  - cell [ref=e430]
+                  - cell [ref=e432]
+                  - cell [ref=e434]
+                  - cell [ref=e436]
+                  - cell [ref=e438]
+                  - cell [ref=e440]
+                  - cell [ref=e442]
+        - region "Panel financiero local" [ref=e445]:
+          - generic [ref=e446]:
+            - generic [ref=e448]:
+              - heading "Panel financiero local" [level=2] [ref=e449]
+              - generic [ref=e450]: Selecciona una posición para ver gráfico, fundamentales y contexto sin depender de widgets externos.
+            - paragraph [ref=e452]: Selecciona un ticker para cargar el panel local.
+      - button "Abrir chat de Gemini" [ref=e453] [cursor=pointer]:
+        - img [ref=e454]
+        - text: Consultar IA
+  - contentinfo [ref=e457]:
+    - generic [ref=e458]:
+      - generic [ref=e459]:
+        - generic [ref=e460]:
+          - link "MyInvest View" [ref=e461] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e462]: MyInvest
+            - generic [ref=e463]: View
+          - paragraph [ref=e464]: Convierte datos dispersos en decisiones de inversion con contexto IA y visualizacion financiera de nivel profesional.
+        - generic [ref=e465]:
+          - heading "Plataforma" [level=3] [ref=e466]
+          - list [ref=e467]:
+            - listitem [ref=e468]:
+              - link "Inicio" [ref=e469] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e470]:
+              - link "Portfolio" [ref=e471] [cursor=pointer]:
+                - /url: /portfolio
+            - listitem [ref=e472]:
+              - link "Lab" [ref=e473] [cursor=pointer]:
+                - /url: /lab
+            - listitem [ref=e474]:
+              - link "Agentes IA" [ref=e475] [cursor=pointer]:
+                - /url: /ai-agents
+        - generic [ref=e476]:
+          - heading "Legal" [level=3] [ref=e477]
+          - list [ref=e478]:
+            - listitem [ref=e479]:
+              - link "Terminos de Servicio" [ref=e480] [cursor=pointer]:
+                - /url: /legal/terminos
+            - listitem [ref=e481]:
+              - link "Politica de Privacidad" [ref=e482] [cursor=pointer]:
+                - /url: /legal/privacidad
+            - listitem [ref=e483]:
+              - link "Aviso de riesgo" [ref=e484] [cursor=pointer]:
+                - /url: /legal/riesgo
+      - generic [ref=e485]:
+        - paragraph [ref=e486]: © 2026 MyInvestView. Todos los derechos reservados.
+        - paragraph [ref=e487]: "Estado de datos: Actualizado 15 mar 2026"
+  - button "Open Next.js Dev Tools" [ref=e493] [cursor=pointer]:
+    - img [ref=e494]

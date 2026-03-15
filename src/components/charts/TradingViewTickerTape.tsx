@@ -150,10 +150,18 @@ export function TradingViewTickerTape() {
       items.length > 0 ? items : DEFAULT_SYMBOLS.map((symbol) => ({ symbol }));
     return [...base, ...base];
   }, [items]);
+  const trackStyle = useMemo(
+    () =>
+      ({
+        animation: "ticker-slide-left 34s linear infinite",
+        willChange: "transform",
+      }) as const,
+    [],
+  );
 
   return (
     <div className="ticker-tape-shell">
-      <div className="ticker-tape-track">
+      <div className="ticker-tape-track" style={trackStyle}>
         {renderItems.map((item, idx) => {
           const pct = item.dayChangePercent;
           const tone =

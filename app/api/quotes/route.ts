@@ -133,7 +133,13 @@ const fetchStooqQuote = async (ticker: string): Promise<Quote | null> => {
   if (!/^[a-z0-9.]+$/i.test(symbol)) return null;
   const url = `https://stooq.pl/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`;
   try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    const res = await fetch(url, {
+      next: { revalidate: 60 },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/csv"
+      }
+    });
     const csv = await res.text();
     const parsed = parseStooqCsv(csv);
     if (parsed.length === 0) return null;
@@ -204,7 +210,14 @@ const fetchYahooQuote = async (ticker: string): Promise<Quote | null> => {
     symbol
   )}?interval=1d&range=5d`;
   try {
-    const res = await fetch(url, { next: { revalidate: 60 } });
+    const res = await fetch(url, {
+      next: { revalidate: 60 },
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://finance.yahoo.com/"
+      }
+    });
     if (!res.ok) return null;
     const json = await res.json();
     const result = json?.chart?.result?.[0];
