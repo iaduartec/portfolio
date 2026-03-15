@@ -13,13 +13,13 @@ export function DashboardHero() {
           Control operativo en tiempo real
         </div>
 
-        <h1 className="section-title max-w-4xl text-balance text-[2.2rem] font-semibold leading-[1.02] text-white sm:text-4xl md:text-[4.1rem]">
-          Controla tu cartera con una
-          <span className="text-primary"> lectura clara</span> de rentabilidad, riesgo y contexto.
+        <h1 className="section-title max-w-4xl text-balance text-[2rem] font-semibold leading-[1.02] text-white sm:text-[3rem] md:text-[3.5rem]">
+          Lee tu cartera con
+          <span className="text-primary"> claridad</span>.
         </h1>
 
-        <p className="max-w-3xl text-balance text-sm leading-relaxed text-text-secondary sm:text-base md:text-lg">
-          Consolida posiciones, rendimiento, sesgo macro y señales accionables en una interfaz seria, legible y preparada para trabajar con datos financieros reales.
+        <p className="max-w-2xl text-balance text-sm leading-relaxed text-text-secondary sm:text-base md:text-[1.05rem]">
+          Posiciones, rentabilidad y riesgo en un panel hecho para trabajar con datos reales.
         </p>
 
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">

@@ -51,6 +51,9 @@ const getTone = (value: number | undefined) => {
   return "default" as const;
 };
 
+const hasQuoteData = (quote?: QuoteRow) =>
+  Number.isFinite(quote?.price) || Number.isFinite(quote?.dayChangePercent);
+
 const buildMacroDrivers = (quotes: QuoteRow[]) => {
   const quoteMap = new Map(quotes.map((quote) => [quote.symbol, quote]));
   const items: string[] = [];
@@ -171,6 +174,10 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
     }),
     []
   );
+  const coveredQuotesCount = useMemo(
+    () => MARKET_TILES.filter((tile) => hasQuoteData(quoteMap.get(tile.symbol.toUpperCase()))).length,
+    [quoteMap]
+  );
 
   const dayMovers = useMemo(() => {
     const valid = holdings.filter((holding) => Number.isFinite(holding.dayChangePercent));
@@ -211,7 +218,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
           <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-surface-muted/30 to-surface-muted/20 p-5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge tone={breadth.tone}>{breadth.label}</Badge>
-              <Badge tone="default">{quotes.length}/{MARKET_TILES.length} activos</Badge>
+              <Badge tone="default">{coveredQuotesCount}/{MARKET_TILES.length} activos</Badge>
               <Badge tone={strongestMacroTile ? getTone(strongestMacroTile.quote?.dayChangePercent) : "default"}>
                 {strongestMacroTile ? strongestMacroTile.tile.label : "Sin señal dominante"}
               </Badge>
@@ -222,7 +229,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
           <div className="grid gap-3 sm:grid-cols-2">
             <CompactSignal
               label="Cobertura"
-              value={`${quotes.length}/${MARKET_TILES.length}`}
+              value={`${coveredQuotesCount}/${MARKET_TILES.length}`}
               detail={breadth.label}
             />
             <CompactSignal
@@ -246,10 +253,16 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
             <div key={section.title} className="rounded-xl border border-border/60 bg-surface-muted/40 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-muted">{section.title}</p>
-                <Badge tone="default">{section.items.length} seguidos</Badge>
+                <Badge tone="default">
+                  {
+                    section.items.filter((tile) => hasQuoteData(quoteMap.get(tile.symbol.toUpperCase()))).length
+                  }/{section.items.length} seguidos
+                </Badge>
               </div>
               <div className="grid gap-3">
-                {section.items.map((tile) => {
+                {section.items
+                  .filter((tile) => hasQuoteData(quoteMap.get(tile.symbol.toUpperCase())))
+                  .map((tile) => {
                   const quote = quoteMap.get(tile.symbol.toUpperCase());
                   const tone = getTone(quote?.dayChangePercent);
                   return (
@@ -281,6 +294,11 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
                     </div>
                   );
                 })}
+                {section.items.every((tile) => !hasQuoteData(quoteMap.get(tile.symbol.toUpperCase()))) ? (
+                  <p className="rounded-lg border border-border/50 bg-surface/60 px-3 py-3 text-sm text-muted">
+                    Sin cobertura suficiente para esta cesta ahora mismo.
+                  </p>
+                ) : null}
               </div>
             </div>
           ))}

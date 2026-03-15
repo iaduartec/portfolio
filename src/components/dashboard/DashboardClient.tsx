@@ -16,9 +16,12 @@ import { DashboardSkillIntel } from "./DashboardSkillIntel";
 import { DashboardNewsFeed } from "./DashboardNewsFeed";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export function DashboardClient() {
-  const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
+  const { holdings, summary, realizedTrades, hasTransactions, isLoading } = usePortfolioData();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
 
   const totalPnlPercent = useMemo(() => {
@@ -60,7 +63,24 @@ export function DashboardClient() {
     <div className="flex flex-col gap-8 pb-16 md:gap-10 md:pb-20">
       <DashboardHero />
 
-      <div className="flex flex-col gap-10 md:gap-12">
+      {!isLoading && !hasTransactions ? (
+        <EmptyState
+          title="Aun no hay cartera cargada"
+          description="Importa movimientos o abre tu portfolio para empezar a ver métricas, concentración y paneles de mercado con datos reales."
+          action={
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button asChild>
+                <Link href="/upload">Importar movimientos</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/portfolio">Abrir portfolio</Link>
+              </Button>
+            </div>
+          }
+        />
+      ) : null}
+
+      <div className={`flex flex-col gap-10 md:gap-12 ${!isLoading && !hasTransactions ? "hidden" : ""}`}>
         <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Resumen ejecutivo"
@@ -76,7 +96,7 @@ export function DashboardClient() {
           />
         </section>
 
-        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <section className="grid gap-4">
           <DashboardComposition
             holdings={holdings}
             totalValue={summary.totalValue}

@@ -193,6 +193,30 @@ const buildSignalTone = (holding: Holding, quote: QuoteSnapshot | null) => {
   };
 };
 
+const hasFundamentalData = (fundamentals: FundamentalsSnapshot | null) =>
+  [
+    fundamentals?.trailingPE,
+    fundamentals?.priceToBook,
+    fundamentals?.marketCap,
+    fundamentals?.returnOnEquity,
+    fundamentals?.targetMeanPrice,
+  ].some((value) => Number.isFinite(value));
+
+const hasFlowData = (quote: QuoteSnapshot | null, ratings: RatingsSnapshot | null, dividends: DividendsSnapshot | null) =>
+  [
+    quote?.volume,
+    quote?.avgVolume,
+    ratings?.recommendationMean,
+    dividends?.dividendYield,
+    dividends?.payoutRatio,
+  ].some((value) => Number.isFinite(value)) || Boolean(ratings?.recommendationKey);
+
+const hasProfileData = (profile: ProfileSnapshot | null) =>
+  Boolean(profile?.sector || profile?.industry || profile?.country || profile?.website || profile?.longBusinessSummary);
+
+const hasRangeData = (quote: QuoteSnapshot | null) =>
+  [quote?.fiftyTwoWeekLow, quote?.fiftyTwoWeekHigh].some((value) => Number.isFinite(value));
+
 export function DashboardTradingView({ selectedHolding }: DashboardTradingViewProps) {
   const { currency, fxRate, baseCurrency } = useCurrency();
   const [panelData, setPanelData] = useState<{
@@ -313,6 +337,10 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
   const executiveSummary = buildExecutiveSummary(selectedHolding, quote, fundamentals, ratings);
   const signalTone = buildSignalTone(selectedHolding, quote);
   const tacticalRead = buildTechnicalRead(selectedHolding, quote);
+  const fundamentalsAvailable = hasFundamentalData(fundamentals);
+  const flowAvailable = hasFlowData(quote, ratings, dividends);
+  const profileAvailable = hasProfileData(profile);
+  const rangeAvailable = hasRangeData(quote);
 
   return (
     <section aria-labelledby="local-market-panel-title">
@@ -389,35 +417,43 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
 
               <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
                 <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Snapshot fundamental</p>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Metric label="PER" value={formatMetricValue(fundamentals?.trailingPE)} />
-                  <Metric label="P/B" value={formatMetricValue(fundamentals?.priceToBook)} />
-                  <Metric label="ROE" value={formatPercentMetric(fundamentals?.returnOnEquity)} />
-                  <Metric label="Valuación" value={valuationLabel(fundamentals)} />
-                  <Metric label="Mkt Cap" value={toCompactNumber(fundamentals?.marketCap)} />
-                  <Metric
-                    label="Precio objetivo"
-                    value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "No disponible"}
-                  />
-                </div>
+                {fundamentalsAvailable ? (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <Metric label="PER" value={formatMetricValue(fundamentals?.trailingPE)} />
+                    <Metric label="P/B" value={formatMetricValue(fundamentals?.priceToBook)} />
+                    <Metric label="ROE" value={formatPercentMetric(fundamentals?.returnOnEquity)} />
+                    <Metric label="Valuación" value={valuationLabel(fundamentals)} />
+                    <Metric label="Mkt Cap" value={toCompactNumber(fundamentals?.marketCap)} />
+                    <Metric
+                      label="Precio objetivo"
+                      value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "No disponible"}
+                    />
+                  </div>
+                ) : (
+                  <DataGapMessage text="Este activo no trae suficientes fundamentales en la fuente actual." />
+                )}
               </div>
 
               <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
                 <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Consenso y flujo</p>
-                <div className="mt-3 grid grid-cols-2 gap-3">
-                  <Metric label="Consenso" value={recommendationLabel(ratings)} />
-                  <Metric label="Score analistas" value={formatMetricValue(ratings?.recommendationMean)} />
-                  <Metric
-                    label="Dividendo"
-                    value={formatPercentMetric(dividends?.dividendYield)}
-                  />
-                  <Metric
-                    label="Payout"
-                    value={formatPercentMetric(dividends?.payoutRatio)}
-                  />
-                  <Metric label="Volumen" value={toCompactNumber(quote?.volume)} />
-                  <Metric label="Vol. medio" value={toCompactNumber(quote?.avgVolume)} />
-                </div>
+                {flowAvailable ? (
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <Metric label="Consenso" value={recommendationLabel(ratings)} />
+                    <Metric label="Score analistas" value={formatMetricValue(ratings?.recommendationMean)} />
+                    <Metric
+                      label="Dividendo"
+                      value={formatPercentMetric(dividends?.dividendYield)}
+                    />
+                    <Metric
+                      label="Payout"
+                      value={formatPercentMetric(dividends?.payoutRatio)}
+                    />
+                    <Metric label="Volumen" value={toCompactNumber(quote?.volume)} />
+                    <Metric label="Vol. medio" value={toCompactNumber(quote?.avgVolume)} />
+                  </div>
+                ) : (
+                  <DataGapMessage text="No hay suficiente consenso, dividendo o volumen para una lectura de flujo útil." />
+                )}
               </div>
             </div>
           </div>
@@ -425,40 +461,55 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
             <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Perfil de empresa</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {profile?.sector && <Tag>{profile.sector}</Tag>}
-                {profile?.industry && <Tag>{profile.industry}</Tag>}
-                {profile?.country && <Tag>{profile.country}</Tag>}
-                {!profile?.sector && !profile?.industry && !profile?.country && <Tag>Perfil limitado</Tag>}
-              </div>
-              <p className="mt-4 text-sm leading-relaxed text-text/90">{trimSummary(profile?.longBusinessSummary)}</p>
-              {profile?.website && (
-                <a
-                  href={profile.website}
-                  target="_blank"
-                  rel="noopener nofollow"
-                  className="mt-4 inline-flex text-sm font-medium text-accent hover:underline"
-                >
-                  Visitar web corporativa
-                </a>
+              {profileAvailable ? (
+                <>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {profile?.sector && <Tag>{profile.sector}</Tag>}
+                    {profile?.industry && <Tag>{profile.industry}</Tag>}
+                    {profile?.country && <Tag>{profile.country}</Tag>}
+                    {!profile?.sector && !profile?.industry && !profile?.country && <Tag>Perfil limitado</Tag>}
+                  </div>
+                  <p className="mt-4 text-sm leading-relaxed text-text/90">{trimSummary(profile?.longBusinessSummary)}</p>
+                  {profile?.website && (
+                    <a
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener nofollow"
+                      className="mt-4 inline-flex text-sm font-medium text-accent hover:underline"
+                    >
+                      Visitar web corporativa
+                    </a>
+                  )}
+                </>
+              ) : (
+                <DataGapMessage text="La fuente actual no trae un perfil descriptivo suficiente para este activo." className="mt-3" />
               )}
             </div>
 
             <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Rango y contexto</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <Metric
-                  label="52w mínimo"
-                  value={
-                    displayedRangeLow !== undefined ? formatCurrency(displayedRangeLow, currency) : "No disponible"
-                  }
-                />
-                <Metric
-                  label="52w máximo"
-                  value={
-                    displayedRangeHigh !== undefined ? formatCurrency(displayedRangeHigh, currency) : "No disponible"
-                  }
-                />
+                {rangeAvailable ? (
+                  <>
+                    <Metric
+                      label="52w mínimo"
+                      value={
+                        displayedRangeLow !== undefined ? formatCurrency(displayedRangeLow, currency) : "No disponible"
+                      }
+                    />
+                    <Metric
+                      label="52w máximo"
+                      value={
+                        displayedRangeHigh !== undefined ? formatCurrency(displayedRangeHigh, currency) : "No disponible"
+                      }
+                    />
+                  </>
+                ) : (
+                  <DataGapMessage
+                    text="No hay rango anual disponible en esta fuente."
+                    className="sm:col-span-2"
+                  />
+                )}
                 <Metric label="Valor posición" value={formatCurrency(selectedHolding.marketValue, currency)} />
                 <Metric label="Estado de carga" value={isLoading ? "Actualizando" : "Listo"} />
               </div>
@@ -525,5 +576,13 @@ function Tag({
     <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${toneClassName}`}>
       {children}
     </span>
+  );
+}
+
+function DataGapMessage({ text, className }: { text: string; className?: string }) {
+  return (
+    <p className={cn("rounded-xl border border-border/60 bg-surface/45 px-3 py-3 text-sm text-muted", className)}>
+      {text}
+    </p>
   );
 }

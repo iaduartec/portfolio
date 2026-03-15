@@ -100,6 +100,9 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+const hasQuoteData = (quote?: Quote) =>
+  Boolean(quote) && (isFiniteNumber(quote?.price) || isFiniteNumber(quote?.dayChangePercent));
+
 const buildInsiderOnlySignal = (summary: InsiderSummary) => {
   let score = 0;
 
@@ -698,14 +701,14 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             </div>
 
             <div className="mt-4 space-y-2">
-              {WATCHLIST.map((ticker) => {
+              {WATCHLIST.filter((ticker) => hasQuoteData(quoteMap.get(ticker))).map((ticker) => {
                 const quote = quoteMap.get(ticker);
                 return (
                   <div key={ticker} className="flex items-center justify-between rounded-xl border border-border/80 bg-surface-muted/30 px-3 py-2">
                     <span className="text-sm font-medium text-text">{ticker}</span>
                     <div className="text-right">
                       <div className="text-sm font-semibold text-white">
-                        {quote ? formatCurrency(quote.price, "USD") : "--"}
+                        {quote ? formatCurrency(quote.price, "USD") : "Sin precio"}
                       </div>
                       <Badge tone={changeTone(quote?.dayChangePercent)} className="mt-1">
                         {quote?.dayChangePercent !== undefined
@@ -716,6 +719,11 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   </div>
                 );
               })}
+              {WATCHLIST.every((ticker) => !hasQuoteData(quoteMap.get(ticker))) ? (
+                <p className="rounded-xl border border-border/80 bg-surface-muted/30 px-3 py-3 text-sm text-muted">
+                  La watchlist no tiene cotizaciones útiles ahora mismo.
+                </p>
+              ) : null}
             </div>
             {(baseError || focusError) && (
               <p className="mt-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
@@ -729,32 +737,43 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </p>
                 <Badge tone={signal.tone}>{signal.label}</Badge>
               </div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg border border-border/70 px-2 py-1.5">
-                  <p className="text-muted">PE</p>
-                  <p className="font-semibold text-white">
-                    {yahooFundamentals?.trailingPE !== undefined ? yahooFundamentals.trailingPE.toFixed(2) : "N/D"}
-                  </p>
+              {yahooFundamentals?.trailingPE !== undefined ||
+              yahooFundamentals?.priceToBook !== undefined ||
+              yahooRatings?.recommendationKey ||
+              yahooDividends?.dividendYield !== undefined ? (
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  {yahooFundamentals?.trailingPE !== undefined ? (
+                    <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                      <p className="text-muted">PE</p>
+                      <p className="font-semibold text-white">{yahooFundamentals.trailingPE.toFixed(2)}</p>
+                    </div>
+                  ) : null}
+                  {yahooFundamentals?.priceToBook !== undefined ? (
+                    <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                      <p className="text-muted">P/B</p>
+                      <p className="font-semibold text-white">{yahooFundamentals.priceToBook.toFixed(2)}</p>
+                    </div>
+                  ) : null}
+                  {yahooRatings?.recommendationKey ? (
+                    <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                      <p className="text-muted">Rating</p>
+                      <p className="font-semibold text-white">{yahooRatings.recommendationKey}</p>
+                    </div>
+                  ) : null}
+                  {yahooDividends?.dividendYield !== undefined ? (
+                    <div className="rounded-lg border border-border/70 px-2 py-1.5">
+                      <p className="text-muted">Yield</p>
+                      <p className="font-semibold text-white">
+                        {`${(yahooDividends.dividendYield * 100).toFixed(2)}%`}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-                <div className="rounded-lg border border-border/70 px-2 py-1.5">
-                  <p className="text-muted">P/B</p>
-                  <p className="font-semibold text-white">
-                    {yahooFundamentals?.priceToBook !== undefined ? yahooFundamentals.priceToBook.toFixed(2) : "N/D"}
-                  </p>
-                </div>
-                <div className="rounded-lg border border-border/70 px-2 py-1.5">
-                  <p className="text-muted">Rating</p>
-                  <p className="font-semibold text-white">{yahooRatings?.recommendationKey ?? "N/D"}</p>
-                </div>
-                <div className="rounded-lg border border-border/70 px-2 py-1.5">
-                  <p className="text-muted">Yield</p>
-                  <p className="font-semibold text-white">
-                    {yahooDividends?.dividendYield !== undefined
-                      ? `${(yahooDividends.dividendYield * 100).toFixed(2)}%`
-                      : "N/D"}
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <p className="mt-2 rounded-lg border border-border/70 px-3 py-2 text-xs text-muted">
+                  El ticker en foco no trae suficientes datos Yahoo para resumir valoración o consenso.
+                </p>
+              )}
               <p className="mt-2 text-[11px] text-muted">
                 Semáforo = insiders recientes + rating de consenso + valoración relativa (PE/PB).
               </p>
@@ -1028,7 +1047,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                     </div>
                     <p className="mt-1 text-xs text-muted">
                       Filing: {trade.filingDate.slice(0, 10)} · Valor:{" "}
-                      {trade.value !== undefined ? formatCurrency(Math.abs(trade.value), "USD") : "N/D"}
+                      {trade.value !== undefined ? formatCurrency(Math.abs(trade.value), "USD") : "Sin importe"}
                     </p>
                   </div>
                 ))

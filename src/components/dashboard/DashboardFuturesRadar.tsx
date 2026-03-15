@@ -47,6 +47,9 @@ const getTone = (value?: number) => {
   return "warning" as const;
 };
 
+const hasQuoteData = (quote?: QuoteRow) =>
+  Number.isFinite(quote?.price) || Number.isFinite(quote?.dayChangePercent);
+
 const buildFuturesSignals = (quotes: QuoteRow[]) => {
   const quoteMap = new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote]));
   const equityMoves = ["ES=F", "NQ=F", "YM=F", "RTY=F"]
@@ -142,6 +145,10 @@ export function DashboardFuturesRadar() {
     }),
     []
   );
+  const coveredQuotesCount = useMemo(
+    () => FUTURE_TILES.filter((tile) => hasQuoteData(quoteMap.get(tile.symbol.toUpperCase()))).length,
+    [quoteMap]
+  );
 
   const futuresSignals = useMemo(() => buildFuturesSignals(quotes), [quotes]);
 
@@ -164,10 +171,16 @@ export function DashboardFuturesRadar() {
             <div key={section.title} className="rounded-xl border border-border/60 bg-surface-muted/40 p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[11px] uppercase tracking-[0.24em] text-muted">{section.title}</p>
-                <Badge tone="default">{section.items.length} activos</Badge>
+                <Badge tone="default">
+                  {
+                    section.items.filter((tile) => hasQuoteData(quoteMap.get(tile.symbol.toUpperCase()))).length
+                  }/{section.items.length} activos
+                </Badge>
               </div>
               <div className="grid gap-3">
-                {section.items.map((tile) => {
+                {section.items
+                  .filter((tile) => hasQuoteData(quoteMap.get(tile.symbol.toUpperCase())))
+                  .map((tile) => {
                   const quote = quoteMap.get(tile.symbol.toUpperCase());
                   const tone = getTone(quote?.dayChangePercent);
                   return (
@@ -197,6 +210,11 @@ export function DashboardFuturesRadar() {
                     </div>
                   );
                 })}
+                {section.items.every((tile) => !hasQuoteData(quoteMap.get(tile.symbol.toUpperCase()))) ? (
+                  <p className="rounded-lg border border-border/50 bg-surface/60 px-3 py-3 text-sm text-muted">
+                    No hay precios suficientes para esta cesta de futuros ahora mismo.
+                  </p>
+                ) : null}
               </div>
             </div>
           ))}
@@ -206,7 +224,11 @@ export function DashboardFuturesRadar() {
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-[11px] uppercase tracking-[0.24em] text-muted">Lectura táctica</p>
             <Badge tone={futuresSignals.length > 0 ? "success" : "default"}>
-              {futuresSignals.length > 0 ? "Con señal" : "Sin señal"}
+              {coveredQuotesCount > 0
+                ? futuresSignals.length > 0
+                  ? "Con señal"
+                  : "Sin señal"
+                : "Sin cobertura"}
             </Badge>
           </div>
           <div className="flex flex-col gap-3">
@@ -219,6 +241,10 @@ export function DashboardFuturesRadar() {
                   {signal}
                 </div>
               ))
+            ) : coveredQuotesCount === 0 ? (
+              <p className="rounded-lg border border-border/60 bg-surface/60 px-3 py-3 text-sm text-muted">
+                El radar no tiene cotizaciones suficientes para construir una lectura útil ahora mismo.
+              </p>
             ) : (
               <p className="rounded-lg border border-border/60 bg-surface/60 px-3 py-3 text-sm text-muted">
                 No hay suficiente movimiento en futuros para extraer una lectura táctica clara ahora mismo.
