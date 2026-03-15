@@ -1,0 +1,689 @@
+- generic [active] [ref=e1]:
+  - link "Saltar al contenido" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - generic [ref=e8]: SPY
+      - generic [ref=e9]: "--"
+    - generic [ref=e10]:
+      - generic [ref=e11]: QQQ
+      - generic [ref=e12]: "--"
+    - generic [ref=e13]:
+      - generic [ref=e14]: DIA
+      - generic [ref=e15]: "--"
+    - generic [ref=e16]:
+      - generic [ref=e17]: AAPL
+      - generic [ref=e18]: "--"
+    - generic [ref=e19]:
+      - generic [ref=e20]: NVDA
+      - generic [ref=e21]: "--"
+    - generic [ref=e22]:
+      - generic [ref=e23]: MSFT
+      - generic [ref=e24]: "--"
+    - generic [ref=e25]:
+      - generic [ref=e26]: TSLA
+      - generic [ref=e27]: "--"
+    - generic [ref=e28]:
+      - generic [ref=e29]: BTC-USD
+      - generic [ref=e30]: "--"
+    - generic [ref=e31]:
+      - generic [ref=e32]: ETH-USD
+      - generic [ref=e33]: "--"
+    - generic [ref=e34]:
+      - generic [ref=e35]: EURUSD=X
+      - generic [ref=e36]: "--"
+    - generic [ref=e37]:
+      - generic [ref=e38]: SPY
+      - generic [ref=e39]: "--"
+    - generic [ref=e40]:
+      - generic [ref=e41]: QQQ
+      - generic [ref=e42]: "--"
+    - generic [ref=e43]:
+      - generic [ref=e44]: DIA
+      - generic [ref=e45]: "--"
+    - generic [ref=e46]:
+      - generic [ref=e47]: AAPL
+      - generic [ref=e48]: "--"
+    - generic [ref=e49]:
+      - generic [ref=e50]: NVDA
+      - generic [ref=e51]: "--"
+    - generic [ref=e52]:
+      - generic [ref=e53]: MSFT
+      - generic [ref=e54]: "--"
+    - generic [ref=e55]:
+      - generic [ref=e56]: TSLA
+      - generic [ref=e57]: "--"
+    - generic [ref=e58]:
+      - generic [ref=e59]: BTC-USD
+      - generic [ref=e60]: "--"
+    - generic [ref=e61]:
+      - generic [ref=e62]: ETH-USD
+      - generic [ref=e63]: "--"
+    - generic [ref=e64]:
+      - generic [ref=e65]: EURUSD=X
+      - generic [ref=e66]: "--"
+  - banner [ref=e67]:
+    - generic [ref=e69]:
+      - link "MyInvestView Logo MyInvestView" [ref=e70] [cursor=pointer]:
+        - /url: /
+        - img "MyInvestView Logo" [ref=e73]
+        - generic [ref=e74]: MyInvestView
+      - generic [ref=e75]:
+        - navigation "Navegación principal" [ref=e76]:
+          - link "Inicio" [ref=e77] [cursor=pointer]:
+            - /url: /
+          - link "Portfolio" [ref=e78] [cursor=pointer]:
+            - /url: /portfolio
+          - link "Lab" [ref=e79] [cursor=pointer]:
+            - /url: /lab
+          - link "Importar" [ref=e80] [cursor=pointer]:
+            - /url: /upload
+        - generic [ref=e82]:
+          - img [ref=e83]
+          - generic [ref=e86]: AI Protegida
+        - generic [ref=e87]:
+          - img [ref=e88]
+          - generic [ref=e91]: Insights en vivo
+        - group "Moneda base" [ref=e92]:
+          - button "EUR" [pressed] [ref=e93]
+          - button "USD" [ref=e94]
+  - main [ref=e95]:
+    - generic [ref=e97]:
+      - generic [ref=e98]:
+        - generic [ref=e100]:
+          - generic [ref=e101]:
+            - img [ref=e102]
+            - text: Control operativo en tiempo real
+          - heading "Convierte datos dispersos en decisiones de inversión con contexto IA" [level=1] [ref=e105]
+          - paragraph [ref=e106]: Consolida posiciones, rendimiento y señales de mercado en un solo panel para actuar con más confianza y menos fricción.
+        - generic [ref=e107]:
+          - link "Ver mi portfolio" [ref=e108] [cursor=pointer]:
+            - /url: /portfolio
+            - img [ref=e109]
+            - text: Ver mi portfolio
+          - link "Importar movimientos" [ref=e112] [cursor=pointer]:
+            - /url: /upload
+            - img [ref=e113]
+            - text: Importar movimientos
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - img [ref=e116]
+            - text: Rendimiento diario y acumulado
+          - generic [ref=e120]: Análisis IA + paneles locales
+      - generic [ref=e121]:
+        - generic [ref=e122]:
+          - generic [ref=e123]:
+            - paragraph [ref=e124]: Resumen ejecutivo
+            - generic [ref=e126]:
+              - heading "Empieza por capital, riesgo y foco" [level=2] [ref=e127]
+              - paragraph [ref=e128]: Primero vemos el tamaño real de la cartera y qué posición explica más comportamiento.
+          - generic [ref=e129]:
+            - paragraph [ref=e133]: Valor total
+            - paragraph [ref=e141]: P&L abierto
+            - paragraph [ref=e149]: P&L día
+            - paragraph [ref=e157]: P&L realizado
+        - complementary [ref=e163]:
+          - paragraph [ref=e164]: Prioridad de lectura
+          - generic [ref=e165]:
+            - generic [ref=e167]:
+              - generic [ref=e168]: "1"
+              - generic [ref=e169]:
+                - paragraph [ref=e170]: Capital en juego
+                - paragraph [ref=e171]: La primera posición concentra 0.0% del valor; úsala como referencia de riesgo inmediato.
+            - generic [ref=e173]:
+              - generic [ref=e174]: "2"
+              - generic [ref=e175]:
+                - paragraph [ref=e176]: Activo activo
+                - paragraph [ref=e177]: Selecciona una posición dominante para abrir el panel financiero local.
+            - generic [ref=e179]:
+              - generic [ref=e180]: "3"
+              - generic [ref=e181]:
+                - paragraph [ref=e182]: Contexto de sesión
+                - paragraph [ref=e183]: El mercado abre con sesgo favorable; confirma esa lectura con mercado, futuros y radar macro.
+        - generic [ref=e184]:
+          - generic [ref=e185]:
+            - paragraph [ref=e186]: Foco principal
+            - generic [ref=e188]:
+              - heading "Activa el análisis sobre la posición que más importa" [level=2] [ref=e189]
+              - paragraph [ref=e190]: Movemos el panel local antes del resto de inteligencia para que el activo seleccionado tenga prioridad.
+          - region "Panel financiero local" [ref=e192]:
+            - generic [ref=e193]:
+              - generic [ref=e195]:
+                - heading "Panel financiero local" [level=2] [ref=e196]
+                - generic [ref=e197]: Selecciona una posición para ver gráfico, fundamentales y contexto sin depender de widgets externos.
+              - paragraph [ref=e199]: Selecciona un ticker para cargar el panel local.
+        - generic [ref=e200]:
+          - generic [ref=e201]:
+            - paragraph [ref=e202]: Posiciones
+            - generic [ref=e204]:
+              - heading "Detalle de cartera" [level=2] [ref=e205]
+              - paragraph [ref=e206]: Después del activo priorizado, aquí queda el resto de posiciones para comparar y rotar el foco.
+          - generic [ref=e209]:
+            - generic [ref=e210]:
+              - generic [ref=e211]:
+                - heading "Participaciones" [level=2] [ref=e212]
+                - generic [ref=e213]: Solo posiciones abiertas con su precio promedio
+              - generic [ref=e214]:
+                - paragraph [ref=e215]: Total del fondo
+                - paragraph [ref=e216]: "+0"
+            - table [ref=e220]:
+              - rowgroup [ref=e221]:
+                - row "Símbolo ↓ Precio medio ↓ Precio actual ↓ Ganancia % ↓ P&L día % ↓ Valor de mercado ↓ Señales" [ref=e222]:
+                  - columnheader "Símbolo ↓" [ref=e223] [cursor=pointer]:
+                    - generic [ref=e224]:
+                      - text: Símbolo
+                      - generic [ref=e225]: ↓
+                  - columnheader "Precio medio ↓" [ref=e226] [cursor=pointer]:
+                    - generic [ref=e227]:
+                      - text: Precio medio
+                      - generic [ref=e228]: ↓
+                  - columnheader "Precio actual ↓" [ref=e229] [cursor=pointer]:
+                    - generic [ref=e230]:
+                      - text: Precio actual
+                      - generic [ref=e231]: ↓
+                  - columnheader "Ganancia % ↓" [ref=e232] [cursor=pointer]:
+                    - generic [ref=e233]:
+                      - text: Ganancia %
+                      - generic [ref=e234]: ↓
+                  - columnheader "P&L día % ↓" [ref=e235] [cursor=pointer]:
+                    - generic [ref=e236]:
+                      - text: P&L día %
+                      - generic [ref=e237]: ↓
+                  - columnheader "Valor de mercado ↓" [ref=e238] [cursor=pointer]:
+                    - generic [ref=e239]:
+                      - text: Valor de mercado
+                      - generic [ref=e240]: ↓
+                  - columnheader "Señales" [ref=e241]
+              - rowgroup [ref=e242]:
+                - row [ref=e243]:
+                  - cell [ref=e244]
+                  - cell [ref=e246]
+                  - cell [ref=e248]
+                  - cell [ref=e250]
+                  - cell [ref=e252]
+                  - cell [ref=e254]
+                  - cell [ref=e256]
+                - row [ref=e258]:
+                  - cell [ref=e259]
+                  - cell [ref=e261]
+                  - cell [ref=e263]
+                  - cell [ref=e265]
+                  - cell [ref=e267]
+                  - cell [ref=e269]
+                  - cell [ref=e271]
+                - row [ref=e273]:
+                  - cell [ref=e274]
+                  - cell [ref=e276]
+                  - cell [ref=e278]
+                  - cell [ref=e280]
+                  - cell [ref=e282]
+                  - cell [ref=e284]
+                  - cell [ref=e286]
+                - row [ref=e288]:
+                  - cell [ref=e289]
+                  - cell [ref=e291]
+                  - cell [ref=e293]
+                  - cell [ref=e295]
+                  - cell [ref=e297]
+                  - cell [ref=e299]
+                  - cell [ref=e301]
+                - row [ref=e303]:
+                  - cell [ref=e304]
+                  - cell [ref=e306]
+                  - cell [ref=e308]
+                  - cell [ref=e310]
+                  - cell [ref=e312]
+                  - cell [ref=e314]
+                  - cell [ref=e316]
+        - generic [ref=e318]:
+          - generic [ref=e319]:
+            - paragraph [ref=e320]: Mercado
+            - generic [ref=e322]:
+              - heading "Tono de sesión y drivers cruzados" [level=2] [ref=e323]
+              - paragraph [ref=e324]: Aquí agrupamos apertura, amplitud y macro para que el contexto global quede junto.
+          - generic [ref=e325]:
+            - generic [ref=e326]:
+              - generic [ref=e327]:
+                - generic [ref=e329]:
+                  - heading "Mercado hoy" [level=2] [ref=e330]
+                  - generic [ref=e331]: "Panel rápido inspirado en Investing.com: índices, activos macro y lectura táctica."
+                - generic [ref=e332]:
+                  - generic [ref=e333]:
+                    - generic [ref=e334]:
+                      - generic [ref=e335]:
+                        - generic [ref=e336]: Cobertura parcial
+                        - generic [ref=e337]: 0/8 activos
+                        - generic [ref=e338]: Sin señal dominante
+                      - paragraph [ref=e339]: Cobertura parcial. Seguimiento de sin driver macro dominante.
+                    - generic [ref=e340]:
+                      - generic [ref=e341]:
+                        - paragraph [ref=e342]: Cobertura
+                        - paragraph [ref=e343]: 0/8
+                        - paragraph [ref=e344]: Cobertura parcial
+                      - generic [ref=e345]:
+                        - paragraph [ref=e346]: Driver macro
+                        - paragraph [ref=e347]: Ninguno
+                        - paragraph [ref=e348]: Sin desplazamiento
+                      - generic [ref=e349]:
+                        - paragraph [ref=e350]: Señal inmediata
+                        - paragraph [ref=e351]: Neutral
+                        - paragraph [ref=e352]: Sin suficiente movimiento para una lectura táctica.
+                  - generic [ref=e353]:
+                    - generic [ref=e354]:
+                      - generic [ref=e355]:
+                        - paragraph [ref=e356]: Índices mundiales
+                        - generic [ref=e357]: 4 seguidos
+                      - generic [ref=e358]:
+                        - generic [ref=e359]:
+                          - generic [ref=e360]:
+                            - paragraph [ref=e361]: S&P 500
+                            - paragraph [ref=e362]: ^GSPC
+                          - generic [ref=e363]:
+                            - paragraph [ref=e364]: "--"
+                            - paragraph [ref=e365]: "--"
+                        - generic [ref=e366]:
+                          - generic [ref=e367]:
+                            - paragraph [ref=e368]: Nasdaq
+                            - paragraph [ref=e369]: ^IXIC
+                          - generic [ref=e370]:
+                            - paragraph [ref=e371]: "--"
+                            - paragraph [ref=e372]: "--"
+                        - generic [ref=e373]:
+                          - generic [ref=e374]:
+                            - paragraph [ref=e375]: Euro Stoxx 50
+                            - paragraph [ref=e376]: ^STOXX50E
+                          - generic [ref=e377]:
+                            - paragraph [ref=e378]: "--"
+                            - paragraph [ref=e379]: "--"
+                        - generic [ref=e380]:
+                          - generic [ref=e381]:
+                            - paragraph [ref=e382]: IBEX 35
+                            - paragraph [ref=e383]: ^IBEX
+                          - generic [ref=e384]:
+                            - paragraph [ref=e385]: "--"
+                            - paragraph [ref=e386]: "--"
+                    - generic [ref=e387]:
+                      - generic [ref=e388]:
+                        - paragraph [ref=e389]: Activos macro
+                        - generic [ref=e390]: 4 seguidos
+                      - generic [ref=e391]:
+                        - generic [ref=e392]:
+                          - generic [ref=e393]:
+                            - paragraph [ref=e394]: VIX
+                            - paragraph [ref=e395]: ^VIX
+                          - generic [ref=e396]:
+                            - paragraph [ref=e397]: "--"
+                            - paragraph [ref=e398]: "--"
+                        - generic [ref=e399]:
+                          - generic [ref=e400]:
+                            - paragraph [ref=e401]: Petróleo
+                            - paragraph [ref=e402]: CL=F
+                          - generic [ref=e403]:
+                            - paragraph [ref=e404]: "--"
+                            - paragraph [ref=e405]: "--"
+                        - generic [ref=e406]:
+                          - generic [ref=e407]:
+                            - paragraph [ref=e408]: Oro
+                            - paragraph [ref=e409]: GC=F
+                          - generic [ref=e410]:
+                            - paragraph [ref=e411]: "--"
+                            - paragraph [ref=e412]: "--"
+                        - generic [ref=e413]:
+                          - generic [ref=e414]:
+                            - paragraph [ref=e415]: EUR/USD
+                            - paragraph [ref=e416]: EURUSD=X
+                          - generic [ref=e417]:
+                            - paragraph [ref=e418]: "--"
+                            - paragraph [ref=e419]: "--"
+              - generic [ref=e420]:
+                - generic [ref=e421]:
+                  - generic [ref=e423]:
+                    - heading "Claves del día" [level=2] [ref=e424]
+                    - generic [ref=e425]: Señales rápidas para no mirar solo el ticker.
+                  - paragraph [ref=e428]: Sin suficiente cobertura de mercado para resumir el tono global ahora mismo.
+                - generic [ref=e429]:
+                  - generic [ref=e431]:
+                    - heading "Movers de tu cartera" [level=2] [ref=e432]
+                    - generic [ref=e433]: Lo que más se mueve hoy dentro de tus posiciones abiertas.
+                  - generic [ref=e435]:
+                    - generic [ref=e436]:
+                      - paragraph [ref=e437]: Mejores
+                      - paragraph [ref=e439]: Todavía no hay ganadores claros en cartera.
+                    - generic [ref=e440]:
+                      - paragraph [ref=e441]: Peores
+                      - paragraph [ref=e443]: Todavía no hay perdedores claros en cartera.
+            - generic [ref=e444]:
+              - generic [ref=e446]:
+                - heading "Radar de Futuros" [level=2] [ref=e447]:
+                  - generic [ref=e448]:
+                    - img [ref=e449]
+                    - text: Radar de Futuros
+                - generic [ref=e451]: Lectura rápida de índices, crudo, oro y bonos para anticipar el tono de apertura.
+              - generic [ref=e453]:
+                - generic [ref=e454]:
+                  - generic [ref=e455]:
+                    - generic [ref=e456]:
+                      - paragraph [ref=e457]: Futuros de índices
+                      - generic [ref=e458]: 4 activos
+                    - generic [ref=e459]:
+                      - generic [ref=e460]:
+                        - generic [ref=e461]:
+                          - paragraph [ref=e462]: S&P 500 Fut.
+                          - paragraph [ref=e463]: ES=F
+                        - generic [ref=e464]:
+                          - paragraph [ref=e465]: "--"
+                          - paragraph [ref=e466]: "--"
+                      - generic [ref=e467]:
+                        - generic [ref=e468]:
+                          - paragraph [ref=e469]: Nasdaq Fut.
+                          - paragraph [ref=e470]: NQ=F
+                        - generic [ref=e471]:
+                          - paragraph [ref=e472]: "--"
+                          - paragraph [ref=e473]: "--"
+                      - generic [ref=e474]:
+                        - generic [ref=e475]:
+                          - paragraph [ref=e476]: Dow Fut.
+                          - paragraph [ref=e477]: YM=F
+                        - generic [ref=e478]:
+                          - paragraph [ref=e479]: "--"
+                          - paragraph [ref=e480]: "--"
+                      - generic [ref=e481]:
+                        - generic [ref=e482]:
+                          - paragraph [ref=e483]: Russell Fut.
+                          - paragraph [ref=e484]: RTY=F
+                        - generic [ref=e485]:
+                          - paragraph [ref=e486]: "--"
+                          - paragraph [ref=e487]: "--"
+                  - generic [ref=e488]:
+                    - generic [ref=e489]:
+                      - paragraph [ref=e490]: Futuros macro
+                      - generic [ref=e491]: 3 activos
+                    - generic [ref=e492]:
+                      - generic [ref=e493]:
+                        - generic [ref=e494]:
+                          - paragraph [ref=e495]: Crudo WTI
+                          - paragraph [ref=e496]: CL=F
+                        - generic [ref=e497]:
+                          - paragraph [ref=e498]: "--"
+                          - paragraph [ref=e499]: "--"
+                      - generic [ref=e500]:
+                        - generic [ref=e501]:
+                          - paragraph [ref=e502]: Oro
+                          - paragraph [ref=e503]: GC=F
+                        - generic [ref=e504]:
+                          - paragraph [ref=e505]: "--"
+                          - paragraph [ref=e506]: "--"
+                      - generic [ref=e507]:
+                        - generic [ref=e508]:
+                          - paragraph [ref=e509]: T-Note 10Y
+                          - paragraph [ref=e510]: ZN=F
+                        - generic [ref=e511]:
+                          - paragraph [ref=e512]: "--"
+                          - paragraph [ref=e513]: "--"
+                - generic [ref=e514]:
+                  - generic [ref=e515]:
+                    - paragraph [ref=e516]: Lectura táctica
+                    - generic [ref=e517]: Sin señal
+                  - paragraph [ref=e519]: No hay suficiente movimiento en futuros para extraer una lectura táctica clara ahora mismo.
+        - generic [ref=e520]:
+          - generic [ref=e521]:
+            - paragraph [ref=e522]: Inteligencia
+            - generic [ref=e524]:
+              - heading "Señales y contexto complementario" [level=2] [ref=e525]
+              - paragraph [ref=e526]: La capa IA queda después del mercado para complementar la decisión, no para competir con lo crítico.
+          - generic [ref=e528]:
+            - generic [ref=e529]:
+              - generic [ref=e531]:
+                - generic [ref=e533]:
+                  - img [ref=e535]
+                  - generic [ref=e537]:
+                    - heading "Pulso de mercado" [level=3] [ref=e538]
+                    - generic [ref=e541]: LIVE ANALYSIS
+                - generic [ref=e542]:
+                  - generic [ref=e543]:
+                    - generic [ref=e544]:
+                      - generic [ref=e545]: Sentimiento Dominante
+                      - generic [ref=e546]: Neutral
+                    - generic [ref=e547]: 50/100
+                  - generic [ref=e551]:
+                    - generic [ref=e552]: Bajista
+                    - generic [ref=e553]: Neutral
+                    - generic [ref=e554]: Alcista
+                  - generic [ref=e555]:
+                    - img [ref=e556]
+                    - paragraph [ref=e558]: Cargando sentimiento general de mercado...
+              - generic [ref=e560]:
+                - generic [ref=e562]:
+                  - img [ref=e564]
+                  - generic [ref=e576]:
+                    - heading "Simulador de Escenarios" [level=3] [ref=e577]
+                    - generic [ref=e578]:
+                      - img [ref=e579]
+                      - generic [ref=e582]: MONTE CARLO AI
+                - generic [ref=e583]:
+                  - textbox "p.ej. ¿Subida de tipos +1%?" [ref=e584]
+                  - button "SIMULAR IMPACTO" [disabled]
+            - generic [ref=e585]:
+              - generic [ref=e587]:
+                - heading "Radar Macro Externo" [level=2] [ref=e588]
+                - generic [ref=e589]: Titulares recientes y contexto macro para seguir el mercado de un vistazo
+              - paragraph [ref=e591]: Cargando radar macro…
+            - generic [ref=e592]:
+              - generic [ref=e594]:
+                - heading "Cómo leer el panel" [level=2] [ref=e595]
+                - generic [ref=e596]: Qué te aporta cada bloque antes de entrar en un valor.
+              - generic [ref=e598]:
+                - generic [ref=e599]:
+                  - paragraph [ref=e600]: Pulso
+                  - paragraph [ref=e601]: Mide apetito por riesgo con índices amplios y volatilidad.
+                - generic [ref=e602]:
+                  - paragraph [ref=e603]: Radar macro
+                  - paragraph [ref=e604]: Te da titulares recientes para contexto sectorial y global.
+                - generic [ref=e605]:
+                  - paragraph [ref=e606]: Escenarios
+                  - paragraph [ref=e607]: Sirve para traducir movimiento macro en impacto sobre tu cartera.
+          - generic [ref=e610]:
+            - generic [ref=e611]:
+              - generic [ref=e612]:
+                - paragraph [ref=e613]: Capa de Inteligencia de Skills
+                - heading "Señales accionables para cartera y mercado" [level=2] [ref=e614]
+              - generic [ref=e615]:
+                - img [ref=e616]
+                - text: Actualizando fuentes
+            - generic [ref=e621]:
+              - generic [ref=e622]:
+                - generic [ref=e623]:
+                  - generic [ref=e624]:
+                    - heading "Yahoo Finance Pulse" [level=2] [ref=e625]:
+                      - generic [ref=e626]:
+                        - img [ref=e627]
+                        - text: Yahoo Finance Pulse
+                    - generic [ref=e631]: Cotizaciones en vivo para priorizar contexto de mercado
+                  - button "Actualizar" [ref=e632]
+                - generic [ref=e633]:
+                  - generic [ref=e634]:
+                    - generic [ref=e635]:
+                      - generic [ref=e636]: Neutral
+                      - generic [ref=e637]: Acción HOLD
+                      - generic [ref=e638]: Foco NVDA
+                    - paragraph [ref=e639]: El pulso Yahoo resume valoración, consenso y dividendo para el ticker activo. Úsalo como filtro previo antes de profundizar en la señal insider.
+                  - generic [ref=e640]:
+                    - generic [ref=e641]:
+                      - generic [ref=e642]: SPY
+                      - generic [ref=e643]:
+                        - generic [ref=e644]: "--"
+                        - generic [ref=e645]: Sin cambio
+                    - generic [ref=e646]:
+                      - generic [ref=e647]: NVDA
+                      - generic [ref=e648]:
+                        - generic [ref=e649]: "--"
+                        - generic [ref=e650]: Sin cambio
+                    - generic [ref=e651]:
+                      - generic [ref=e652]: BTC-USD
+                      - generic [ref=e653]:
+                        - generic [ref=e654]: "--"
+                        - generic [ref=e655]: Sin cambio
+                  - generic [ref=e656]:
+                    - generic [ref=e657]:
+                      - paragraph [ref=e658]: "Ticker en foco: NVDA"
+                      - generic [ref=e659]: Neutral
+                    - generic [ref=e660]:
+                      - generic [ref=e661]:
+                        - paragraph [ref=e662]: PE
+                        - paragraph [ref=e663]: N/D
+                      - generic [ref=e664]:
+                        - paragraph [ref=e665]: P/B
+                        - paragraph [ref=e666]: N/D
+                      - generic [ref=e667]:
+                        - paragraph [ref=e668]: Rating
+                        - paragraph [ref=e669]: N/D
+                      - generic [ref=e670]:
+                        - paragraph [ref=e671]: Yield
+                        - paragraph [ref=e672]: N/D
+                    - paragraph [ref=e673]: Semáforo = insiders recientes + rating de consenso + valoración relativa (PE/PB).
+                    - generic [ref=e674]:
+                      - generic [ref=e675]:
+                        - paragraph [ref=e676]: Medidor de señal
+                        - generic [ref=e677]: "Acción: HOLD"
+                      - generic [ref=e684]:
+                        - generic [ref=e685]: SELL
+                        - generic [ref=e686]: HOLD
+                        - generic [ref=e687]: BUY
+                      - paragraph [ref=e688]: Score 0/3 · Confianza 0%
+              - generic [ref=e689]:
+                - generic [ref=e690]:
+                  - generic [ref=e691]:
+                    - heading "OpenInsider Radar" [level=2] [ref=e692]:
+                      - generic [ref=e693]:
+                        - img [ref=e694]
+                        - text: OpenInsider Radar
+                    - generic [ref=e701]: Señales automáticas para tus posiciones y una cesta general, sin seleccionar nada
+                  - button "Actualizar" [ref=e702]
+                - generic [ref=e703]:
+                  - generic [ref=e704]:
+                    - generic [ref=e705]:
+                      - generic [ref=e706]: 0 cartera
+                      - generic [ref=e707]: 3 generales
+                      - generic [ref=e708]: 0 señales activas
+                      - generic [ref=e709]: Prioridad NVDA
+                    - paragraph [ref=e710]: El radar mezcla cartera y cesta general para no depender de selección manual. La señal prioritaria sube arriba y el detalle queda debajo.
+                  - generic [ref=e711]:
+                    - generic [ref=e712]:
+                      - paragraph [ref=e713]: Tickers cartera
+                      - paragraph [ref=e714]: "0"
+                      - paragraph [ref=e715]: Compatibles con OpenInsider
+                    - generic [ref=e716]:
+                      - paragraph [ref=e717]: Tickers generales
+                      - paragraph [ref=e718]: "3"
+                      - paragraph [ref=e719]: Cesta base para no quedarse ciego
+                    - generic [ref=e720]:
+                      - paragraph [ref=e721]: Señales activas
+                      - paragraph [ref=e722]: "0"
+                      - paragraph [ref=e723]: Compra o venta con más convicción
+                  - generic [ref=e724]:
+                    - button "7d" [ref=e725]
+                    - button "30d" [ref=e726]
+                    - button "90d" [ref=e727]
+                  - generic [ref=e728]:
+                    - button "NVDA General Neutral C 0 V 0 0 ops" [ref=e729]:
+                      - generic [ref=e730]:
+                        - generic [ref=e731]:
+                          - generic [ref=e732]: NVDA
+                          - generic [ref=e733]: General
+                        - generic [ref=e734]: Neutral
+                      - generic [ref=e735]:
+                        - generic [ref=e736]: C 0
+                        - generic [ref=e737]: V 0
+                        - generic [ref=e738]: 0 ops
+                    - button "MSFT General Neutral C 0 V 0 0 ops" [ref=e739]:
+                      - generic [ref=e740]:
+                        - generic [ref=e741]:
+                          - generic [ref=e742]: MSFT
+                          - generic [ref=e743]: General
+                        - generic [ref=e744]: Neutral
+                      - generic [ref=e745]:
+                        - generic [ref=e746]: C 0
+                        - generic [ref=e747]: V 0
+                        - generic [ref=e748]: 0 ops
+                    - button "AMZN General Neutral C 0 V 0 0 ops" [ref=e749]:
+                      - generic [ref=e750]:
+                        - generic [ref=e751]:
+                          - generic [ref=e752]: AMZN
+                          - generic [ref=e753]: General
+                        - generic [ref=e754]: Neutral
+                      - generic [ref=e755]:
+                        - generic [ref=e756]: C 0
+                        - generic [ref=e757]: V 0
+                        - generic [ref=e758]: 0 ops
+                  - generic [ref=e759]:
+                    - button "NVDA" [ref=e760]
+                    - button "MSFT" [ref=e761]
+                    - button "AMZN" [ref=e762]
+                  - generic [ref=e763]:
+                    - generic [ref=e764]: Ticker personalizado
+                    - textbox "Ticker personalizado" [ref=e766]:
+                      - /placeholder: Ticker a analizar (ej. TSLA)…
+                    - button "Agregar" [ref=e767]:
+                      - img [ref=e768]
+                      - text: Agregar
+                  - generic [ref=e769]:
+                    - generic [ref=e770]:
+                      - generic [ref=e771]:
+                        - paragraph [ref=e772]: Compras
+                        - paragraph [ref=e773]: "0"
+                        - paragraph [ref=e774]: Operaciones de compra
+                      - generic [ref=e775]:
+                        - paragraph [ref=e776]: Ventas
+                        - paragraph [ref=e777]: "0"
+                        - paragraph [ref=e778]: Operaciones de venta
+                      - generic [ref=e779]:
+                        - paragraph [ref=e780]: Neto
+                        - paragraph [ref=e781]: 0,00 US$
+                        - paragraph [ref=e782]: Ventana actual 30d
+                    - paragraph [ref=e783]: Sin datos insider para NVDA.
+                  - link "Ejecutar flujo insider" [ref=e784] [cursor=pointer]:
+                    - /url: /ai-agents
+                    - text: Ejecutar flujo insider
+                    - img [ref=e785]
+      - button "Abrir chat de Gemini" [ref=e787]:
+        - img [ref=e788]
+        - text: Consultar IA
+  - contentinfo [ref=e791]:
+    - generic [ref=e792]:
+      - generic [ref=e793]:
+        - generic [ref=e794]:
+          - link "MyInvest View" [ref=e795] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e796]: MyInvest
+            - generic [ref=e797]: View
+          - paragraph [ref=e798]: Convierte datos dispersos en decisiones de inversion con contexto IA y visualizacion financiera de nivel profesional.
+        - generic [ref=e799]:
+          - heading "Plataforma" [level=3] [ref=e800]
+          - list [ref=e801]:
+            - listitem [ref=e802]:
+              - link "Inicio" [ref=e803] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e804]:
+              - link "Portfolio" [ref=e805] [cursor=pointer]:
+                - /url: /portfolio
+            - listitem [ref=e806]:
+              - link "Lab" [ref=e807] [cursor=pointer]:
+                - /url: /lab
+            - listitem [ref=e808]:
+              - link "Agentes IA" [ref=e809] [cursor=pointer]:
+                - /url: /ai-agents
+        - generic [ref=e810]:
+          - heading "Legal" [level=3] [ref=e811]
+          - list [ref=e812]:
+            - listitem [ref=e813]:
+              - link "Terminos de Servicio" [ref=e814] [cursor=pointer]:
+                - /url: /legal/terminos
+            - listitem [ref=e815]:
+              - link "Politica de Privacidad" [ref=e816] [cursor=pointer]:
+                - /url: /legal/privacidad
+            - listitem [ref=e817]:
+              - link "Aviso de riesgo" [ref=e818] [cursor=pointer]:
+                - /url: /legal/riesgo
+      - generic [ref=e819]:
+        - paragraph [ref=e820]: © 2026 MyInvestView. Todos los derechos reservados.
+        - paragraph [ref=e821]: "Estado de datos: Actualizado 15 mar 2026"

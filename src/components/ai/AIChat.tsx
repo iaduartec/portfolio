@@ -43,17 +43,17 @@ export function AIChat() {
       <button
         type="button"
         onClick={() => setIsMinimized(false)}
-        className="fixed bottom-4 right-4 z-50 flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-5 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(41,98,255,0.2)] backdrop-blur-xl transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 sm:bottom-6 sm:right-6"
+        className="fixed bottom-3 right-3 z-50 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/12 text-white shadow-[0_0_20px_rgba(41,98,255,0.2)] backdrop-blur-xl transition-transform duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65 sm:bottom-6 sm:right-6 sm:h-auto sm:w-auto sm:gap-3 sm:rounded-2xl sm:px-5 sm:py-3"
         aria-label="Abrir chat de Gemini"
       >
-        <Sparkles size={18} className="text-primary animate-pulse" aria-hidden="true" />
-        Consultar IA
+        <Sparkles size={16} className="animate-pulse text-primary" aria-hidden="true" />
+        <span className="hidden text-sm font-bold sm:inline">Consultar IA</span>
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex h-[600px] w-[92vw] max-w-[400px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-surface/80 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 sm:bottom-6 sm:right-6 sm:w-[400px]">
+    <div className="fixed bottom-3 right-3 z-50 flex h-[78vh] w-[calc(100vw-1.5rem)] max-w-[400px] flex-col overflow-hidden rounded-3xl border border-white/10 bg-surface/80 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px]">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-white/5 bg-white/5 p-4">
         <div className="flex items-center gap-3">
