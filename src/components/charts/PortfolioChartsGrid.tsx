@@ -48,6 +48,7 @@ export function PortfolioChartsGrid() {
                                     key={ticker}
                                     ticker={ticker}
                                     name={holding?.name}
+                                    account={holding?.account}
                                 />
                             );
                         })}
@@ -69,6 +70,7 @@ export function PortfolioChartsGrid() {
                                     key={ticker}
                                     ticker={ticker}
                                     name={holding?.name}
+                                    account={holding?.account}
                                 />
                             );
                         })}

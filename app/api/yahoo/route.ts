@@ -84,6 +84,31 @@ const quoteFields = (row: Record<string, unknown>) => {
   };
 };
 
+const newsFields = (row: Record<string, unknown>) => {
+  const title = String(row.title ?? "").trim();
+  const clickThroughUrl =
+    row.clickThroughUrl && typeof row.clickThroughUrl === "object"
+      ? String((row.clickThroughUrl as { url?: unknown }).url ?? "")
+      : "";
+  const link = String(row.link ?? clickThroughUrl ?? "").trim();
+  const publishedAtRaw = toNumber(row.providerPublishTime);
+  const summary = String(row.summary ?? "").trim();
+  const relatedTickers = Array.isArray(row.relatedTickers)
+    ? row.relatedTickers
+        .map((ticker) => String(ticker ?? "").trim())
+        .filter(Boolean)
+    : [];
+
+  return {
+    title,
+    publisher: String(row.publisher ?? "").trim(),
+    link,
+    publishedAt: publishedAtRaw ? new Date(publishedAtRaw * 1000).toISOString() : undefined,
+    summary,
+    relatedTickers,
+  };
+};
+
 const quoteSummaryModules = async (symbol: string, modules: string[]) => {
   const path = `/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.join(",")}`;
   try {
@@ -177,6 +202,19 @@ export async function GET(request: Request) {
         type: String(row.quoteType ?? ""),
       }));
       return NextResponse.json({ action, query, items, source: "yahoo-finance" });
+    }
+
+    if (action === "news") {
+      const newsQuery = query || symbol || normalizedSymbols[0] || "";
+      if (!newsQuery) return NextResponse.json({ action, query: "", items: [] });
+      const json = await fetchYahoo(
+        `/v1/finance/search?q=${encodeURIComponent(newsQuery)}&quotesCount=0&newsCount=6`
+      );
+      const news = Array.isArray(json?.news) ? json.news : [];
+      const items = news
+        .map((row: unknown) => newsFields((row ?? {}) as Record<string, unknown>))
+        .filter((row: ReturnType<typeof newsFields>) => row.title && row.link);
+      return NextResponse.json({ action, query: newsQuery, items, source: "yahoo-finance" });
     }
 
     if (action === "compare" || action === "price" || action === "quote") {

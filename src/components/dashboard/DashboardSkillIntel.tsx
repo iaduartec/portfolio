@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Radar, CandlestickChart, ArrowRight, RefreshCw, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import type { MarketSearchResult } from "@/types/marketSearch";
 
 type Quote = {
   symbol: string;
@@ -77,6 +78,14 @@ const normalizeInsiderTicker = (ticker: string) =>
     .replace(/[^A-Z0-9-]/g, "");
 
 const isSupportedInsiderTicker = (ticker: string) => /^[A-Z]{1,5}$/.test(normalizeInsiderTicker(ticker));
+
+const normalizeSearchValue = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/\s+/g, " ")
+    .trim();
 
 const changeTone = (value?: number) => {
   if (value === undefined || !Number.isFinite(value)) return "default";
@@ -167,6 +176,10 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
   const [insiderWindowDays, setInsiderWindowDays] = useState<7 | 30 | 90>(30);
   const [customTickerInput, setCustomTickerInput] = useState("");
   const [customTickers, setCustomTickers] = useState<string[]>([]);
+  const [insiderSuggestions, setInsiderSuggestions] = useState<MarketSearchResult[]>([]);
+  const [isSuggestingInsider, setIsSuggestingInsider] = useState(false);
+  const [showInsiderSuggestions, setShowInsiderSuggestions] = useState(false);
+  const [activeInsiderSuggestionIndex, setActiveInsiderSuggestionIndex] = useState(0);
   const [yahooFundamentals, setYahooFundamentals] = useState<YahooFundamentals | null>(null);
   const [yahooRatings, setYahooRatings] = useState<YahooRatings | null>(null);
   const [yahooDividends, setYahooDividends] = useState<YahooDividends | null>(null);
@@ -176,6 +189,8 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
   const [baseError, setBaseError] = useState<string | null>(null);
   const [insiderError, setInsiderError] = useState<string | null>(null);
   const [focusError, setFocusError] = useState<string | null>(null);
+  const hideInsiderSuggestionsTimeoutRef = useRef<number | null>(null);
+  const deferredCustomTickerInput = useDeferredValue(customTickerInput);
 
   const supportedPortfolioTickers = useMemo(
     () =>
@@ -203,6 +218,61 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       setSelectedInsiderTicker(insiderTickers[0]);
     }
   }, [insiderTickers, selectedInsiderTicker]);
+
+  useEffect(() => {
+    const query = normalizeSearchValue(deferredCustomTickerInput);
+    if (!query) {
+      setInsiderSuggestions([]);
+      setIsSuggestingInsider(false);
+      setActiveInsiderSuggestionIndex(0);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsSuggestingInsider(true);
+        const params = new URLSearchParams({ query });
+        const response = await fetch(`/api/market/search?${params.toString()}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (!response.ok) {
+          throw new Error("insider-search-failed");
+        }
+        const payload = (await response.json()) as { results?: MarketSearchResult[] };
+        const nextSuggestions = Array.isArray(payload.results)
+          ? payload.results.filter((result) => isSupportedInsiderTicker(result.symbol)).slice(0, 6)
+          : [];
+        setInsiderSuggestions(nextSuggestions);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("[DashboardSkillIntel] OpenInsider autocomplete failed:", error);
+        setInsiderSuggestions([]);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSuggestingInsider(false);
+        }
+      }
+    }, 140);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+    };
+  }, [deferredCustomTickerInput]);
+
+  useEffect(() => {
+    setActiveInsiderSuggestionIndex(0);
+  }, [insiderSuggestions]);
+
+  useEffect(() => {
+    return () => {
+      if (hideInsiderSuggestionsTimeoutRef.current !== null) {
+        window.clearTimeout(hideInsiderSuggestionsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const loadBaseData = useCallback(async () => {
     setLoading(true);
@@ -441,13 +511,67 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     };
   }, [signal.score]);
 
-  const addCustomTicker = (event: FormEvent) => {
-    event.preventDefault();
-    const normalized = normalizeInsiderTicker(customTickerInput);
+  const applyInsiderTicker = useCallback((ticker: string) => {
+    const normalized = normalizeInsiderTicker(ticker);
     if (!/^[A-Z][A-Z0-9-]{0,14}$/.test(normalized)) return;
     setCustomTickers((prev) => (prev.includes(normalized) ? prev : [...prev, normalized]));
     setSelectedInsiderTicker(normalized);
     setCustomTickerInput("");
+    setInsiderSuggestions([]);
+    setShowInsiderSuggestions(false);
+    setActiveInsiderSuggestionIndex(0);
+  }, []);
+
+  const applyInsiderSuggestion = useCallback(
+    (suggestion: MarketSearchResult) => {
+      applyInsiderTicker(suggestion.symbol);
+    },
+    [applyInsiderTicker]
+  );
+
+  const handleInsiderSuggestionKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (!showInsiderSuggestions || insiderSuggestions.length === 0) {
+      if (event.key === "Escape") {
+        setShowInsiderSuggestions(false);
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveInsiderSuggestionIndex((current) => (current + 1) % insiderSuggestions.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveInsiderSuggestionIndex((current) => (current - 1 + insiderSuggestions.length) % insiderSuggestions.length);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setShowInsiderSuggestions(false);
+      setActiveInsiderSuggestionIndex(0);
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const activeSuggestion = insiderSuggestions[activeInsiderSuggestionIndex];
+      if (!activeSuggestion) return;
+      event.preventDefault();
+      applyInsiderSuggestion(activeSuggestion);
+    }
+  };
+
+  const addCustomTicker = (event: FormEvent) => {
+    event.preventDefault();
+    const activeSuggestion = showInsiderSuggestions ? insiderSuggestions[activeInsiderSuggestionIndex] : undefined;
+    if (activeSuggestion) {
+      applyInsiderSuggestion(activeSuggestion);
+      return;
+    }
+    applyInsiderTicker(customTickerInput);
   };
 
   return (
@@ -645,15 +769,62 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               <label htmlFor="insider-custom-ticker" className="sr-only">
                 Ticker personalizado
               </label>
-              <input
-                id="insider-custom-ticker"
-                name="insider_ticker"
-                autoComplete="off"
-                value={customTickerInput}
-                onChange={(event) => setCustomTickerInput(event.target.value)}
-                placeholder="Ticker a analizar (ej. TSLA)…"
-                className="h-9 w-full rounded-lg border border-border/80 bg-surface-muted/30 px-3 text-xs text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
-              />
+              <div className="relative flex-1">
+                <input
+                  id="insider-custom-ticker"
+                  name="insider_ticker"
+                  autoComplete="off"
+                  value={customTickerInput}
+                  onChange={(event) => {
+                    setCustomTickerInput(event.target.value);
+                    setShowInsiderSuggestions(true);
+                  }}
+                  onFocus={() => {
+                    if (hideInsiderSuggestionsTimeoutRef.current !== null) {
+                      window.clearTimeout(hideInsiderSuggestionsTimeoutRef.current);
+                    }
+                    setShowInsiderSuggestions(true);
+                  }}
+                  onBlur={() => {
+                    hideInsiderSuggestionsTimeoutRef.current = window.setTimeout(() => {
+                      setShowInsiderSuggestions(false);
+                    }, 120);
+                  }}
+                  onKeyDown={handleInsiderSuggestionKeyDown}
+                  placeholder="Ticker a analizar (ej. TSLA)…"
+                  className="h-9 w-full rounded-lg border border-border/80 bg-surface-muted/30 px-3 text-xs text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
+                />
+                {showInsiderSuggestions && (insiderSuggestions.length > 0 || isSuggestingInsider) && (
+                  <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-20 overflow-hidden rounded-xl border border-border/80 bg-surface/95 shadow-xl backdrop-blur-xl">
+                    {isSuggestingInsider && insiderSuggestions.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-muted">Buscando tickers…</p>
+                    ) : (
+                      insiderSuggestions.map((suggestion, index) => {
+                        const isActive = index === activeInsiderSuggestionIndex;
+                        return (
+                          <button
+                            key={`${suggestion.market}:${suggestion.symbol}`}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => applyInsiderSuggestion(suggestion)}
+                            className={`flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors ${
+                              isActive ? "bg-accent/18 text-white" : "text-text hover:bg-surface-muted/50"
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-xs font-semibold">{suggestion.symbol}</span>
+                              <span className="block truncate text-[11px] text-muted">{suggestion.name}</span>
+                            </span>
+                            <span className="shrink-0 text-[10px] font-medium uppercase tracking-[0.08em] text-muted">
+                              {suggestion.market}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 className="inline-flex h-9 items-center gap-1 rounded-lg border border-border/80 bg-surface-muted/40 px-3 text-xs text-text transition-colors duration-200 hover:border-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"

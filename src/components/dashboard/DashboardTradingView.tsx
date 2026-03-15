@@ -217,6 +217,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
             <PortfolioValueChart
               ticker={selectedHolding.ticker}
               name={selectedHolding.name || selectedHolding.ticker}
+              account={selectedHolding.account}
               showProjectionInsights
               chartHeight={460}
               range="1y"

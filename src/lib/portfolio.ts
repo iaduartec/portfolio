@@ -10,6 +10,15 @@ export type PriceSnapshot = {
   dayChangePercent?: number;
 };
 
+export type PositionAuditSnapshot = {
+  ticker: string;
+  account?: Transaction["account"];
+  currency: CurrencyCode;
+  openQuantity: number;
+  averageEntryPriceRaw: number;
+  totalCostRaw: number;
+};
+
 type PositionLot = {
   quantity: number;
   costPerShare: number;
@@ -60,6 +69,7 @@ const getTransactionFeeAmount = (tx: Transaction) => {
 };
 
 const normalizeZero = (value: number) => (Math.abs(value) < 1e-6 ? 0 : value);
+const quantityEpsilon = 1e-6;
 
 export const computeCashBalancesByCurrency = (
   transactions: Transaction[],
@@ -115,13 +125,76 @@ export const computeCashBalanceBase = (
   return normalizeZero(total);
 };
 
+export const computePositionAuditSnapshot = (
+  transactions: Transaction[],
+  ticker: string,
+  account?: Transaction["account"],
+): PositionAuditSnapshot | null => {
+  const normalizedTicker = ticker.trim().toUpperCase();
+  if (!normalizedTicker) return null;
+
+  const relevant = [...transactions]
+    .filter((tx) => tx.ticker?.trim().toUpperCase() === normalizedTicker)
+    .filter((tx) => (account ? tx.account === account : true))
+    .sort((a, b) => {
+      const timeA = Date.parse(a.date);
+      const timeB = Date.parse(b.date);
+      if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+        return timeA - timeB;
+      }
+      return 0;
+    });
+
+  if (relevant.length === 0) return null;
+
+  const currency = relevant.find((tx) => tx.currency)?.currency ?? inferCurrencyFromTicker(normalizedTicker);
+  let openQuantity = 0;
+  let totalCostRaw = 0;
+
+  for (const tx of relevant) {
+    const fee = Math.abs(tx.fee ?? 0);
+
+    if (tx.type === "BUY") {
+      openQuantity += tx.quantity;
+      totalCostRaw += tx.quantity * tx.price + fee;
+      continue;
+    }
+
+    if (tx.type === "SELL") {
+      if (tx.quantity > openQuantity + quantityEpsilon) {
+        throw new Error(`Sell quantity exceeds open position for ${normalizedTicker}`);
+      }
+      if (openQuantity > quantityEpsilon) {
+        const averageCost = totalCostRaw / openQuantity;
+        totalCostRaw -= averageCost * tx.quantity;
+        openQuantity -= tx.quantity;
+      }
+      continue;
+    }
+
+    if (tx.type === "FEE" && openQuantity > quantityEpsilon) {
+      totalCostRaw += fee;
+    }
+  }
+
+  if (openQuantity <= quantityEpsilon) return null;
+
+  return {
+    ticker: normalizedTicker,
+    account,
+    currency,
+    openQuantity: normalizeZero(openQuantity),
+    averageEntryPriceRaw: totalCostRaw / openQuantity,
+    totalCostRaw: normalizeZero(totalCostRaw),
+  };
+};
+
 export const computeHoldings = (
   transactions: Transaction[],
   priceMap: Record<string, PriceSnapshot>,
   fxRate: number,
   baseCurrency: CurrencyCode
 ): Holding[] => {
-  const quantityEpsilon = 1e-6;
   const positions = new Map<
     string,
     {

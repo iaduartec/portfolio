@@ -13,17 +13,21 @@ import {
   type Time,
 } from "lightweight-charts";
 import { Card } from "@/components/ui/card";
+import { usePortfolioData } from "@/hooks/usePortfolioData";
 import { mapChartMarkers, mapChartSeriesData } from "@/lib/lightweightChartTime";
+import { computePositionAuditSnapshot } from "@/lib/portfolio";
 import {
   buildAnalysis,
   type CandlePoint,
   type Pattern,
   type VolumePoint,
 } from "@/lib/technical-analysis";
+import type { InvestmentAccount } from "@/types/transactions";
 
 interface PortfolioValueChartProps {
   ticker: string;
   name?: string;
+  account?: InvestmentAccount;
   showProjectionInsights?: boolean;
   chartHeight?: number;
   range?: "3mo" | "6mo" | "1y" | "2y" | "3y" | "5y" | "10y" | "ytd" | "max";
@@ -43,10 +47,19 @@ type AiPattern = {
 
 type AiAuditResult = {
   patterns: AiPattern[];
+  macroContext: string;
+  portfolioContext: string;
+  newsImpact: string;
   summary: string;
   entry?: string;
   target?: string;
   stopLoss?: string;
+  news?: {
+    title: string;
+    publisher: string;
+    link: string;
+    publishedAt?: string;
+  }[];
 };
 
 type PatternSignal = {
@@ -137,10 +150,12 @@ const calculateRiskReward = (entry: number, target: number, stopLoss: number) =>
 export function PortfolioValueChart({
   ticker,
   name,
+  account,
   showProjectionInsights = false,
   chartHeight = 500,
   range = "1y",
 }: PortfolioValueChartProps) {
+  const { holdings, transactions } = usePortfolioData();
   const calibrationMode = process.env.NEXT_PUBLIC_SIGNAL_CALIBRATION_MODE ?? "full";
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>({
@@ -152,6 +167,24 @@ export function PortfolioValueChart({
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const safeChartHeight = clamp(Math.round(chartHeight), 360, 980);
+  const normalizedTicker = ticker.trim().toUpperCase();
+
+  const portfolioHolding = useMemo(() => {
+    return holdings.find((holding) => {
+      const sameTicker = holding.ticker.trim().toUpperCase() === normalizedTicker;
+      const sameAccount = account ? holding.account === account : true;
+      return sameTicker && sameAccount;
+    }) ?? null;
+  }, [account, holdings, normalizedTicker]);
+
+  const positionAuditSnapshot = useMemo(() => {
+    try {
+      return computePositionAuditSnapshot(transactions, ticker, account);
+    } catch (error) {
+      console.error("Failed to build position audit snapshot:", error);
+      return null;
+    }
+  }, [account, ticker, transactions]);
 
   useEffect(() => {
     let ignore = false;
@@ -189,7 +222,22 @@ export function PortfolioValueChart({
       const res = await fetch("/api/market/analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ candles: liveSeries.candles, symbol: ticker }),
+        body: JSON.stringify({
+          candles: liveSeries.candles,
+          symbol: ticker,
+          name,
+          positionContext: positionAuditSnapshot
+            ? {
+                inPortfolio: true,
+                account: account ?? portfolioHolding?.account,
+                quantity: positionAuditSnapshot.openQuantity,
+                averageEntryPrice: positionAuditSnapshot.averageEntryPriceRaw,
+                currentPrice: liveSeries.candles[liveSeries.candles.length - 1]?.close,
+                pnlPercent: portfolioHolding?.pnlPercent,
+                currency: positionAuditSnapshot.currency,
+              }
+            : { inPortfolio: false },
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -718,9 +766,45 @@ export function PortfolioValueChart({
             </div>
           ) : aiResult ? (
             <div className="space-y-4">
+              <div className="grid gap-2 md:grid-cols-3">
+                <div className="rounded border border-border/50 bg-surface/40 p-3">
+                  <p className="mb-1 text-[8px] uppercase tracking-widest text-muted">Contexto geo/macro</p>
+                  <p className="text-[10px] leading-relaxed text-text/85">{aiResult.macroContext}</p>
+                </div>
+                <div className="rounded border border-border/50 bg-surface/40 p-3">
+                  <p className="mb-1 text-[8px] uppercase tracking-widest text-muted">Tu cartera</p>
+                  <p className="text-[10px] leading-relaxed text-text/85">{aiResult.portfolioContext}</p>
+                </div>
+                <div className="rounded border border-border/50 bg-surface/40 p-3">
+                  <p className="mb-1 text-[8px] uppercase tracking-widest text-muted">Noticias</p>
+                  <p className="text-[10px] leading-relaxed text-text/85">{aiResult.newsImpact}</p>
+                </div>
+              </div>
               <p className="rounded border border-border/50 bg-surface/50 p-3 text-[11px] italic leading-relaxed text-text/80">
                 &quot;{aiResult.summary}&quot;
               </p>
+              {Array.isArray(aiResult.news) && aiResult.news.length > 0 && (
+                <div className="rounded border border-border/50 bg-surface/40 p-3">
+                  <p className="mb-2 text-[8px] uppercase tracking-widest text-muted">Titulares recientes</p>
+                  <div className="space-y-2">
+                    {aiResult.news.map((item) => (
+                      <a
+                        key={`${item.link}-${item.title}`}
+                        href={item.link}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block rounded border border-border/50 bg-surface/40 px-2 py-1.5 transition-colors hover:border-accent/50"
+                      >
+                        <p className="text-[10px] font-medium text-text">{item.title}</p>
+                        <p className="mt-0.5 text-[9px] text-muted">
+                          {item.publisher}
+                          {item.publishedAt ? ` · ${new Date(item.publishedAt).toLocaleDateString("es-ES")}` : ""}
+                        </p>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <div className="rounded border border-success/10 bg-success/5 p-2">
                   <p className="mb-0.5 text-[8px] uppercase tracking-tighter text-success/60">Entrada</p>
