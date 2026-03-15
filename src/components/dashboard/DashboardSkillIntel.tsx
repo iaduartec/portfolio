@@ -56,6 +56,7 @@ type DashboardSkillIntelProps = {
 };
 
 const WATCHLIST = ["SPY", "NVDA", "BTC-USD"];
+const DEFAULT_INSIDER_TICKERS = ["NVDA", "MSFT", "AMZN"];
 const SIGNAL_MIN = -3;
 const SIGNAL_MAX = 3;
 
@@ -66,6 +67,8 @@ const normalizeInsiderTicker = (ticker: string) =>
     .replace(/^[A-Z]+:/, "")
     .split(".")[0]
     .replace(/[^A-Z0-9-]/g, "");
+
+const isSupportedInsiderTicker = (ticker: string) => /^[A-Z]{1,5}$/.test(normalizeInsiderTicker(ticker));
 
 const changeTone = (value?: number) => {
   if (value === undefined || !Number.isFinite(value)) return "default";
@@ -96,15 +99,26 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
   const [insiderError, setInsiderError] = useState<string | null>(null);
   const [focusError, setFocusError] = useState<string | null>(null);
 
+  const supportedPortfolioTickers = useMemo(
+    () =>
+      portfolioTickers
+        .filter(isSupportedInsiderTicker)
+        .map(normalizeInsiderTicker),
+    [portfolioTickers]
+  );
+
   const insiderTickers = useMemo(() => {
     const merged = Array.from(
       new Set([
-        ...portfolioTickers.map(normalizeInsiderTicker),
+        ...supportedPortfolioTickers,
         ...customTickers.map(normalizeInsiderTicker),
       ].filter((ticker) => /^[A-Z][A-Z0-9-]{0,14}$/.test(ticker)))
     ).slice(0, 8);
-    return merged.length > 0 ? merged : ["NVDA"];
-  }, [portfolioTickers, customTickers]);
+    return merged.length > 0 ? merged : DEFAULT_INSIDER_TICKERS;
+  }, [supportedPortfolioTickers, customTickers]);
+
+  const isUsingFallbackInsiderTickers =
+    customTickers.length === 0 && supportedPortfolioTickers.length === 0;
 
   useEffect(() => {
     if (!insiderTickers.includes(selectedInsiderTicker)) {
@@ -123,9 +137,13 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
         throw new Error("No se pudieron cargar cotizaciones de Yahoo.");
       }
       const quotesData = (await quotesRes.json()) as { data?: Quote[] };
-      setQuotes(Array.isArray(quotesData.data) ? quotesData.data : []);
+      const nextQuotes = Array.isArray(quotesData.data) ? quotesData.data : [];
+      if (nextQuotes.length === 0) {
+        throw new Error("Sin cotizaciones disponibles.");
+      }
+      setQuotes(nextQuotes);
     } catch {
-      setQuotes([]);
+      setQuotes((prev) => prev);
       setBaseError("Yahoo Finance no respondio. Prueba actualizar.");
     } finally {
       setLoading(false);
@@ -167,7 +185,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     setLoadingFocus(true);
     setFocusError(null);
     try {
-      const [fundRes, ratingsRes, divRes] = await Promise.all([
+      const [fundRes, ratingsRes, divRes] = await Promise.allSettled([
         fetch(`/api/yahoo?action=fundamentals&symbol=${encodeURIComponent(selectedInsiderTicker)}`, {
           cache: "no-store",
         }),
@@ -179,17 +197,37 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
         }),
       ]);
 
-      if (!fundRes.ok || !ratingsRes.ok || !divRes.ok) {
-        throw new Error("No se pudo cargar el foco Yahoo.");
+      let failedRequests = 0;
+
+      if (fundRes.status === "fulfilled" && fundRes.value.ok) {
+        const fundJson = (await fundRes.value.json()) as { data?: YahooFundamentals | null };
+        setYahooFundamentals(fundJson.data ?? null);
+      } else {
+        failedRequests += 1;
+        setYahooFundamentals(null);
       }
 
-      const fundJson = (await fundRes.json()) as { data?: YahooFundamentals | null };
-      const ratingsJson = (await ratingsRes.json()) as { data?: YahooRatings | null };
-      const divJson = (await divRes.json()) as { data?: YahooDividends | null };
+      if (ratingsRes.status === "fulfilled" && ratingsRes.value.ok) {
+        const ratingsJson = (await ratingsRes.value.json()) as { data?: YahooRatings | null };
+        setYahooRatings(ratingsJson.data ?? null);
+      } else {
+        failedRequests += 1;
+        setYahooRatings(null);
+      }
 
-      setYahooFundamentals(fundJson.data ?? null);
-      setYahooRatings(ratingsJson.data ?? null);
-      setYahooDividends(divJson.data ?? null);
+      if (divRes.status === "fulfilled" && divRes.value.ok) {
+        const divJson = (await divRes.value.json()) as { data?: YahooDividends | null };
+        setYahooDividends(divJson.data ?? null);
+      } else {
+        failedRequests += 1;
+        setYahooDividends(null);
+      }
+
+      if (failedRequests === 3) {
+        setFocusError("No se pudo cargar analitica Yahoo para el ticker en foco.");
+      } else if (failedRequests > 0) {
+        setFocusError("Parte de la analitica Yahoo no esta disponible ahora mismo.");
+      }
     } catch {
       setYahooFundamentals(null);
       setYahooRatings(null);
@@ -496,6 +534,13 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </button>
               ))}
             </div>
+
+            {isUsingFallbackInsiderTickers && (
+              <p className="mb-3 rounded-lg border border-border/70 bg-surface-muted/20 px-3 py-2 text-xs text-muted">
+                OpenInsider cubre sobre todo acciones USA. Como tu cartera actual no aporta tickers compatibles,
+                muestro una lista por defecto para que el radar no quede vacio.
+              </p>
+            )}
 
             <form onSubmit={addCustomTicker} className="mb-3 flex gap-2">
               <label htmlFor="insider-custom-ticker" className="sr-only">

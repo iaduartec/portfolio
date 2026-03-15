@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
 import { TradingViewFundamentals } from "@/components/charts/TradingViewFundamentals";
@@ -16,32 +16,15 @@ interface DashboardTradingViewProps {
 }
 
 export function DashboardTradingView({ selectedHolding }: DashboardTradingViewProps) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
-    const tradingViewSymbol = selectedHolding
-        ? resolveTradingViewSymbol(selectedHolding.ticker)
-        : "";
-
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    setIsVisible(true);
-                    observer.disconnect();
-                }
-            },
-            { rootMargin: "200px" } // Load a bit before it comes into view
-        );
-
-        if (containerRef.current) {
-            observer.observe(containerRef.current);
-        }
-
-        return () => observer.disconnect();
-    }, []);
+    const [isWidgetEnabled, setIsWidgetEnabled] = useState(false);
+    const tradingViewSymbol = selectedHolding ? resolveTradingViewSymbol(selectedHolding.ticker) : "";
+    const tradingViewHref = useMemo(() => {
+        if (!tradingViewSymbol) return "https://www.tradingview.com/";
+        return `https://www.tradingview.com/symbols/${tradingViewSymbol.replace(":", "-")}/`;
+    }, [tradingViewSymbol]);
 
     return (
-        <section ref={containerRef} aria-labelledby="tradingview-title">
+        <section aria-labelledby="tradingview-title">
             <Card
                 title={<span id="tradingview-title">TradingView</span>}
                 subtitle={
@@ -54,7 +37,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
             >
                 {selectedHolding ? (
                     <div className="tv-dark-scope mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">
-                        {isVisible ? (
+                        {isWidgetEnabled ? (
                             <>
                                 <section className="md:col-span-2" aria-label="Informacion del simbolo">
                                     <TradingViewSymbolInfo symbol={tradingViewSymbol} />
@@ -76,8 +59,40 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                                 </section>
                             </>
                         ) : (
-                            <div className="md:col-span-2 h-[400px] flex items-center justify-center text-muted animate-pulse">
-                                Cargando panel financiero...
+                            <div className="md:col-span-2 rounded-2xl border border-border/70 bg-surface-muted/35 p-8">
+                                <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+                                    <p className="text-xs uppercase tracking-[0.12em] text-primary/85">
+                                        Widgets externos
+                                    </p>
+                                    <h3 className="mt-3 text-xl font-semibold text-white">
+                                        Carga el panel de TradingView bajo demanda
+                                    </h3>
+                                    <p className="mt-3 text-sm leading-relaxed text-muted">
+                                        Algunos bloqueadores de privacidad impiden cargar chunks internos de TradingView y
+                                        llenan la consola de errores. El panel ahora se activa solo cuando lo pides.
+                                    </p>
+                                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsWidgetEnabled(true)}
+                                            className="rounded-xl border border-primary/45 bg-primary/15 px-5 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+                                        >
+                                            Cargar panel TradingView
+                                        </button>
+                                        <a
+                                            href={tradingViewHref}
+                                            className="rounded-xl border border-border/80 bg-surface/70 px-5 py-2.5 text-sm font-semibold text-text transition-colors hover:border-accent/45 hover:text-white"
+                                            target="_blank"
+                                            rel="noopener nofollow"
+                                        >
+                                            Abrir en TradingView
+                                        </a>
+                                    </div>
+                                    <p className="mt-4 text-xs text-muted">
+                                        Si tu navegador bloquea el tracker de TradingView, usa el enlace externo o permite
+                                        temporalmente ese dominio.
+                                    </p>
+                                </div>
                             </div>
                         )}
 

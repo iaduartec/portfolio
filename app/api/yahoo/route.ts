@@ -278,54 +278,83 @@ export async function GET(request: Request) {
     }
 
     if (action === "dividends") {
-      const [summary, chart] = await Promise.all([
-        quoteSummaryModules(normalized, ["summaryDetail"]),
-        chartHistory(normalized, "1y", "1d", "div"),
-      ]);
-      const details = summary?.summaryDetail ?? {};
-      const dividendsObj = chart?.events?.dividends ?? {};
-      const history = Object.values(dividendsObj as Record<string, { date?: number; amount?: number }>).map(
-        (d) => ({
-          date: d.date,
-          amount: toNumber(d.amount),
-        })
-      );
-      return NextResponse.json({
-        action,
-        data: {
-          symbol: normalized,
-          dividendRate: toNumber(details.dividendRate?.raw),
-          dividendYield: toNumber(details.dividendYield?.raw),
-          exDividendDate: details.exDividendDate?.fmt ?? details.exDividendDate?.raw,
-          payoutRatio: toNumber(details.payoutRatio?.raw),
-          history,
-        },
-        source: "yahoo-finance",
-      });
+      try {
+        const [summary, chart] = await Promise.all([
+          quoteSummaryModules(normalized, ["summaryDetail"]),
+          chartHistory(normalized, "1y", "1d", "div"),
+        ]);
+        const details = summary?.summaryDetail ?? {};
+        const dividendsObj = chart?.events?.dividends ?? {};
+        const history = Object.values(dividendsObj as Record<string, { date?: number; amount?: number }>).map(
+          (d) => ({
+            date: d.date,
+            amount: toNumber(d.amount),
+          })
+        );
+        return NextResponse.json({
+          action,
+          data: {
+            symbol: normalized,
+            dividendRate: toNumber(details.dividendRate?.raw),
+            dividendYield: toNumber(details.dividendYield?.raw),
+            exDividendDate: details.exDividendDate?.fmt ?? details.exDividendDate?.raw,
+            payoutRatio: toNumber(details.payoutRatio?.raw),
+            history,
+          },
+          source: "yahoo-finance",
+        });
+      } catch {
+        return NextResponse.json({
+          action,
+          data: {
+            symbol: normalized,
+            dividendRate: undefined,
+            dividendYield: undefined,
+            exDividendDate: undefined,
+            payoutRatio: undefined,
+            history: [],
+          },
+          source: "yahoo-finance-unavailable",
+        });
+      }
     }
 
     if (action === "ratings") {
-      const summary = await quoteSummaryModules(normalized, [
-        "recommendationTrend",
-        "financialData",
-        "upgradeDowngradeHistory",
-      ]);
-      return NextResponse.json({
-        action,
-        data: summary
-          ? {
-              symbol: normalized,
-              recommendationMean: toNumber(summary.financialData?.recommendationMean?.raw),
-              recommendationKey: summary.financialData?.recommendationKey,
-              recommendationTrend: summary.recommendationTrend?.trend ?? [],
-              upgradesDowngrades:
-                summary.upgradeDowngradeHistory?.history?.slice?.(0, 20) ??
-                summary.upgradeDowngradeHistory?.history ??
-                [],
-            }
-          : null,
-        source: "yahoo-finance",
-      });
+      try {
+        const summary = await quoteSummaryModules(normalized, [
+          "recommendationTrend",
+          "financialData",
+          "upgradeDowngradeHistory",
+        ]);
+        return NextResponse.json({
+          action,
+          data: summary
+            ? {
+                symbol: normalized,
+                recommendationMean: toNumber(summary.financialData?.recommendationMean?.raw),
+                recommendationKey: summary.financialData?.recommendationKey,
+                recommendationTrend: summary.recommendationTrend?.trend ?? [],
+                upgradesDowngrades:
+                  summary.upgradeDowngradeHistory?.history?.slice?.(0, 20) ??
+                  summary.upgradeDowngradeHistory?.history ??
+                  [],
+              }
+            : null,
+          source: "yahoo-finance",
+        });
+      } catch {
+        return NextResponse.json({
+          action,
+          data: {
+            symbol: normalized,
+            recommendationMean: undefined,
+            recommendationKey: undefined,
+            recommendationTrend: [],
+            upgradesDowngrades: [],
+          },
+          source: "yahoo-finance-unavailable",
+        });
+      }
     }
 
     if (action === "options") {

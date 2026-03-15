@@ -17,8 +17,9 @@ type MarketPulseState = {
   insight: string;
 };
 
-const MARKET_SYMBOLS = ["^GSPC", "^IXIC", "^DJI", "^RUT", "^VIX"];
-const EQUITY_SYMBOLS = ["^GSPC", "^IXIC", "^DJI", "^RUT"];
+const MARKET_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM", "VIXY"];
+const EQUITY_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM"];
+const VOLATILITY_SYMBOL = "VIXY";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -36,22 +37,30 @@ const getPulseInsight = (
   averageChangePercent: number,
   coveredCount: number,
   upCount: number,
-  vixPrice?: number
+  volatilityChangePercent?: number
 ) => {
   if (coveredCount === 0) return "Sin cotizaciones suficientes para medir el sentimiento global.";
   const direction = averageChangePercent >= 0 ? "al alza" : "a la baja";
   const breadth = `${upCount}/${coveredCount} indices avanzan`;
-  const vixFragment =
-    vixPrice !== undefined && Number.isFinite(vixPrice)
-      ? ` VIX en ${vixPrice.toFixed(1)}.`
+  const volatilityFragment =
+    volatilityChangePercent !== undefined && Number.isFinite(volatilityChangePercent)
+      ? ` Volatilidad ${volatilityChangePercent >= 0 ? "repunta" : "cede"} ${Math.abs(
+          volatilityChangePercent
+        ).toFixed(2)}%.`
       : "";
-  return `Mercado ${direction}: ${breadth}. Pulso agregado ${score}/100.${vixFragment}`;
+  return `Mercado ${direction}: ${breadth}. Pulso agregado ${score}/100.${volatilityFragment}`;
 };
 
 const INITIAL_PULSE: MarketPulseState = {
   sentiment: "Neutral",
   score: 50,
   insight: "Cargando sentimiento general de mercado...",
+};
+
+const UNAVAILABLE_PULSE: MarketPulseState = {
+  sentiment: "Neutral",
+  score: 50,
+  insight: "No se pudo cargar el sentimiento general de mercado en este momento.",
 };
 
 const buildPulseState = (quotes: MarketQuote[]): MarketPulseState => {
@@ -70,42 +79,55 @@ const buildPulseState = (quotes: MarketQuote[]): MarketPulseState => {
       : 0;
   const trendTilt = clamp(averageChangePercent * 10, -20, 20);
   const breadthTilt = (breadthRatio - 0.5) * 30;
-  const vixQuote = quoteMap.get("^VIX");
-  const vixPrice = Number.isFinite(vixQuote?.price) ? vixQuote?.price : undefined;
-  const vixDayChangePercent = Number.isFinite(vixQuote?.dayChangePercent)
-    ? vixQuote?.dayChangePercent
+  const volatilityQuote = quoteMap.get(VOLATILITY_SYMBOL);
+  const volatilityChangePercent = Number.isFinite(volatilityQuote?.dayChangePercent)
+    ? volatilityQuote?.dayChangePercent
     : undefined;
-  const vixLevelTilt =
-    vixPrice !== undefined ? clamp((20 - vixPrice) * 1.2, -18, 18) : 0;
-  const vixTrendTilt =
-    vixDayChangePercent !== undefined ? clamp(vixDayChangePercent * -1.4, -10, 10) : 0;
+  const volatilityTilt =
+    volatilityChangePercent !== undefined ? clamp(volatilityChangePercent * -2, -16, 16) : 0;
   const score =
     coveredCount > 0
-      ? clamp(Math.round(50 + trendTilt + breadthTilt + vixLevelTilt + vixTrendTilt), 0, 100)
+      ? clamp(Math.round(50 + trendTilt + breadthTilt + volatilityTilt), 0, 100)
       : 50;
 
   return {
     sentiment: getSentimentLabel(score),
     score,
-    insight: getPulseInsight(score, averageChangePercent, coveredCount, upCount, vixPrice),
+    insight: getPulseInsight(
+      score,
+      averageChangePercent,
+      coveredCount,
+      upCount,
+      volatilityChangePercent
+    ),
   };
 };
 
 export function DashboardAIPulse() {
   const [quotes, setQuotes] = useState<MarketQuote[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadMarketPulse = useCallback(async () => {
     try {
-      const res = await fetch(`/api/yahoo?action=price&symbols=${encodeURIComponent(MARKET_SYMBOLS.join(","))}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/yahoo?action=price&symbols=${encodeURIComponent(MARKET_SYMBOLS.join(","))}`,
+        {
+          cache: "no-store",
+        }
+      );
       if (!res.ok) {
         throw new Error("No se pudieron cargar indices de mercado.");
       }
       const json = (await res.json()) as { data?: MarketQuote[] };
-      setQuotes(Array.isArray(json.data) ? json.data : []);
+      const nextQuotes = Array.isArray(json.data) ? json.data : [];
+      if (nextQuotes.length === 0) {
+        throw new Error("Sin datos de mercado.");
+      }
+      setQuotes(nextQuotes);
     } catch {
-      setQuotes([]);
+      setQuotes((prev) => prev);
+    } finally {
+      setHasLoaded(true);
     }
   }, []);
 
@@ -129,8 +151,12 @@ export function DashboardAIPulse() {
   }, [loadMarketPulse]);
 
   const pulse = useMemo(
-    () => (quotes.length > 0 ? buildPulseState(quotes) : INITIAL_PULSE),
-    [quotes]
+    () => {
+      if (quotes.length > 0) return buildPulseState(quotes);
+      if (!hasLoaded) return INITIAL_PULSE;
+      return UNAVAILABLE_PULSE;
+    },
+    [quotes, hasLoaded]
   );
 
   return (
