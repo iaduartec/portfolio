@@ -54,11 +54,11 @@ export function DashboardClient() {
   const marketTone = dailyPnlPercent >= 0 ? "sesgo favorable" : "sesgo defensivo";
 
   return (
-    <div className="flex flex-col gap-10 pb-20">
+    <div className="flex flex-col gap-8 pb-16 md:gap-10 md:pb-20">
       <DashboardHero />
 
-      <div className="flex flex-col gap-12">
-        <section className="grid gap-5">
+      <div className="flex flex-col gap-10 md:gap-12">
+        <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Resumen ejecutivo"
             title="Empieza por capital, riesgo y foco"
@@ -80,11 +80,11 @@ export function DashboardClient() {
             activeTicker={activeTicker}
             onSelectTicker={setSelectedTicker}
           />
-          <aside className="rounded-2xl border border-border/80 bg-surface/70 p-6 shadow-panel backdrop-blur-xl">
+          <aside className="rounded-2xl border border-border/80 bg-surface/70 p-4 shadow-panel backdrop-blur-xl md:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
               Prioridad de lectura
             </p>
-            <div className="mt-4 grid gap-3">
+            <div className="mt-3 grid gap-3 md:mt-4">
               <PriorityItem
                 step="1"
                 title="Capital en juego"
@@ -108,18 +108,18 @@ export function DashboardClient() {
           </aside>
         </section>
 
-        <section className="grid gap-5">
+        <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Foco principal"
             title="Activa el análisis sobre la posición que más importa"
             description="Movemos el panel local antes del resto de inteligencia para que el activo seleccionado tenga prioridad."
           />
-          <div className="min-h-[600px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1">
+          <div className="min-h-[520px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
             <DashboardTradingView selectedHolding={selectedHolding} />
           </div>
         </section>
 
-        <section id="holdings-section" className="scroll-mt-20 grid gap-5">
+        <section id="holdings-section" className="scroll-mt-20 grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Posiciones"
             title="Detalle de cartera"
@@ -134,19 +134,19 @@ export function DashboardClient() {
           />
         </section>
 
-        <section className="grid gap-5">
+        <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Mercado"
             title="Tono de sesión y drivers cruzados"
             description="Aquí agrupamos apertura, amplitud y macro para que el contexto global quede junto."
           />
-          <div className="grid gap-6">
+          <div className="grid gap-5 md:gap-6">
             <DashboardMarketBoard holdings={holdings} />
             <DashboardFuturesRadar />
           </div>
         </section>
 
-        <section className="grid gap-5">
+        <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Inteligencia"
             title="Señales y contexto complementario"
@@ -172,12 +172,12 @@ function SectionHeading({
   description: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 border-l border-primary/20 pl-4 md:pl-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/85">{eyebrow}</p>
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="section-title text-xl font-semibold text-white">{title}</h2>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted">{description}</p>
+          <h2 className="section-title text-lg font-semibold text-white md:text-xl">{title}</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted md:max-w-3xl">{description}</p>
         </div>
       </div>
     </div>
@@ -194,7 +194,7 @@ function PriorityItem({
   description: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-surface-muted/30 p-4">
+    <div className="rounded-2xl border border-border/70 bg-surface-muted/30 p-3.5 md:p-4">
       <div className="flex items-start gap-3">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-sm font-semibold text-primary">
           {step}
