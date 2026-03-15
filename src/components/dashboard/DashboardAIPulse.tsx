@@ -11,6 +11,12 @@ type MarketQuote = {
   dayChangePercent?: number;
 };
 
+type QuotesFallbackItem = {
+  ticker?: string;
+  price?: number;
+  dayChangePercent?: number;
+};
+
 type MarketPulseState = {
   sentiment: string;
   score: number;
@@ -20,6 +26,7 @@ type MarketPulseState = {
 const MARKET_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM", "VIXY"];
 const EQUITY_SYMBOLS = ["SPY", "QQQ", "DIA", "IWM"];
 const VOLATILITY_SYMBOL = "VIXY";
+const PULSE_STORAGE_KEY = "marketPulseQuotes";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -63,6 +70,50 @@ const UNAVAILABLE_PULSE: MarketPulseState = {
   insight: "No se pudo cargar el sentimiento general de mercado en este momento.",
 };
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const normalizeQuoteSet = (rows: MarketQuote[]) => {
+  const map = new Map(
+    rows
+      .filter((row) => row?.symbol)
+      .map((row) => [
+        String(row.symbol).toUpperCase(),
+        {
+          symbol: String(row.symbol).toUpperCase(),
+          price: isFiniteNumber(row.price) ? row.price : undefined,
+          dayChangePercent: isFiniteNumber(row.dayChangePercent) ? row.dayChangePercent : undefined,
+        } satisfies MarketQuote,
+      ])
+  );
+
+  return MARKET_SYMBOLS.map(
+    (symbol) => map.get(symbol) ?? { symbol, price: undefined, dayChangePercent: undefined }
+  );
+};
+
+const normalizeFallbackSet = (rows: QuotesFallbackItem[]) => {
+  const map = new Map(
+    rows
+      .filter((row) => row?.ticker)
+      .map((row) => [
+        String(row.ticker).toUpperCase(),
+        {
+          symbol: String(row.ticker).toUpperCase(),
+          price: isFiniteNumber(row.price) ? row.price : undefined,
+          dayChangePercent: isFiniteNumber(row.dayChangePercent) ? row.dayChangePercent : undefined,
+        } satisfies MarketQuote,
+      ])
+  );
+
+  return MARKET_SYMBOLS.map(
+    (symbol) => map.get(symbol) ?? { symbol, price: undefined, dayChangePercent: undefined }
+  );
+};
+
+const hasEnoughCoverage = (rows: MarketQuote[]) =>
+  rows.filter((row) => EQUITY_SYMBOLS.includes(row.symbol) && isFiniteNumber(row.dayChangePercent)).length >= 3;
+
 const buildPulseState = (quotes: MarketQuote[]): MarketPulseState => {
   const quoteMap = new Map(quotes.map((quote) => [quote.symbol.toUpperCase(), quote]));
   const equities = EQUITY_SYMBOLS.map((symbol) => quoteMap.get(symbol))
@@ -104,7 +155,17 @@ const buildPulseState = (quotes: MarketQuote[]): MarketPulseState => {
 };
 
 export function DashboardAIPulse() {
-  const [quotes, setQuotes] = useState<MarketQuote[]>([]);
+  const [quotes, setQuotes] = useState<MarketQuote[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(PULSE_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as MarketQuote[];
+      return Array.isArray(parsed) ? normalizeQuoteSet(parsed) : [];
+    } catch {
+      return [];
+    }
+  });
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadMarketPulse = useCallback(async () => {
@@ -119,13 +180,36 @@ export function DashboardAIPulse() {
         throw new Error("No se pudieron cargar indices de mercado.");
       }
       const json = (await res.json()) as { data?: MarketQuote[] };
-      const nextQuotes = Array.isArray(json.data) ? json.data : [];
-      if (nextQuotes.length === 0) {
-        throw new Error("Sin datos de mercado.");
+      const nextQuotes = normalizeQuoteSet(Array.isArray(json.data) ? json.data : []);
+      if (hasEnoughCoverage(nextQuotes)) {
+        setQuotes(nextQuotes);
+        window.localStorage.setItem(PULSE_STORAGE_KEY, JSON.stringify(nextQuotes));
+        return;
       }
-      setQuotes(nextQuotes);
+      throw new Error("Cobertura insuficiente de mercado.");
     } catch {
-      setQuotes((prev) => prev);
+      try {
+        const fallbackRes = await fetch(
+          `/api/quotes?tickers=${encodeURIComponent(MARKET_SYMBOLS.join(","))}`,
+          {
+            cache: "no-store",
+          }
+        );
+        if (!fallbackRes.ok) {
+          throw new Error("Fallback de cotizaciones no disponible.");
+        }
+        const fallbackJson = (await fallbackRes.json()) as { quotes?: QuotesFallbackItem[] };
+        const fallbackQuotes = normalizeFallbackSet(
+          Array.isArray(fallbackJson.quotes) ? fallbackJson.quotes : []
+        );
+        if (hasEnoughCoverage(fallbackQuotes)) {
+          setQuotes(fallbackQuotes);
+          window.localStorage.setItem(PULSE_STORAGE_KEY, JSON.stringify(fallbackQuotes));
+          return;
+        }
+      } catch {
+        // Preserve previous or cached values if providers fail.
+      }
     } finally {
       setHasLoaded(true);
     }

@@ -14,6 +14,13 @@ type Quote = {
   dayChangePercent?: number;
 };
 
+type QuotesFallbackItem = {
+  ticker?: string;
+  name?: string;
+  price?: number;
+  dayChangePercent?: number;
+};
+
 type InsiderTrade = {
   filingDate: string;
   tradeDate: string;
@@ -59,6 +66,7 @@ const WATCHLIST = ["SPY", "NVDA", "BTC-USD"];
 const DEFAULT_INSIDER_TICKERS = ["NVDA", "MSFT", "AMZN"];
 const SIGNAL_MIN = -3;
 const SIGNAL_MAX = 3;
+const SKILL_QUOTES_STORAGE_KEY = "skillIntelWatchlistQuotes";
 
 const normalizeInsiderTicker = (ticker: string) =>
   ticker
@@ -79,8 +87,71 @@ const changeTone = (value?: number) => {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value);
+
+const normalizeQuotes = (rows: Quote[]) => {
+  const map = new Map(
+    rows
+      .filter((row) => row?.symbol)
+      .map((row) => [
+        String(row.symbol).toUpperCase(),
+        {
+          symbol: String(row.symbol).toUpperCase(),
+          name: row.name,
+          price: isFiniteNumber(row.price) ? row.price : 0,
+          dayChangePercent: isFiniteNumber(row.dayChangePercent) ? row.dayChangePercent : undefined,
+        } satisfies Quote,
+      ])
+  );
+
+  const normalized: Quote[] = [];
+  for (const symbol of WATCHLIST) {
+    const row = map.get(symbol);
+    if (row && isFiniteNumber(row.price) && row.price > 0) {
+      normalized.push(row);
+    }
+  }
+  return normalized;
+};
+
+const normalizeFallbackQuotes = (rows: QuotesFallbackItem[]) => {
+  const map = new Map(
+    rows
+      .filter((row) => row?.ticker)
+      .map((row) => [
+        String(row.ticker).toUpperCase(),
+        {
+          symbol: String(row.ticker).toUpperCase(),
+          name: row.name,
+          price: isFiniteNumber(row.price) ? row.price : 0,
+          dayChangePercent: isFiniteNumber(row.dayChangePercent) ? row.dayChangePercent : undefined,
+        } satisfies Quote,
+      ])
+  );
+
+  const normalized: Quote[] = [];
+  for (const symbol of WATCHLIST) {
+    const row = map.get(symbol);
+    if (row && isFiniteNumber(row.price) && row.price > 0) {
+      normalized.push(row);
+    }
+  }
+  return normalized;
+};
+
 export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillIntelProps) {
-  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem(SKILL_QUOTES_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Quote[];
+      return Array.isArray(parsed) ? normalizeQuotes(parsed) : [];
+    } catch {
+      return [];
+    }
+  });
   const [insiderByTicker, setInsiderByTicker] = useState<Record<string, InsiderTrade[]>>({});
   const [insiderSummaryByTicker, setInsiderSummaryByTicker] = useState<Record<string, InsiderSummary>>(
     {}
@@ -137,18 +208,39 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
         throw new Error("No se pudieron cargar cotizaciones de Yahoo.");
       }
       const quotesData = (await quotesRes.json()) as { data?: Quote[] };
-      const nextQuotes = Array.isArray(quotesData.data) ? quotesData.data : [];
+      const nextQuotes = normalizeQuotes(Array.isArray(quotesData.data) ? quotesData.data : []);
       if (nextQuotes.length === 0) {
         throw new Error("Sin cotizaciones disponibles.");
       }
       setQuotes(nextQuotes);
+      window.localStorage.setItem(SKILL_QUOTES_STORAGE_KEY, JSON.stringify(nextQuotes));
     } catch {
-      setQuotes((prev) => prev);
-      setBaseError("Yahoo Finance no respondio. Prueba actualizar.");
+      try {
+        const fallbackRes = await fetch(`/api/quotes?tickers=${WATCHLIST.join(",")}`, {
+          cache: "no-store",
+        });
+        if (!fallbackRes.ok) {
+          throw new Error("Fallback sin respuesta.");
+        }
+        const fallbackData = (await fallbackRes.json()) as { quotes?: QuotesFallbackItem[] };
+        const nextQuotes = normalizeFallbackQuotes(
+          Array.isArray(fallbackData.quotes) ? fallbackData.quotes : []
+        );
+        if (nextQuotes.length === 0) {
+          throw new Error("Sin cotizaciones en fallback.");
+        }
+        setQuotes(nextQuotes);
+        window.localStorage.setItem(SKILL_QUOTES_STORAGE_KEY, JSON.stringify(nextQuotes));
+      } catch {
+        setQuotes((prev) => prev);
+        if (quotes.length === 0) {
+          setBaseError("Yahoo Finance no respondio. Prueba actualizar.");
+        }
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [quotes.length]);
 
   useEffect(() => {
     void loadBaseData();
