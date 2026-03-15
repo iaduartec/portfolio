@@ -23,7 +23,6 @@ import {
   TrendingUp,
   TrendingDown,
   Activity,
-  Zap,
 } from "lucide-react";
 import {
   formatPercent,

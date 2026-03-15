@@ -591,7 +591,7 @@ export function PortfolioValueChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [status, liveSeries, analysis, patternsForChart, technicalOutlook, showProjectionInsights, safeChartHeight]);
+  }, [status, liveSeries, analysis, patternsForChart, technicalOutlook, showProjectionInsights, safeChartHeight, normalizedTicker]);
 
   const displayPatterns = useMemo(() => {
     const combined = [

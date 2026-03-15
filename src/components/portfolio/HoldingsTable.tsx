@@ -175,9 +175,9 @@ export function HoldingsTable({
     return (valueA - valueB) * factor;
   };
 
-const quantityFormatter = new Intl.NumberFormat("es-ES", {
-  maximumFractionDigits: 4,
-});
+  const quantityFormatter = new Intl.NumberFormat("es-ES", {
+    maximumFractionDigits: 4,
+  });
 
   const sortedHoldings = useMemo(() => {
     return [...holdings].sort((a, b) => compare(a, b, sortKey, sortDirection));
@@ -202,7 +202,7 @@ const quantityFormatter = new Intl.NumberFormat("es-ES", {
       }
     };
     fetchFundamentals();
-  }, [holdings.length]);
+  }, [holdings]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {

@@ -40,7 +40,7 @@ const isFundTicker = (ticker: string) => {
 };
 
 const CustomizedContent = (props: any) => {
-  const { root, depth, x, y, width, height, index, name, color } = props;
+  const { depth, x, y, width, height, index, name, color } = props;
 
   if (depth !== 1 || !width || !height) return null;
 
