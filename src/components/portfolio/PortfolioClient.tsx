@@ -16,6 +16,14 @@ import {
   YAxis,
 } from "recharts";
 import {
+  Eye,
+  EyeOff,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Zap,
+} from "lucide-react";
+import {
   formatPercent,
   formatCurrency,
   convertCurrency,
@@ -65,6 +73,8 @@ const DATE_RANGE_OPTIONS: Array<{ value: PortfolioDateRange; label: string }> = 
   { value: "ytd", label: "Este año" },
   { value: "1y", label: "1 año" },
 ];
+
+const maskValue = (value: string, isPrivate: boolean) => (isPrivate ? "••••••" : value);
 
 const toTimestamp = (value: string) => {
   const raw = String(value ?? "").trim();
@@ -799,6 +809,29 @@ export function PortfolioClient() {
       : searchParams.get("account") === "robo"
         ? "robo"
         : "all";
+
+  const [isPrivate, setIsPrivate] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("portfolio_privacy_mode") === "true";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem("portfolio_privacy_mode", String(isPrivate));
+  }, [isPrivate]);
+
+  const highlights = useMemo(() => {
+    if (!holdings.length) return null;
+
+    const sortedByPnl = [...holdings].sort((a, b) => b.pnlValue - a.pnlValue);
+    const best = sortedByPnl[0];
+    const worst = sortedByPnl[sortedByPnl.length - 1];
+
+    return {
+      best,
+      worst,
+      diversity: holdings.length > 5 ? "Diversificada" : "Concentrada"
+    };
+  }, [holdings]);
   const showBootstrapState = isLoading && transactions.length === 0;
 
   const handleAccountViewChange = (nextView: PortfolioAccountView) => {
@@ -1074,21 +1107,72 @@ export function PortfolioClient() {
                   </select>
                 </label>
               </div>
-            <label className="inline-flex items-center">
-              <span className="sr-only">Seleccionar rango temporal</span>
-              <select
-                aria-label="Seleccionar rango temporal"
-                className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-sm font-semibold text-primary/90 outline-none transition focus:border-primary/70"
-                value={dateRange}
-                onChange={(event) => setDateRange(event.target.value as PortfolioDateRange)}
-              >
-                {DATE_RANGE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {DATE_RANGE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setDateRange(opt.value)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-xs font-semibold transition-all border",
+                    dateRange === opt.value 
+                      ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                      : "bg-surface-muted/30 text-muted border-border/60 hover:border-primary/40"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setIsPrivate(!isPrivate)}
+              className="p-2 rounded-full bg-surface-muted/30 border border-border/60 text-muted hover:text-white transition-colors"
+              title={isPrivate ? "Mostrar valores" : "Ocultar valores"}
+            >
+              {isPrivate ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+             {highlights && (
+               <>
+                 <Card className="flex items-center gap-4 border-none bg-[#1C1C1E] p-4 shadow-xl transition-all hover:bg-[#2C2C2E]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success/10 text-success">
+                       <TrendingUp size={20} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted/60">Mayor Impulsor</p>
+                       <p className="text-sm font-bold text-text truncate max-w-[120px]">
+                         {highlights.best.ticker} <span className="text-success ml-1">+{maskValue(formatCurrency(convertCurrency(highlights.best.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
+                       </p>
+                    </div>
+                 </Card>
+                 <Card className="flex items-center gap-4 border-none bg-[#1C1C1E] p-4 shadow-xl transition-all hover:bg-[#2C2C2E]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-danger/10 text-danger">
+                       <TrendingDown size={20} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted/60">Mayor Detractor</p>
+                       <p className="text-sm font-bold text-text truncate max-w-[120px]">
+                         {highlights.worst.ticker} <span className="text-danger ml-1">{maskValue(formatCurrency(convertCurrency(highlights.worst.pnlValue, currency, fxRate, baseCurrency), currency), isPrivate)}</span>
+                       </p>
+                    </div>
+                 </Card>
+                 <Card className="flex items-center gap-4 border-none bg-[#1C1C1E] p-4 shadow-xl transition-all hover:bg-[#2C2C2E]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                       <Activity size={20} />
+                    </div>
+                    <div>
+                       <p className="text-[10px] font-bold uppercase tracking-wider text-muted/60">Estrategia</p>
+                       <p className="text-sm font-bold text-text">
+                         {highlights.diversity} <span className="text-muted/50 font-medium px-1">·</span> 
+                         {selectedHoldings.length} posiciones
+                       </p>
+                    </div>
+                 </Card>
+               </>
+             )}
           </div>
 
           {/* KPI Summary Pills */}
@@ -1112,25 +1196,25 @@ export function PortfolioClient() {
             const pills = [
               {
                 label: "Total invertido",
-                value: formatCurrency(totalInvested, currency),
+                value: maskValue(formatCurrency(totalInvested, currency), isPrivate),
                 colorClass: "border-primary/30 bg-primary/5 text-primary",
               },
               {
                 label: "Efectivo disponible",
-                value: formatCurrency(cash, currency),
+                value: maskValue(formatCurrency(cash, currency), isPrivate),
                 colorClass: cash >= 0 ? "border-success/30 bg-success/5 text-success" : "border-danger/30 bg-danger/5 text-danger",
               },
               {
                 label: "Mejor posición",
                 value: bestHolding
-                  ? `${bestHolding.ticker.split(":").pop()} ${bestHolding.pnlPercent >= 0 ? "+" : ""}${formatPercent(bestHolding.pnlPercent / 100)}`
+                  ? `${bestHolding.ticker.split(":").pop()} ${maskValue(`${bestHolding.pnlPercent >= 0 ? "+" : ""}${formatPercent(bestHolding.pnlPercent / 100)}`, isPrivate)}`
                   : "–",
                 colorClass: (bestHolding?.pnlPercent ?? 0) >= 0 ? "border-success/30 bg-success/5 text-success" : "border-danger/30 bg-danger/5 text-danger",
               },
               {
                 label: "Peor posición",
                 value: worstHolding
-                  ? `${worstHolding.ticker.split(":").pop()} ${worstHolding.pnlPercent >= 0 ? "+" : ""}${formatPercent(worstHolding.pnlPercent / 100)}`
+                  ? `${worstHolding.ticker.split(":").pop()} ${maskValue(`${worstHolding.pnlPercent >= 0 ? "+" : ""}${formatPercent(worstHolding.pnlPercent / 100)}`, isPrivate)}`
                   : "–",
                 colorClass: (worstHolding?.pnlPercent ?? 0) >= 0 ? "border-success/30 bg-success/5 text-success" : "border-danger/30 bg-danger/5 text-danger",
               },
@@ -1161,11 +1245,11 @@ export function PortfolioClient() {
               <p className="text-sm font-medium text-muted/60">Valor total</p>
               <div className="mt-1 flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-text">
-                  {formatCurrency(convertCurrency(selectedMetrics.totalValue, currency, fxRate, baseCurrency), currency)}
+                  {maskValue(formatCurrency(convertCurrency(selectedMetrics.totalValue, currency, fxRate, baseCurrency), currency), isPrivate)}
                 </p>
                 <div className={cn("flex items-center gap-1 text-sm font-semibold", (displayedValueChange >= 0 ? "text-success" : "text-danger"))}>
                    <span className="text-[10px]">{displayedValueChange >= 0 ? "▲" : "▼"}</span>
-                   {formatCurrency(convertCurrency(Math.abs(displayedValueChange), currency, fxRate, baseCurrency), currency)}
+                   {maskValue(formatCurrency(convertCurrency(Math.abs(displayedValueChange), currency, fxRate, baseCurrency), currency), isPrivate)}
                 </div>
               </div>
             </div>
@@ -1184,7 +1268,7 @@ export function PortfolioClient() {
               <div>
                 <p className="text-sm font-medium text-muted/60">Rendimiento</p>
                 <p className={cn("mt-1 text-2xl font-bold", displayedReturnPct >= 0 ? "text-success" : "text-danger")}>
-                  {displayedReturnPct >= 0 ? "+" : ""}{formatPercent(displayedReturnPct / 100)}
+                  {maskValue(`${displayedReturnPct >= 0 ? "+" : ""}${formatPercent(displayedReturnPct / 100)}`, isPrivate)}
                 </p>
               </div>
               <div className="mt-6 h-[80px]">
@@ -1201,7 +1285,7 @@ export function PortfolioClient() {
               <div>
                 <p className="text-sm font-medium text-muted/60">Ganancias y Pérdidas</p>
                 <p className={cn("mt-1 text-2xl font-bold", displayedProfitChange >= 0 ? "text-success" : "text-danger")}>
-                  {displayedProfitChange >= 0 ? "+" : ""}{formatCurrency(convertCurrency(displayedProfitChange, currency, fxRate, baseCurrency), currency)}
+                  {maskValue(`${displayedProfitChange >= 0 ? "+" : ""}${formatCurrency(convertCurrency(displayedProfitChange, currency, fxRate, baseCurrency), currency)}`, isPrivate)}
                 </p>
               </div>
               <div className="mt-6 h-[80px]">
@@ -1215,13 +1299,13 @@ export function PortfolioClient() {
               <div className="mt-auto flex flex-col items-end gap-1 pt-8">
                 <div className="flex items-center gap-2">
                   <p className={cn("text-xs font-semibold", selectedMetrics.realized >= 0 ? "text-text" : "text-danger")}>
-                    {selectedMetrics.realized >= 0 ? "+" : ""}{formatCurrency(convertCurrency(selectedMetrics.realized, currency, fxRate, baseCurrency), currency)}
+                    {maskValue(`${selectedMetrics.realized >= 0 ? "+" : ""}${formatCurrency(convertCurrency(selectedMetrics.realized, currency, fxRate, baseCurrency), currency)}`, isPrivate)}
                   </p>
                   <p className="text-[10px] font-medium text-muted/50 tracking-wide">realizadas</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <p className={cn("text-xs font-semibold", selectedMetrics.unrealized >= 0 ? "text-text" : "text-danger")}>
-                    {selectedMetrics.unrealized >= 0 ? "+" : ""}{formatCurrency(convertCurrency(selectedMetrics.unrealized, currency, fxRate, baseCurrency), currency)}
+                    {maskValue(`${selectedMetrics.unrealized >= 0 ? "+" : ""}${formatCurrency(convertCurrency(selectedMetrics.unrealized, currency, fxRate, baseCurrency), currency)}`, isPrivate)}
                   </p>
                   <p className="text-[10px] font-medium text-muted/50 tracking-wide">no realizadas</p>
                 </div>
