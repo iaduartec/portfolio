@@ -293,7 +293,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
           title={<span id="local-market-panel-title">Panel financiero local</span>}
           subtitle="Selecciona una posición para ver gráfico, fundamentales y contexto sin depender de widgets externos."
         >
-          <p className="p-4 text-sm text-muted">Selecciona un ticker para cargar el panel local.</p>
+          <p className="p-4 text-sm text-muted">Selecciona un activo para cargar el panel local.</p>
         </Card>
       </section>
     );
@@ -416,14 +416,14 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
               </div>
 
               <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Snapshot fundamental</p>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Resumen fundamental</p>
                 {fundamentalsAvailable ? (
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Metric label="PER" value={formatMetricValue(fundamentals?.trailingPE)} />
                     <Metric label="P/B" value={formatMetricValue(fundamentals?.priceToBook)} />
                     <Metric label="ROE" value={formatPercentMetric(fundamentals?.returnOnEquity)} />
                     <Metric label="Valuación" value={valuationLabel(fundamentals)} />
-                    <Metric label="Mkt Cap" value={toCompactNumber(fundamentals?.marketCap)} />
+                    <Metric label="Cap. bursátil" value={toCompactNumber(fundamentals?.marketCap)} />
                     <Metric
                       label="Precio objetivo"
                       value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "No disponible"}
@@ -439,13 +439,13 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                 {flowAvailable ? (
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Metric label="Consenso" value={recommendationLabel(ratings)} />
-                    <Metric label="Score analistas" value={formatMetricValue(ratings?.recommendationMean)} />
+                    <Metric label="Puntuación de analistas" value={formatMetricValue(ratings?.recommendationMean)} />
                     <Metric
                       label="Dividendo"
                       value={formatPercentMetric(dividends?.dividendYield)}
                     />
                     <Metric
-                      label="Payout"
+                      label="Reparto"
                       value={formatPercentMetric(dividends?.payoutRatio)}
                     />
                     <Metric label="Volumen" value={toCompactNumber(quote?.volume)} />
@@ -492,13 +492,13 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                 {rangeAvailable ? (
                   <>
                     <Metric
-                      label="52w mínimo"
+                      label="Mínimo 52 sem."
                       value={
                         displayedRangeLow !== undefined ? formatCurrency(displayedRangeLow, currency) : "No disponible"
                       }
                     />
                     <Metric
-                      label="52w máximo"
+                      label="Máximo 52 sem."
                       value={
                         displayedRangeHigh !== undefined ? formatCurrency(displayedRangeHigh, currency) : "No disponible"
                       }

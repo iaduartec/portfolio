@@ -12,8 +12,8 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const navItems: { href: Route; label: string }[] = [
   { href: "/", label: "Inicio" },
-  { href: "/portfolio", label: "Portfolio" },
-  { href: "/lab", label: "Lab" },
+  { href: "/portfolio", label: "Cartera" },
+  { href: "/lab", label: "Laboratorio" },
   { href: "/upload", label: "Importar" },
 ];
 
@@ -30,7 +30,7 @@ export function Header() {
               <div className="absolute inset-0 rounded-2xl bg-primary/12 blur-md opacity-0 transition-opacity group-hover:opacity-100" />
               <Image
                 src={`${basePath}/myinvestor.png`}
-                alt="MyInvestView Logo"
+                alt="Logotipo de MyInvestView"
                 width={40}
                 height={40}
                 className="relative h-11 w-11 rounded-2xl border border-primary/18 bg-surface/90 p-1.5 object-contain shadow-soft"
@@ -70,12 +70,12 @@ export function Header() {
 
             <div className="hidden items-center gap-2 rounded-full border border-success/20 bg-success/8 px-3 py-1.5 lg:flex">
               <ShieldCheck size={14} className="text-success" />
-              <span className="text-[11px] font-medium text-success">AI Protegida</span>
+              <span className="text-[11px] font-medium text-success">IA protegida</span>
             </div>
 
             <div className="hidden items-center gap-2 rounded-full border border-accent/20 bg-accent/8 px-3 py-1.5 lg:flex">
               <Sparkles size={14} className="text-accent" />
-              <span className="text-[11px] font-medium text-accent">Insights en vivo</span>
+              <span className="text-[11px] font-medium text-accent">Señales en vivo</span>
             </div>
 
             <div

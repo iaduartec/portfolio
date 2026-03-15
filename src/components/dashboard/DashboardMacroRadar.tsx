@@ -73,7 +73,7 @@ export function DashboardMacroRadar() {
 
   return (
     <Card
-      title="Radar Macro Externo"
+      title="Radar macro externo"
       subtitle="Titulares recientes y contexto macro para seguir el mercado de un vistazo"
     >
       {isLoading ? (

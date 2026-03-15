@@ -115,10 +115,10 @@ const buildHeadlineRead = (
 ) => {
   const driverText = strongestMacroTile
     ? `${strongestMacroTile.tile.label} ${formatMove(strongestMacroTile.quote?.dayChangePercent)}`
-    : "sin driver macro dominante";
+    : "sin motor macro dominante";
 
   if (macroDrivers[0]) {
-    return `${breadth.label}. Driver principal: ${driverText}. ${macroDrivers[0]}`;
+    return `${breadth.label}. Catalizador principal: ${driverText}. ${macroDrivers[0]}`;
   }
 
   return `${breadth.label}. Seguimiento de ${driverText}.`;
@@ -233,7 +233,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
               detail={breadth.label}
             />
             <CompactSignal
-              label="Driver macro"
+              label="Motor macro"
               value={strongestMacroTile ? strongestMacroTile.tile.label : "Ninguno"}
               detail={strongestMacroTile ? formatMove(strongestMacroTile.quote?.dayChangePercent) : "Sin desplazamiento"}
             />
@@ -306,7 +306,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
       </Card>
 
       <div className="grid gap-6">
-        <Card title="Claves del día" subtitle="Señales rápidas para no mirar solo el ticker.">
+        <Card title="Claves del día" subtitle="Señales rápidas para no mirar solo el activo.">
           <div className="flex flex-col gap-3">
             {macroDrivers.length > 0 ? (
               macroDrivers.map((driver, index) => (

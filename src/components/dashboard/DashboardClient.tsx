@@ -66,14 +66,14 @@ export function DashboardClient() {
       {!isLoading && !hasTransactions ? (
         <EmptyState
           title="Aun no hay cartera cargada"
-          description="Importa movimientos o abre tu portfolio para empezar a ver métricas, concentración y paneles de mercado con datos reales."
+          description="Importa movimientos o abre tu cartera para empezar a ver métricas, concentración y paneles de mercado con datos reales."
           action={
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild>
                 <Link href="/upload">Importar movimientos</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/portfolio">Abrir portfolio</Link>
+                <Link href="/portfolio">Abrir cartera</Link>
               </Button>
             </div>
           }
@@ -137,11 +137,11 @@ export function DashboardClient() {
             title="Panel técnico de la posición prioritaria"
             description="Gráfico avanzado con soporte para indicadores técnicos y acción de precio en vivo del activo seleccionado."
           />
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.5fr)]">
+          <div className="grid gap-4">
             <div className="min-h-[520px] overflow-hidden rounded-[1.5rem] border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
               <DashboardTradingView selectedHolding={selectedHolding} />
             </div>
-            <div className="min-h-[520px] md:min-h-[600px]">
+            <div className="min-h-[320px]">
               <DashboardNewsFeed activeTicker={activeTicker} />
             </div>
           </div>

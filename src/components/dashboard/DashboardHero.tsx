@@ -26,7 +26,7 @@ export function DashboardHero() {
           <Button asChild size="lg">
             <Link href="/portfolio" className="gap-2">
               <Upload className="h-4 w-4" aria-hidden="true" />
-              Ver mi portfolio
+              Ver mi cartera
             </Link>
           </Button>
           <Button asChild variant="outline" size="lg">

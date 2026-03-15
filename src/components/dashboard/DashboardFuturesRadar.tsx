@@ -25,7 +25,7 @@ const FUTURE_TILES: FutureTile[] = [
   { symbol: "RTY=F", label: "Russell Fut.", group: "EQUITY" },
   { symbol: "CL=F", label: "Crudo WTI", group: "MACRO" },
   { symbol: "GC=F", label: "Oro", group: "MACRO" },
-  { symbol: "ZN=F", label: "T-Note 10Y", group: "MACRO" },
+  { symbol: "ZN=F", label: "Bono 10A EEUU", group: "MACRO" },
 ];
 
 const formatValue = (value?: number) => {
@@ -91,8 +91,8 @@ const buildFuturesSignals = (quotes: QuoteRow[]) => {
   if (Number.isFinite(noteMove) && Math.abs(noteMove!) >= 0.35) {
     messages.push(
       noteMove! > 0
-        ? "El Treasury 10Y rebota y sugiere tono más defensivo en tipos."
-        : "El Treasury 10Y retrocede y deja más espacio al apetito por riesgo."
+        ? "El bono estadounidense a 10 años rebota y sugiere un tono más defensivo en tipos."
+        : "El bono estadounidense a 10 años retrocede y deja más espacio al apetito por riesgo."
     );
   }
 

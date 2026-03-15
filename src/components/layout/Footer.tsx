@@ -68,8 +68,8 @@ export function Footer() {
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Plataforma</h3>
             <ul className="space-y-2 text-sm text-text-tertiary">
               <li><Link href="/" className="transition-colors hover:text-primary">Inicio</Link></li>
-              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Portfolio</Link></li>
-              <li><Link href="/lab" className="transition-colors hover:text-primary">Lab</Link></li>
+              <li><Link href="/portfolio" className="transition-colors hover:text-primary">Cartera</Link></li>
+              <li><Link href="/lab" className="transition-colors hover:text-primary">Laboratorio</Link></li>
               <li><Link href="/ai-agents" className="transition-colors hover:text-primary">Agentes IA</Link></li>
             </ul>
           </div>
@@ -77,7 +77,7 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Legal</h3>
             <ul className="space-y-2 text-sm text-text-tertiary">
-              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Términos de Servicio</Link></li>
+              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Términos del servicio</Link></li>
               <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Política de Privacidad</Link></li>
               <li><Link href={{ pathname: "/legal/riesgo" }} className="transition-colors hover:text-primary">Aviso de riesgo</Link></li>
             </ul>

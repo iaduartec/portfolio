@@ -24,14 +24,14 @@ type WeightRow = {
 
 const accountLabels: Record<InvestmentAccount, string> = {
   BROKERAGE: "Corretaje",
-  ROBO_ADVISOR: "Robo advisor",
+  ROBO_ADVISOR: "Roboadvisor",
   UNASSIGNED: "Sin asignar",
 };
 
 const buildRiskLabel = (topWeight: number, topThreeWeight: number) => {
   if (topWeight >= 45) return "Dependencia extrema de una sola posición";
   if (topWeight >= 30) return "Concentración alta en la primera posición";
-  if (topThreeWeight >= 75) return "Top 3 concentran demasiado riesgo";
+  if (topThreeWeight >= 75) return "Las 3 principales concentran demasiado riesgo";
   if (topThreeWeight >= 60) return "Diversificación aceptable, pero con sesgo claro";
   return "Concentración controlada";
 };
@@ -140,7 +140,7 @@ export function DashboardComposition({
               </p>
             </div>
             <div className="surface-panel rounded-[1.35rem] p-4">
-              <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Top 3</p>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted">3 principales</p>
               <p className="financial-value mt-2 text-2xl font-semibold text-white">{formatPercent(topThreeWeight / 100)}</p>
               <p className="mt-1 text-sm text-text-secondary">{buildRiskLabel(topPosition?.weight ?? 0, topThreeWeight)}</p>
             </div>

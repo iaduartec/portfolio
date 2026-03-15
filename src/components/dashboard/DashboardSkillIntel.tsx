@@ -430,15 +430,15 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       }
 
       if (failedRequests === 3) {
-        setFocusError("No se pudo cargar analitica Yahoo para el ticker en foco.");
+        setFocusError("No se pudo cargar la analítica de Yahoo para el activo en foco.");
       } else if (failedRequests > 0) {
-        setFocusError("Parte de la analitica Yahoo no esta disponible ahora mismo.");
+        setFocusError("Parte de la analítica de Yahoo no está disponible ahora mismo.");
       }
     } catch {
       setYahooFundamentals(null);
       setYahooRatings(null);
       setYahooDividends(null);
-      setFocusError("No se pudo cargar analitica Yahoo para el ticker en foco.");
+      setFocusError("No se pudo cargar la analítica de Yahoo para el activo en foco.");
     } finally {
       setLoadingFocus(false);
     }
@@ -560,7 +560,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
 
     if (clampedScore >= 2) {
       return {
-        action: "BUY" as const,
+        action: "COMPRAR" as const,
         tone: "success" as const,
         confidence: Math.round((Math.abs(clampedScore) / SIGNAL_MAX) * 100),
         scoreText: `+${clampedScore}`,
@@ -569,7 +569,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     }
     if (clampedScore <= -2) {
       return {
-        action: "SELL" as const,
+        action: "VENDER" as const,
         tone: "danger" as const,
         confidence: Math.round((Math.abs(clampedScore) / SIGNAL_MAX) * 100),
         scoreText: `${clampedScore}`,
@@ -577,7 +577,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       };
     }
     return {
-      action: "HOLD" as const,
+      action: "MANTENER" as const,
       tone: "warning" as const,
       confidence: Math.round((Math.abs(clampedScore) / SIGNAL_MAX) * 100),
       scoreText: `${clampedScore > 0 ? "+" : ""}${clampedScore}`,
@@ -655,7 +655,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
       <div className="relative">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-primary/85">Capa de Inteligencia de Skills</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-primary/85">Capa de inteligencia operativa</p>
             <h2 className="section-title mt-2 text-2xl font-semibold text-white">
               Señales accionables para cartera y mercado
             </h2>
@@ -672,7 +672,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             title={
               <span className="inline-flex items-center gap-2">
                 <CandlestickChart className="h-4 w-4 text-primary" />
-                Yahoo Finance Pulse
+                Pulso de Yahoo Finance
               </span>
             }
             subtitle="Cotizaciones en vivo para priorizar contexto de mercado"
@@ -693,10 +693,10 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={signal.tone}>{signal.label}</Badge>
                 <Badge tone={predictionMeter.tone}>Acción {predictionMeter.action}</Badge>
-                <Badge tone="default">Foco {selectedInsiderTicker}</Badge>
+                <Badge tone="default">Activo en foco {selectedInsiderTicker}</Badge>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-text/90">
-                El pulso Yahoo resume valoración, consenso y dividendo para el ticker activo. Úsalo como filtro previo antes de profundizar en la señal insider.
+                El pulso de Yahoo resume valoración, consenso y dividendo para el activo en foco. Úsalo como filtro previo antes de profundizar en la señal insider.
               </p>
             </div>
 
@@ -721,7 +721,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               })}
               {WATCHLIST.every((ticker) => !hasQuoteData(quoteMap.get(ticker))) ? (
                 <p className="rounded-xl border border-border/80 bg-surface-muted/30 px-3 py-3 text-sm text-muted">
-                  La watchlist no tiene cotizaciones útiles ahora mismo.
+                  La lista de seguimiento no tiene cotizaciones útiles ahora mismo.
                 </p>
               ) : null}
             </div>
@@ -733,7 +733,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             <div className="mt-3 rounded-xl border border-border/80 bg-surface-muted/30 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-muted">
-                  Ticker en foco: <span className="font-semibold text-text">{selectedInsiderTicker}</span>
+                  Activo en foco: <span className="font-semibold text-text">{selectedInsiderTicker}</span>
                 </p>
                 <Badge tone={signal.tone}>{signal.label}</Badge>
               </div>
@@ -756,13 +756,13 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   ) : null}
                   {yahooRatings?.recommendationKey ? (
                     <div className="rounded-lg border border-border/70 px-2 py-1.5">
-                      <p className="text-muted">Rating</p>
+                      <p className="text-muted">Consenso</p>
                       <p className="font-semibold text-white">{yahooRatings.recommendationKey}</p>
                     </div>
                   ) : null}
                   {yahooDividends?.dividendYield !== undefined ? (
                     <div className="rounded-lg border border-border/70 px-2 py-1.5">
-                      <p className="text-muted">Yield</p>
+                      <p className="text-muted">Rent. div.</p>
                       <p className="font-semibold text-white">
                         {`${(yahooDividends.dividendYield * 100).toFixed(2)}%`}
                       </p>
@@ -771,11 +771,11 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </div>
               ) : (
                 <p className="mt-2 rounded-lg border border-border/70 px-3 py-2 text-xs text-muted">
-                  El ticker en foco no trae suficientes datos Yahoo para resumir valoración o consenso.
+                  El activo en foco no trae suficientes datos de Yahoo para resumir valoración o consenso.
                 </p>
               )}
               <p className="mt-2 text-[11px] text-muted">
-                Semáforo = insiders recientes + rating de consenso + valoración relativa (PE/PB).
+                Semáforo = actividad insider reciente + consenso + valoración relativa (PE/PB).
               </p>
               <div className="mt-3 rounded-xl border border-border/80 bg-background/35 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -794,12 +794,12 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   />
                 </div>
                 <div className="mt-2 flex items-center justify-between text-[10px] font-semibold tracking-[0.08em]">
-                  <span className="text-rose-300">SELL</span>
-                  <span className="text-amber-300">HOLD</span>
-                  <span className="text-emerald-300">BUY</span>
+                  <span className="text-rose-300">VENDER</span>
+                  <span className="text-amber-300">MANTENER</span>
+                  <span className="text-emerald-300">COMPRAR</span>
                 </div>
                 <p className="mt-2 text-[11px] text-muted">
-                  Score {predictionMeter.scoreText}/{SIGNAL_MAX} · Confianza {predictionMeter.confidence}%
+                  Puntuación {predictionMeter.scoreText}/{SIGNAL_MAX} · Confianza {predictionMeter.confidence}%
                 </p>
               </div>
             </div>
@@ -810,7 +810,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             title={
               <span className="inline-flex items-center gap-2">
                 <Radar className="h-4 w-4 text-accent" />
-                OpenInsider Radar
+                Radar de OpenInsider
               </span>
             }
             subtitle="Señales automáticas para tus posiciones y una cesta general, sin seleccionar nada"
@@ -846,12 +846,12 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
 
             <div className="mt-3 mb-3 grid gap-2 sm:grid-cols-2">
               <SignalSummary
-                label="Tickers cartera"
+                label="Activos de cartera"
                 value={String(insiderOverview.portfolioCount)}
                 detail="Compatibles con OpenInsider"
               />
               <SignalSummary
-                label="Tickers generales"
+                label="Activos generales"
                 value={String(insiderOverview.generalCount)}
                 detail="Cesta base para no quedarse ciego"
               />
@@ -949,13 +949,13 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                     }, 120);
                   }}
                   onKeyDown={handleInsiderSuggestionKeyDown}
-                  placeholder="Ticker a analizar (ej. TSLA)…"
+                  placeholder="Activo a analizar (ej. TSLA)…"
                   className="h-9 w-full rounded-lg border border-border/80 bg-surface-muted/30 px-3 text-xs text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/65"
                 />
                 {showInsiderSuggestions && (insiderSuggestions.length > 0 || isSuggestingInsider) && (
                   <div className="absolute left-0 right-0 top-[calc(100%+0.4rem)] z-20 overflow-hidden rounded-xl border border-border/80 bg-surface/95 shadow-xl backdrop-blur-xl">
                     {isSuggestingInsider && insiderSuggestions.length === 0 ? (
-                      <p className="px-3 py-2 text-xs text-muted">Buscando tickers…</p>
+                      <p className="px-3 py-2 text-xs text-muted">Buscando activos…</p>
                     ) : (
                       insiderSuggestions.map((suggestion, index) => {
                         const isActive = index === activeInsiderSuggestionIndex;
@@ -1046,7 +1046,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted">
-                      Filing: {trade.filingDate.slice(0, 10)} · Valor:{" "}
+                      Registro: {trade.filingDate.slice(0, 10)} · Valor:{" "}
                       {trade.value !== undefined ? formatCurrency(Math.abs(trade.value), "USD") : "Sin importe"}
                     </p>
                   </div>
