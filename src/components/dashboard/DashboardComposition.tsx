@@ -79,7 +79,7 @@ export function DashboardComposition({
   if (weightedHoldings.length === 0) return null;
 
   return (
-    <section className="grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,0.95fr)]">
+    <section className="grid gap-4">
       <Card
         title="Mapa de concentración"
         subtitle="Qué posiciones explican la mayor parte del riesgo y del valor"
