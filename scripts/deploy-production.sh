@@ -44,11 +44,6 @@ elif [[ -f "${ENV_FILE}" ]]; then
   fi
 fi
 
-if ! sudo -n true 2>/dev/null; then
-  echo "[deploy] passwordless sudo is required for service restart checks"
-  exit 1
-fi
-
 export PATH="${NODE_BIN_DIR}:/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin:${PATH}"
 export NEXT_TELEMETRY_DISABLED=1
 
