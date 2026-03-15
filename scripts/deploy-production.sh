@@ -11,9 +11,37 @@ NODE_BIN_DIR="${NODE_BIN_DIR:-/home/ubuntu/.nvm/versions/node/v24.10.0/bin}"
 PUBLIC_HEALTHCHECK_URL="${PUBLIC_HEALTHCHECK_URL:-https://kiri-vnic.tail4b3cf6.ts.net/portfolio}"
 SKIP_GIT_SYNC="${SKIP_GIT_SYNC:-0}"
 
-if [[ -f "${ENV_FILE}" ]]; then
+load_running_service_env() {
+  local main_pid=""
+
+  if ! command -v systemctl >/dev/null 2>&1; then
+    return 1
+  fi
+
+  main_pid="$(systemctl show -p MainPID --value "${SERVICE_NAME}" 2>/dev/null || true)"
+  if [[ -z "${main_pid}" || "${main_pid}" == "0" || ! -r "/proc/${main_pid}/environ" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r line; do
+    [[ "${line}" == *=* ]] || continue
+    export "${line}"
+  done < <(tr '\0' '\n' < "/proc/${main_pid}/environ")
+
+  return 0
+}
+
+if [[ -r "${ENV_FILE}" ]]; then
+  # Load the same runtime env file used by the systemd service, including PORT if set.
   # shellcheck disable=SC1090
   source "${ENV_FILE}"
+elif [[ -f "${ENV_FILE}" ]]; then
+  echo "[deploy] env file exists but is not readable: ${ENV_FILE}"
+  if load_running_service_env; then
+    echo "[deploy] loaded runtime environment from the active ${SERVICE_NAME} process"
+  else
+    echo "[deploy] continuing without sourcing ${ENV_FILE}; no active service environment available"
+  fi
 fi
 
 if ! sudo -n true 2>/dev/null; then
