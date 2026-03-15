@@ -41,6 +41,10 @@ import {
   normalizeLineWidth,
   confidenceLabel,
 } from "@/lib/technical-analysis";
+import {
+  runStrategyBacktest,
+  type StrategyBacktestId,
+} from "@/lib/strategyBacktest";
 
 const ANALYSIS_WORKER_TIMEOUT_MS = 4500;
 const EMPTY_ANALYSIS: AnalysisResult = {
@@ -54,6 +58,19 @@ const EMPTY_ANALYSIS_ENGINE_STATE: AnalysisResultPayload = {
   metrics: { mode: "full", durationMs: 0 },
   indicatorBundle: EMPTY_INDICATOR_BUNDLE,
   indicatorMetrics: { mode: "full", durationMs: 0 },
+};
+
+const BACKTEST_OPTIONS: Array<{ id: StrategyBacktestId; label: string }> = [
+  { id: "buy-hold", label: "Buy & Hold" },
+  { id: "trend-swing", label: "Trend Swing" },
+  { id: "breakout", label: "Breakout" },
+  { id: "mean-reversion", label: "Mean Reversion" },
+];
+
+const PRESET_TO_BACKTEST: Record<string, StrategyBacktestId> = {
+  "trend-swing": "trend-swing",
+  breakout: "breakout",
+  "mean-reversion": "mean-reversion",
 };
 
 
@@ -73,6 +90,7 @@ export function PatternAnalysisLab() {
   const [filters, setFilters] = useState(DEFAULT_PATTERN_FILTERS);
   const [indicatorFilters, setIndicatorFilters] = useState(DEFAULT_INDICATOR_FILTERS);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [selectedBacktestId, setSelectedBacktestId] = useState<StrategyBacktestId>("trend-swing");
   const { holdings } = usePortfolioData();
   const portfolioTickers = useMemo(() => {
     const symbols = holdings.map((holding) => holding.ticker.toUpperCase()).filter(Boolean);
@@ -136,6 +154,10 @@ export function PatternAnalysisLab() {
       ) as Record<PatternFilterKey, boolean>
     );
     setActivePresetId(preset.id);
+    const linkedBacktest = PRESET_TO_BACKTEST[preset.id];
+    if (linkedBacktest) {
+      setSelectedBacktestId(linkedBacktest);
+    }
   };
 
   const indicatorBundle = analysisEngine.indicatorBundle;
@@ -155,6 +177,10 @@ export function PatternAnalysisLab() {
   const canAnalyze = liveStatus === "idle" && analysis.candles.length > 0 && !isLoading;
   const latestAssistant = [...messages].reverse().find((message) => message.role === "assistant");
   const indicatorSummary = indicatorBundle.summary;
+  const backtestResult = useMemo(
+    () => runStrategyBacktest(analysis.candles, selectedBacktestId),
+    [analysis.candles, selectedBacktestId]
+  );
   const latestText = latestAssistant
     ? (() => {
       const isTextPart = (part: unknown): part is { type: "text"; text: string } =>
@@ -809,6 +835,104 @@ export function PatternAnalysisLab() {
                 </div>
               </div>
             </div>
+          </div>
+        </Card>
+
+        <Card
+          title="Backtest rápido"
+          subtitle="Inspirado en frameworks tipo backtesting.py/vectorbt: reglas simples, métricas claras y baseline comparable."
+        >
+          <div className="flex flex-col gap-4 text-sm text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              {BACKTEST_OPTIONS.map((option) => {
+                const isActive = selectedBacktestId === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => setSelectedBacktestId(option.id)}
+                    className={cn(
+                      "rounded-full border border-border/60 px-3 py-1 text-xs transition",
+                      isActive ? "bg-accent/20 text-text" : "bg-surface-muted/40 text-muted hover:bg-surface",
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {backtestResult ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {[
+                    {
+                      label: "Retorno estrategia",
+                      value: `${backtestResult.totalReturnPct >= 0 ? "+" : ""}${backtestResult.totalReturnPct.toFixed(2)}%`,
+                      tone: backtestResult.totalReturnPct >= 0 ? "text-success" : "text-danger",
+                    },
+                    {
+                      label: "Vs Buy & Hold",
+                      value: `${(backtestResult.totalReturnPct - backtestResult.benchmarkReturnPct) >= 0 ? "+" : ""}${(backtestResult.totalReturnPct - backtestResult.benchmarkReturnPct).toFixed(2)}%`,
+                      tone:
+                        backtestResult.totalReturnPct - backtestResult.benchmarkReturnPct >= 0
+                          ? "text-success"
+                          : "text-danger",
+                    },
+                    {
+                      label: "Max drawdown",
+                      value: `-${backtestResult.maxDrawdownPct.toFixed(2)}%`,
+                      tone: "text-danger",
+                    },
+                    {
+                      label: "Volatilidad",
+                      value: `${backtestResult.volatilityPct.toFixed(2)}%`,
+                      tone: "text-text",
+                    },
+                    {
+                      label: "Trades",
+                      value: String(backtestResult.tradeCount),
+                      tone: "text-text",
+                    },
+                    {
+                      label: "Hit rate",
+                      value:
+                        backtestResult.hitRatePct !== null
+                          ? `${backtestResult.hitRatePct.toFixed(2)}%`
+                          : "N/D",
+                      tone: "text-text",
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{item.label}</p>
+                      <p className={cn("mt-2 text-lg font-semibold", item.tone)}>{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs leading-relaxed text-muted">
+                  <p className="uppercase tracking-[0.2em] text-muted">Supuestos</p>
+                  <p className="mt-2">
+                    Capital 100% dentro o fuera, sin apalancamiento, sin optimización y sin comisiones explícitas.
+                    Úsalo como filtro rápido de calidad de la regla, no como promesa operativa.
+                  </p>
+                  <p className="mt-2">
+                    Benchmark actual: Buy &amp; Hold ={" "}
+                    <span className="font-semibold text-text">
+                      {backtestResult.benchmarkReturnPct >= 0 ? "+" : ""}
+                      {backtestResult.benchmarkReturnPct.toFixed(2)}%
+                    </span>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+                Necesito al menos unas 60 velas para lanzar el backtest y compararlo con buy &amp; hold.
+              </p>
+            )}
           </div>
         </Card>
 

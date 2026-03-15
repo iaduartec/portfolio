@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { MarketPulse } from "@/components/ai/MarketPulse";
 import { ScenarioBuilder } from "@/components/ai/ScenarioBuilder";
+import { DashboardMacroRadar } from "@/components/dashboard/DashboardMacroRadar";
 
 type MarketQuote = {
   symbol: string;
@@ -257,6 +258,7 @@ export function DashboardAIPulse() {
           <MarketPulse sentiment={pulse.sentiment} score={pulse.score} insight={pulse.insight} />
           <ScenarioBuilder />
         </div>
+        <DashboardMacroRadar />
         <Card title="Analisis de IA" subtitle="Mercado global y cartera en tiempo real">
           <p className="text-muted-foreground text-sm p-4">
             El pulso de arriba resume sentimiento general de mercado con indices amplios y volatilidad, no tus
