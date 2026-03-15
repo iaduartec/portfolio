@@ -58,7 +58,6 @@ jobs:
           port: ${{ secrets.PROD_SSH_PORT }}
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
-          script_stop: true
           script: |
             cd /srv/apps/portfolio
             git fetch --prune --no-tags origin
