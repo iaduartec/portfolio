@@ -74,12 +74,12 @@ sudo -n systemctl restart "${SERVICE_NAME}"
 
 echo "[deploy] waiting for service"
 for _ in {1..12}; do
-  if sudo -n systemctl is-active --quiet "${SERVICE_NAME}"; then
+  if [[ "$(sudo -n systemctl is-active "${SERVICE_NAME}")" == "active" ]]; then
     break
   fi
   sleep 2
 done
-sudo -n systemctl is-active --quiet "${SERVICE_NAME}"
+[[ "$(sudo -n systemctl is-active "${SERVICE_NAME}")" == "active" ]]
 
 echo "[deploy] checking local health endpoint"
 curl --retry 5 --retry-delay 2 --retry-connrefused --fail --silent --show-error \
