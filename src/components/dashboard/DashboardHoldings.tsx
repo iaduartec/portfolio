@@ -22,8 +22,8 @@ export function DashboardHoldings({
         : "+0";
 
     return (
-        <section id="holdings-section" className="grid gap-4 lg:grid-cols-3">
-            <div className="lg:col-span-3">
+        <section id="holdings-section" className="grid gap-4 grid-cols-1">
+            <div className="w-full">
                 <Card
                     title="Participaciones"
                     subtitle="Solo posiciones abiertas con su precio promedio"

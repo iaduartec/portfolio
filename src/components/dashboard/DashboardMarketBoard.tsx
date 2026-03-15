@@ -219,7 +219,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
             <p className="mt-3 text-sm leading-relaxed text-text">{headlineRead}</p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <CompactSignal
               label="Cobertura"
               value={`${quotes.length}/${MARKET_TILES.length}`}
@@ -234,6 +234,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
               label="Señal inmediata"
               value={macroDrivers[0] ? "Activa" : "Neutral"}
               detail={macroDrivers[0] ?? "Sin suficiente movimiento para una lectura táctica."}
+              className="sm:col-span-2"
             />
           </div>
         </div>
@@ -358,13 +359,15 @@ function CompactSignal({
   label,
   value,
   detail,
+  className,
 }: {
   label: string;
   value: string;
   detail: string;
+  className?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
+    <div className={cn("rounded-xl border border-border/60 bg-surface-muted/35 p-4", className)}>
       <p className="text-[11px] uppercase tracking-[0.18em] text-muted">{label}</p>
       <p className="mt-2 text-sm font-semibold text-white">{value}</p>
       <p className="mt-1 text-xs leading-relaxed text-muted">{detail}</p>

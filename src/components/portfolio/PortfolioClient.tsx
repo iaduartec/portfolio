@@ -1125,7 +1125,7 @@ export function PortfolioClient() {
           </div>
         </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              {highlights && (
                 <>
                   <Card className="flex items-center gap-4 transition-all hover:border-success/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
@@ -1150,7 +1150,7 @@ export function PortfolioClient() {
                         </p>
                      </div>
                   </Card>
-                  <Card className="flex items-center gap-4 transition-all hover:border-primary/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
+                  <Card className="flex items-center gap-4 transition-all hover:border-primary/20 group cursor-pointer hover:scale-[1.02] active:scale-[0.98] md:col-span-2">
                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
                         <Activity size={20} />
                      </div>
