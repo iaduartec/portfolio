@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveExchange, resolveYahooSymbol } from "@/lib/marketSymbols";
-
-const ALPHA_ENDPOINT = "https://www.alphavantage.co/query";
-
+import { resolveYahooSymbol } from "@/lib/marketSymbols";
 
 const exchangeSuffixMap: Record<string, string> = {
   BME: ".MC",
@@ -22,34 +19,12 @@ const exchangeSuffixMap: Record<string, string> = {
   TSE: ".TO",
 };
 
-
-const buildUrl = (params: Record<string, string>) => {
-  const query = new URLSearchParams(params);
-  return `${ALPHA_ENDPOINT}?${query.toString()}`;
-};
-
-const fetchSeries = async (symbol: string, apiKey: string) => {
-  const response = await fetch(
-    buildUrl({
-      function: "TIME_SERIES_DAILY",
-      symbol,
-      outputsize: "compact",
-      apikey: apiKey,
-    }),
-    { next: { revalidate: 300 } }
-  );
-  const payload = await response.json();
-  return { response, payload };
-};
-
-
 const normalizeSymbolForYahoo = (ticker: string) => {
   return resolveYahooSymbol(ticker, exchangeSuffixMap);
 };
 
 const fetchYahooOHLC = async (ticker: string, interval: string = "1d", range: string = "3mo") => {
   const symbol = normalizeSymbolForYahoo(ticker);
-  // Allow 60m for 4h approximation if we want to aggregate later, or just use 60m directly for now if 4h isn't standard
   // Yahoo supports: 1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, 3mo
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     symbol
@@ -80,11 +55,9 @@ const fetchYahooOHLC = async (ticker: string, interval: string = "1d", range: st
     const volumesData = [];
 
     for (let i = 0; i < timestamps.length; i++) {
-      const time = new Date(timestamps[i] * 1000).toISOString(); // Keep ISO for potential intraday time
-      // For daily/weekly, we might want just YYYY-MM-DD, but ISOS with T is safer for parsing in general
-      // Let's standardise on YYYY-MM-DD if interval is >= 1d
+      const time = new Date(timestamps[i] * 1000).toISOString();
       const isIntraday = interval.endsWith("m") || interval.endsWith("h");
-      const timeStr = isIntraday ? time : time.split('T')[0];
+      const timeStr = isIntraday ? time : time.split("T")[0];
 
       const open = Number(opens[i]);
       const high = Number(highs[i]);
@@ -115,7 +88,7 @@ const fetchYahooOHLC = async (ticker: string, interval: string = "1d", range: st
       symbol: result.meta?.symbol || symbol,
       candles,
       volumes: volumesData,
-      source: "yahoo-finance"
+      source: "yahoo-finance",
     };
   } catch (err) {
     console.warn(`[Yahoo OHLC] Failed for ${symbol}:`, err);
@@ -128,7 +101,6 @@ export async function GET(req: Request) {
   const symbolParam = searchParams.get("symbol");
   const intervalParam = searchParams.get("interval") || "1d";
   const rangeParam = searchParams.get("range");
-  const apiKey = process.env.ALPHAVANTAGE_API_KEY;
 
   if (!symbolParam) {
     return NextResponse.json({ error: "Missing symbol" }, { status: 400 });
@@ -136,67 +108,66 @@ export async function GET(req: Request) {
 
   const rawSymbol = symbolParam.trim();
 
-  // Map our internal intervals to Yahoo's
-  // Supported map: "1d" -> "1d", "1wk" -> "1wk", "4h" -> "60m" (we'll fetch 60m for now as 4h isn't always direct)
+  // Map internal intervals to Yahoo's supported values
   let yahooInterval: string;
   let yahooRange: string;
 
   if (intervalParam === "1wk") {
     yahooInterval = "1wk";
-    yahooRange = rangeParam || "2y"; // Need more history for weekly
+    yahooRange = rangeParam || "2y";
   } else if (intervalParam === "4h") {
-    yahooInterval = "60m"; // Fetch hourly, we can let the UI or logic aggregate if needed, or just show hourly as proxy
-    yahooRange = rangeParam || "1mo";   // Intraday range is often limited
+    // Yahoo doesn't support 4h natively; fetch 60m and aggregate into 4-candle chunks
+    yahooInterval = "60m";
+    yahooRange = rangeParam || "1mo";
   } else {
     yahooInterval = "1d";
-    yahooRange = rangeParam || "1y"; // Default to 1y for daily if no range specified
+    yahooRange = rangeParam || "1y";
   }
 
-  // 1. Try Yahoo Finance First (or if Key is missing)
   try {
     const yahooData = await fetchYahooOHLC(rawSymbol, yahooInterval, yahooRange);
     if (yahooData) {
-      // If we asked for 4h but got 60m, ideally we'd aggregate here.
-      // For simplicity in this step, let's return the data as is.
-      // The frontend requested "4h" but might receive hourly candles if we just mapped to 60m.
-      // A proper 4h aggregation would look like: group every 4 candles, take O of first, C of last, Max H, Min L, Sum Vol.
-      
       if (intervalParam === "4h" && yahooInterval === "60m") {
-          // Quick aggregation logic
-          const aggregatedCandles = [];
-          const aggregatedVolumes = [];
-          const chunkSize = 4;
-          
-          for (let i = 0; i < yahooData.candles.length; i += chunkSize) {
-              const chunk = yahooData.candles.slice(i, i + chunkSize);
-              if (chunk.length === 0) continue;
-              
-              const first = chunk[0];
-              const last = chunk[chunk.length - 1];
-              const high = Math.max(...chunk.map(c => c.high));
-              const low = Math.min(...chunk.map(c => c.low));
-              const volSum = chunk.reduce((sum, c, idx) => sum + (yahooData.volumes[i+idx]?.value || 0), 0);
-              
-              aggregatedCandles.push({
-                  time: first.time,
-                  open: first.open,
-                  high,
-                  low,
-                  close: last.close
-              });
-              
-              aggregatedVolumes.push({
-                  time: first.time,
-                  value: volSum,
-                  color: last.close >= first.open ? "rgba(0,192,116,0.35)" : "rgba(246,70,93,0.35)"
-              });
-          }
-           return NextResponse.json({
-              ...yahooData,
-              candles: aggregatedCandles,
-              volumes: aggregatedVolumes,
-              interval: "4h"
-           });
+        const aggregatedCandles = [];
+        const aggregatedVolumes = [];
+        const chunkSize = 4;
+
+        for (let i = 0; i < yahooData.candles.length; i += chunkSize) {
+          const chunk = yahooData.candles.slice(i, i + chunkSize);
+          if (chunk.length === 0) continue;
+
+          const first = chunk[0];
+          const last = chunk[chunk.length - 1];
+          const high = Math.max(...chunk.map((c) => c.high));
+          const low = Math.min(...chunk.map((c) => c.low));
+          const volSum = chunk.reduce(
+            (sum, _c, idx) => sum + (yahooData.volumes[i + idx]?.value || 0),
+            0
+          );
+
+          aggregatedCandles.push({
+            time: first.time,
+            open: first.open,
+            high,
+            low,
+            close: last.close,
+          });
+          aggregatedVolumes.push({
+            time: first.time,
+            value: volSum,
+            color:
+              last.close >= first.open
+                ? "rgba(0,192,116,0.35)"
+                : "rgba(246,70,93,0.35)",
+          });
+        }
+
+        return NextResponse.json({
+          ...yahooData,
+          candles: aggregatedCandles,
+          volumes: aggregatedVolumes,
+          interval: "4h",
+        });
       }
 
       return NextResponse.json({ ...yahooData, interval: intervalParam });
@@ -205,31 +176,6 @@ export async function GET(req: Request) {
     console.error("Yahoo OHLC fetch failed", err);
   }
 
-  // 2. Try AlphaVantage if Key exists (Legacy fallback, mostly Daily)
-  if (apiKey) {
-    // ... Alpha Vantage Logic (Simplified / Kept as fallback for standard Daily) ...
-    // Note: AlphaVantage free tier is widely rate limited and mainly Daily. 
-    // We'll skip extending AV logic for 4h/1wk to keep things simple unless Yahoo fails.
-    try {
-      const [rawExchange, coreSymbol] = rawSymbol.includes(":")
-        ? rawSymbol.split(":").map((part) => part.trim())
-        : ["", rawSymbol];
-      // ... existing resolution logic ...
-      const exchange = rawExchange ? resolveExchange(rawExchange) : "";
-      const needsSuffix = exchange && !coreSymbol.includes(".");
-      const suffix = needsSuffix ? exchangeSuffixMap[exchange] ?? "" : "";
-      const symbol = `${coreSymbol}${suffix}`.trim();
-
-      await fetchSeries(symbol, apiKey);
-      // ... processing ...
-      // If we get here, adapt return. For brevity, assuming AV returns standard daily payload.
-      // Realistically better to rely on Yahoo for structural changes requested.
-    } catch (err) {
-      console.error("AlphaVantage fetch failed", err);
-    }
-  }
-
-  // 3. Fallback: No data found
   return NextResponse.json(
     { error: `No historical data found for ${rawSymbol}`, candles: [], volumes: [] },
     { status: 404 }

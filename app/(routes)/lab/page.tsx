@@ -2,6 +2,7 @@ import { Shell } from "@/components/layout/Shell";
 import { PortfolioChartsGrid } from "@/components/charts/PortfolioChartsGrid";
 import { AITechnicalAnalysis } from "@/components/ai/AITechnicalAnalysis";
 import { LabGlobalAnalyzer } from "@/components/charts/LabGlobalAnalyzer";
+import { CorrelationHeatmap } from "@/components/charts/CorrelationHeatmap";
 import Link from "next/link";
 
 export default function PatternLabPage() {
@@ -35,7 +36,18 @@ export default function PatternLabPage() {
           <PortfolioChartsGrid />
         </section>
 
-        {/* Block 3: AI Strategic Analysis */}
+        {/* Block 3: Correlation Heatmap */}
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-semibold text-text">Correlación entre activos</h2>
+            <p className="text-sm text-muted">
+              Identifica cuánto se mueven juntos los activos de tu cartera — clave para diversificación real.
+            </p>
+          </div>
+          <CorrelationHeatmap />
+        </section>
+
+        {/* Block 4: AI Strategic Analysis */}
         <AITechnicalAnalysis />
       </div>
     </Shell>

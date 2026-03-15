@@ -1,13 +1,51 @@
+"use client";
+
 import Link from "next/link";
-import { Github, Twitter, Linkedin } from "lucide-react";
+import { Github, Twitter, Linkedin, Activity } from "lucide-react";
+import { useEffect, useState } from "react";
+
+function ApiHealthBadge() {
+  const [status, setStatus] = useState<"checking" | "ok" | "degraded">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      try {
+        const start = Date.now();
+        const res = await fetch("/api/quotes?symbols=SPY", { cache: "no-store" });
+        const latency = Date.now() - start;
+        if (!cancelled) {
+          setStatus(res.ok && latency < 8000 ? "ok" : "degraded");
+        }
+      } catch {
+        if (!cancelled) setStatus("degraded");
+      }
+    };
+    void check();
+    return () => { cancelled = true; };
+  }, []);
+
+  const label = status === "ok" ? "Datos en vivo" : status === "degraded" ? "Datos degradados" : "Verificando…";
+  const dotClass =
+    status === "ok"
+      ? "bg-success animate-pulse-soft"
+      : status === "degraded"
+        ? "bg-warning"
+        : "bg-muted animate-pulse-soft";
+  const textClass =
+    status === "ok" ? "text-success" : status === "degraded" ? "text-warning" : "text-muted";
+
+  return (
+    <div className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-surface/60 px-2.5 py-1">
+      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+      <span className={`text-[10px] font-medium ${textClass}`}>{label}</span>
+      <Activity size={10} className={textClass} />
+    </div>
+  );
+}
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
-  const lastUpdated = new Intl.DateTimeFormat("es-ES", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(new Date());
 
   return (
     <footer className="mt-auto w-full border-t border-border/70 bg-surface/45 backdrop-blur-sm">
@@ -19,8 +57,11 @@ export function Footer() {
               <span className="text-primary">View</span>
             </Link>
             <p className="max-w-sm text-sm leading-relaxed text-muted">
-              Convierte datos dispersos en decisiones de inversion con contexto IA y visualizacion financiera de nivel profesional.
+              Convierte datos dispersos en decisiones de inversión con contexto IA y visualización financiera de nivel profesional.
             </p>
+            <div className="mt-4">
+              <ApiHealthBadge />
+            </div>
           </div>
 
           <div>
@@ -36,8 +77,8 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-text">Legal</h3>
             <ul className="space-y-2 text-sm text-muted">
-              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Terminos de Servicio</Link></li>
-              <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Politica de Privacidad</Link></li>
+              <li><Link href={{ pathname: "/legal/terminos" }} className="transition-colors hover:text-primary">Términos de Servicio</Link></li>
+              <li><Link href={{ pathname: "/legal/privacidad" }} className="transition-colors hover:text-primary">Política de Privacidad</Link></li>
               <li><Link href={{ pathname: "/legal/riesgo" }} className="transition-colors hover:text-primary">Aviso de riesgo</Link></li>
             </ul>
           </div>
@@ -47,7 +88,9 @@ export function Footer() {
           <p className="text-xs text-muted">
             &copy; {currentYear} MyInvestView. Todos los derechos reservados.
           </p>
-          <p className="text-xs text-muted">Estado de datos: Actualizado {lastUpdated}</p>
+          <p className="text-xs text-muted/60 italic">
+            Los datos son orientativos y no constituyen asesoramiento financiero.
+          </p>
           <div className="flex gap-4">
             {process.env.NEXT_PUBLIC_GITHUB_URL ? (
               <a
@@ -64,7 +107,7 @@ export function Footer() {
               <a
                 href={process.env.NEXT_PUBLIC_TWITTER_URL}
                 className="text-muted transition-colors hover:text-primary"
-                aria-label="Twitter"
+                aria-label="X (Twitter)"
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -763,20 +763,22 @@ const buildMonthlyRealizedSeries = (trades: RealizedTrade[]): IncomePoint[] => {
   return points;
 };
 
-function RevolutSparkline({ data, color = "#22c55e", height = 60 }: { data: any[]; color?: string; height?: number }) {
+function RevolutSparkline({ data, color = "#22c55e", height = 60, chartId }: { data: any[]; color?: string; height?: number; chartId: string }) {
   if (!data || data.length < 2) return <div style={{ height }} />;
-  
+
   const min = Math.min(...data.map(d => d.value));
   const max = Math.max(...data.map(d => d.value));
   const padding = (max - min) * 0.1;
   const domain = [min - padding, max + padding];
+  // Unique gradient ID prevents DOM duplicate-id issues when multiple sparklines share a color
+  const gradientId = `grad-${chartId}-${color.replace(/#/g, "")}`;
 
   return (
     <div style={{ height }} className="w-full opacity-80">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
           <defs>
-            <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.3} />
               <stop offset="100%" stopColor={color} stopOpacity={0} />
             </linearGradient>
@@ -786,7 +788,7 @@ function RevolutSparkline({ data, color = "#22c55e", height = 60 }: { data: any[
             dataKey="value"
             stroke={color}
             strokeWidth={2}
-            fill={`url(#grad-${color})`}
+            fill={`url(#${gradientId})`}
             isAnimationActive={false}
             dot={false}
           />
@@ -1103,6 +1105,71 @@ export function PortfolioClient() {
             </label>
           </div>
 
+          {/* KPI Summary Pills */}
+          {(() => {
+            const totalInvested = selectedTransactions
+              .filter((tx) => tx.type === "BUY")
+              .reduce((sum, tx) => {
+                const gross = Number.isFinite(tx.grossAmount) && (tx.grossAmount ?? 0) !== 0
+                  ? Math.abs(tx.grossAmount ?? 0)
+                  : (Number.isFinite(tx.quantity) && Number.isFinite(tx.price) ? tx.quantity * tx.price : 0);
+                return sum + convertCurrency(gross, currency, fxRate, baseCurrency);
+              }, 0);
+            const bestHolding = selectedHoldings.length > 0
+              ? [...selectedHoldings].sort((a, b) => b.pnlPercent - a.pnlPercent)[0]
+              : null;
+            const worstHolding = selectedHoldings.length > 0
+              ? [...selectedHoldings].sort((a, b) => a.pnlPercent - b.pnlPercent)[0]
+              : null;
+            const cash = convertCurrency(selectedMetrics.cashBalance, currency, fxRate, baseCurrency);
+
+            const pills = [
+              {
+                label: "Total invertido",
+                value: formatCurrency(totalInvested, currency),
+                colorClass: "border-primary/30 bg-primary/5 text-primary",
+              },
+              {
+                label: "Efectivo disponible",
+                value: formatCurrency(cash, currency),
+                colorClass: cash >= 0 ? "border-success/30 bg-success/5 text-success" : "border-danger/30 bg-danger/5 text-danger",
+              },
+              {
+                label: "Mejor posición",
+                value: bestHolding
+                  ? `${bestHolding.ticker.split(":").pop()} ${bestHolding.pnlPercent >= 0 ? "+" : ""}${formatPercent(bestHolding.pnlPercent / 100)}`
+                  : "–",
+                colorClass: (bestHolding?.pnlPercent ?? 0) >= 0 ? "border-success/30 bg-success/5 text-success" : "border-danger/30 bg-danger/5 text-danger",
+              },
+              {
+                label: "Peor posición",
+                value: worstHolding
+                  ? `${worstHolding.ticker.split(":").pop()} ${worstHolding.pnlPercent >= 0 ? "+" : ""}${formatPercent(worstHolding.pnlPercent / 100)}`
+                  : "–",
+                colorClass: (worstHolding?.pnlPercent ?? 0) >= 0 ? "border-success/30 bg-success/5 text-success" : "border-danger/30 bg-danger/5 text-danger",
+              },
+            ];
+
+            return (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {pills.map((pill) => (
+                  <div
+                    key={pill.label}
+                    className={cn(
+                      "flex flex-col gap-1 rounded-xl border px-4 py-3",
+                      pill.colorClass
+                    )}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] opacity-70">
+                      {pill.label}
+                    </p>
+                    <p className="text-sm font-bold">{pill.value}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
           <Card className="overflow-hidden border-none bg-[#1C1C1E] p-6 shadow-2xl transition-all hover:bg-[#2C2C2E]">
             <div className="mb-4">
               <p className="text-sm font-medium text-muted/60">Valor total</p>
@@ -1117,12 +1184,13 @@ export function PortfolioClient() {
               </div>
             </div>
               <div className="h-[180px] -mx-6 -mb-6 mt-4">
-                <RevolutSparkline 
-                data={filteredValueSeries} 
-                height={180} 
-                color={displayedValueChange >= 0 ? "#22c55e" : "#ef4444"} 
-              />
-            </div>
+                <RevolutSparkline
+                  chartId="value"
+                  data={filteredValueSeries}
+                  height={180}
+                  color={displayedValueChange >= 0 ? "#22c55e" : "#ef4444"}
+                />
+              </div>
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1134,10 +1202,11 @@ export function PortfolioClient() {
                 </p>
               </div>
               <div className="mt-6 h-[80px]">
-                <RevolutSparkline 
-                  data={filteredRoiSeries} 
-                  height={80} 
-                  color={displayedReturnPct >= 0 ? "#22c55e" : "#ef4444"} 
+                <RevolutSparkline
+                  chartId="roi"
+                  data={filteredRoiSeries}
+                  height={80}
+                  color={displayedReturnPct >= 0 ? "#22c55e" : "#ef4444"}
                 />
               </div>
             </Card>
@@ -1150,10 +1219,11 @@ export function PortfolioClient() {
                 </p>
               </div>
               <div className="mt-6 h-[80px]">
-                <RevolutSparkline 
-                  data={filteredProfitSeries} 
-                  height={80} 
-                  color={displayedProfitChange >= 0 ? "#22c55e" : "#ef4444"} 
+                <RevolutSparkline
+                  chartId="pnl"
+                  data={filteredProfitSeries}
+                  height={80}
+                  color={displayedProfitChange >= 0 ? "#22c55e" : "#ef4444"}
                 />
               </div>
               <div className="mt-auto flex flex-col items-end gap-1 pt-8">
@@ -1221,11 +1291,7 @@ export function PortfolioClient() {
             </div>
           </Card>
 
-          <div className="mt-4">
-             <p className="px-2 text-[10px] leading-relaxed text-muted/30 uppercase tracking-[0.05em] text-center max-w-md mx-auto">
-                Revolut Securities Europe UAB, autorizada y regulada por el Banco de Lituania, presta los servicios de inversión.
-             </p>
-          </div>
+
 
           <div className="mt-10 grid gap-10 opacity-60 hover:opacity-100 transition-opacity">
             <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Posiciones Abiertas">
