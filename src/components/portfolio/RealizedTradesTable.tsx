@@ -1,100 +1,44 @@
-"use client";
+'use client';
 
-import { Badge } from "@/components/ui/badge";
-import { convertCurrency, formatCurrency } from "@/lib/formatters";
 import { RealizedTrade } from "@/types/portfolio";
+import { formatCurrency, formatTradeDate } from "@/lib/formatters";
+import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 interface RealizedTradesTableProps {
   trades: RealizedTrade[];
+  isPrivate?: boolean;
 }
 
-const tradeDateFormatter = new Intl.DateTimeFormat("es-ES", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "2-digit",
-});
 const quantityFormatter = new Intl.NumberFormat("es-ES", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
+  maximumFractionDigits: 4,
 });
 
-const buildLocalDate = (year: number, month: number, day: number) => {
-  const date = new Date(year, month - 1, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-  return date;
-};
+export function RealizedTradesTable({ trades, isPrivate = false }: RealizedTradesTableProps) {
+  const { currency } = useCurrency();
 
-export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
-  const { currency, baseCurrency, fxRate } = useCurrency();
-  if (!trades.length) {
-    return (
-      <p className="text-sm text-muted">
-        No hay ventas cerradas todavia. Cuando vendas, aqui veras la ganancia o perdida.
-      </p>
-    );
-  }
-
-  const formatTradeDate = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) return "—";
-
-    const isoMatch = trimmed.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
-    if (isoMatch) {
-      const [, yearRaw, monthRaw, dayRaw] = isoMatch;
-      const date = buildLocalDate(
-        Number(yearRaw),
-        Number(monthRaw),
-        Number(dayRaw)
-      );
-      if (date) return tradeDateFormatter.format(date);
-    }
-
-    const dmyMatch = trimmed.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/);
-    if (dmyMatch) {
-      const [, dayRaw, monthRaw, yearRaw] = dmyMatch;
-      const parsedYear = Number(yearRaw);
-      const year = yearRaw.length === 2 ? 2000 + parsedYear : parsedYear;
-      const date = buildLocalDate(year, Number(monthRaw), Number(dayRaw));
-      if (date) return tradeDateFormatter.format(date);
-    }
-
-    const timestamp = Date.parse(trimmed);
-    if (Number.isFinite(timestamp)) {
-      return tradeDateFormatter.format(new Date(timestamp));
-    }
-
-    return trimmed;
-  };
+  const maskValue = (value: string) => (isPrivate ? "••••••" : value);
 
   const buildPostSaleRead = (trade: RealizedTrade) => {
-    if (trade.postSalePnlValue === undefined || trade.postSaleOutcome === undefined) {
-      return null;
-    }
+    if (!trade.postSaleOutcome) return null;
 
     if (trade.postSaleOutcome === "MISSED_GAIN") {
       return {
-        tone: "warning" as const,
-        label: `Dejaste de ganar ${formatCurrency(
-          convertCurrency(trade.postSalePnlValue, currency, fxRate, baseCurrency),
+        tone: "danger" as const,
+        label: `Perdida de ${maskValue(formatCurrency(
+          trade.postSalePnlValue || 0,
           currency
-        )}`,
+        ))}`,
       };
     }
 
     if (trade.postSaleOutcome === "AVOIDED_LOSS") {
       return {
         tone: "success" as const,
-        label: `Evitaste perder ${formatCurrency(
-          convertCurrency(Math.abs(trade.postSalePnlValue), currency, fxRate, baseCurrency),
+        label: `Evitada pérdida de ${maskValue(formatCurrency(
+          Math.abs(trade.postSalePnlValue || 0),
           currency
-        )}`,
+        ))}`,
       };
     }
 
@@ -107,72 +51,87 @@ export function RealizedTradesTable({ trades }: RealizedTradesTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/30 to-surface/90 shadow-panel">
       <div className="overflow-x-auto">
-        <table className="min-w-[900px] w-full table-auto divide-y divide-border/70 text-left text-sm">
+        <table className="min-w-[1000px] w-full table-auto divide-y divide-border/70 text-left text-sm">
           <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
-              <th className="px-3 py-3 font-semibold">Fecha</th>
-              <th className="px-3 py-3 font-semibold">Activo</th>
-              <th className="px-3 py-3 font-semibold text-right">Cantidad</th>
-              <th className="px-3 py-3 font-semibold text-right">Entrada</th>
-              <th className="px-3 py-3 font-semibold text-right">Salida</th>
-              <th className="px-3 py-3 font-semibold text-right">P&amp;L</th>
-              <th className="px-3 py-3 font-semibold text-right">Después de vender</th>
+              <th className="px-4 py-3.5 font-semibold">Fecha</th>
+              <th className="px-4 py-3.5 font-semibold">Activo</th>
+              <th className="px-4 py-3.5 font-semibold text-right">Cantidad</th>
+              <th className="px-4 py-3.5 font-semibold text-right">Entrada</th>
+              <th className="px-4 py-3.5 font-semibold text-right">Salida</th>
+              <th className="px-4 py-3.5 font-semibold text-right">P&L</th>
+              <th className="px-4 py-3.5 font-semibold text-right">Análisis Post-Venta</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/70 text-text">
             {trades.map((trade) => {
               const isPositive = trade.pnlValue >= 0;
               const postSaleRead = buildPostSaleRead(trade);
+              
               return (
                 <tr key={trade.id} className="transition-colors hover:bg-surface-muted/40">
-                  <td className="whitespace-nowrap px-3 py-3 text-muted">
+                  <td className="whitespace-nowrap px-4 py-3.5 text-muted/60 font-mono text-xs">
                     {formatTradeDate(trade.date)}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3">
+                  <td className="whitespace-nowrap px-4 py-3.5">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-text">{trade.name || trade.ticker}</span>
-                      {trade.name && <span className="text-xs text-muted">{trade.ticker}</span>}
+                      <span className="font-bold text-text">{trade.name || trade.ticker}</span>
+                      <span className="text-[10px] text-muted/50 font-bold uppercase tracking-wider">{trade.ticker}</span>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-right">
-                    {quantityFormatter.format(trade.quantity)}
+                  <td className="whitespace-nowrap px-4 py-3.5 text-right font-medium">
+                    {maskValue(quantityFormatter.format(trade.quantity))}
                   </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-right">
-                    {formatCurrency(
-                      convertCurrency(trade.entryPrice, currency, fxRate, baseCurrency),
-                      currency
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-right">
-                    {formatCurrency(
-                      convertCurrency(trade.exitPrice, currency, fxRate, baseCurrency),
-                      currency
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3 text-right">
-                    <Badge tone={isPositive ? "success" : "danger"}>
-                      {formatCurrency(
-                        convertCurrency(trade.pnlValue, currency, fxRate, baseCurrency),
-                        currency
+                  <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-semibold text-muted">
+                        {maskValue(formatCurrency(trade.entryPrice, currency))}
+                      </span>
+                      {trade.entryPriceRaw !== undefined && trade.currency !== currency && (
+                        <span className="text-[10px] text-muted/40 font-mono">
+                          {maskValue(formatCurrency(trade.entryPriceRaw, trade.currency))}
+                        </span>
                       )}
-                    </Badge>
+                    </div>
                   </td>
-                  <td className="px-3 py-3 text-right">
+                  <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="font-semibold text-text">
+                        {maskValue(formatCurrency(trade.exitPrice, currency))}
+                      </span>
+                      {trade.exitPriceRaw !== undefined && trade.currency !== currency && (
+                        <span className="text-[10px] text-muted/40 font-mono">
+                          {maskValue(formatCurrency(trade.exitPriceRaw, trade.currency))}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5 text-right">
+                    <div className="flex flex-col items-end gap-0.5">
+                      <Badge tone={isPositive ? "success" : "danger"}>
+                        {maskValue(formatCurrency(trade.pnlValue, currency))}
+                      </Badge>
+                      {trade.pnlValueRaw !== undefined && trade.currency !== currency && (
+                        <span className="text-[10px] text-muted/40 font-mono">
+                          {maskValue(formatCurrency(trade.pnlValueRaw, trade.currency))}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 text-right">
                     {postSaleRead ? (
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end gap-1.5">
                         <Badge tone={postSaleRead.tone}>{postSaleRead.label}</Badge>
                         {trade.currentPrice !== undefined && (
-                          <span className="text-[11px] text-muted">
-                            Ahora cotiza en{" "}
-                            {formatCurrency(
-                              convertCurrency(trade.currentPrice, currency, fxRate, baseCurrency),
-                              currency
-                            )}
-                          </span>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-muted/50 leading-tight">
+                              Actual: {maskValue(formatCurrency(trade.currentPrice, currency))}
+                            </span>
+                          </div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted">Sin referencia actual</span>
+                      <span className="text-xs text-muted/40 italic">Sin cotización actual</span>
                     )}
                   </td>
                 </tr>

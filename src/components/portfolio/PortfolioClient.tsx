@@ -6,6 +6,7 @@ import { SectorTreemap } from "@/components/charts/SectorTreemap";
 import { TearSheetExportButton } from "@/components/portfolio/TearSheetExportButton";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
+import { RevolutTickerIcon } from "@/components/portfolio/RevolutTickerIcon";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
@@ -771,27 +772,7 @@ function RevolutSparkline({ data, color = "#22c55e", height = 60, chartId }: { d
   );
 }
 
-function RevolutTickerIcon({ ticker, className }: { ticker: string; className?: string }) {
-  const colors: Record<string, string> = {
-    "REP.MC": "bg-[#FF4D00]",
-    "BTC-USD": "bg-[#F7931A]",
-    "NVDA": "bg-[#76B900]",
-    "AAPL": "bg-[#A2AAAD]",
-    "MSFT": "bg-[#00A4EF]",
-    "AMZN": "bg-[#FF9900]",
-    "GOOGL": "bg-[#4285F4]",
-    "SPY": "bg-[#1d4ed8]",
-  };
-  
-  const bgColor = colors[ticker] || "bg-primary/20";
-  const initial = ticker.charAt(0);
-  
-  return (
-    <div className={cn("flex items-center justify-center rounded-full text-[10px] font-bold text-white", bgColor, className)}>
-      {initial}
-    </div>
-  );
-}
+
 
 export function PortfolioClient() {
   const { holdings, realizedTrades, transactions, isLoading } = usePortfolioData();
@@ -1364,16 +1345,20 @@ export function PortfolioClient() {
               </div>
             </Card>
             <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden flex flex-col justify-center">
-              <SectorTreemap holdings={selectedHoldings} />
+              <SectorTreemap holdings={selectedHoldings} isPrivate={isPrivate} />
             </Card>
           </div>
 
           <div className="mt-10 grid gap-10 opacity-60 hover:opacity-100 transition-opacity">
             <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Posiciones Abiertas">
-               <HoldingsTable holdings={selectedHoldings} />
+               <HoldingsTable 
+                  holdings={selectedHoldings} 
+                  isPrivate={isPrivate} 
+                  totalPortfolioValue={selectedSummary.totalValue}
+                />
             </Card>
             <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Ventas Cerradas">
-               <RealizedTradesTable trades={selectedTrades} />
+               <RealizedTradesTable trades={selectedTrades} isPrivate={isPrivate} />
             </Card>
           </div>
         </div>

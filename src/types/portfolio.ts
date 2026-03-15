@@ -14,12 +14,17 @@ export interface Holding {
   account?: InvestmentAccount;
   totalQuantity: number;
   averageBuyPrice: number;
+  averageBuyPriceRaw?: number;
   currentPrice: number;
+  currentPriceRaw?: number;
   dayChange?: number;
   dayChangePercent?: number;
   marketValue: number;
+  marketValueRaw?: number;
   pnlValue: number;
   pnlPercent: number;
+  pnlStockValue?: number;
+  pnlFxValue?: number;
 }
 
 export interface PortfolioSummary {
@@ -37,8 +42,11 @@ export interface RealizedTrade {
   date: string;
   quantity: number;
   entryPrice: number;
+  entryPriceRaw?: number;
   exitPrice: number;
+  exitPriceRaw?: number;
   pnlValue: number;
+  pnlValueRaw?: number;
   currentPrice?: number;
   postSalePnlValue?: number;
   postSaleOutcome?: "MISSED_GAIN" | "AVOIDED_LOSS" | "FLAT";

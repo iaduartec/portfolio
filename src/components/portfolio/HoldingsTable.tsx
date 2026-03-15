@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Holding } from "@/types/portfolio";
-import { convertCurrency, formatCurrency, formatPercent } from "@/lib/formatters";
+import { formatCurrency, formatPercent } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RevolutTickerIcon } from "@/components/portfolio/RevolutTickerIcon";
 
 type SortKey =
   | "ticker"
@@ -13,7 +15,8 @@ type SortKey =
   | "currentPrice"
   | "pnlPercent"
   | "dayChangePercent"
-  | "marketValue";
+  | "marketValue"
+  | "weight";
 type SortDirection = "asc" | "desc";
 
 interface Column {
@@ -29,6 +32,7 @@ const columns: Column[] = [
   { key: "pnlPercent", label: "Ganancia %", align: "right" },
   { key: "dayChangePercent", label: "P&L día %", align: "right" },
   { key: "marketValue", label: "Valor de mercado", align: "right" },
+  { key: "weight", label: "Peso %", align: "right" },
 ];
 
 type FundamentalPoint = {
@@ -134,17 +138,7 @@ const mergeFundamentals = (
   return merged;
 };
 
-const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection) => {
-  const factor = direction === "asc" ? 1 : -1;
-  if (key === "ticker") {
-    return a.ticker.localeCompare(b.ticker) * factor;
-  }
-  const valueA = a[key] ?? 0;
-  const valueB = b[key] ?? 0;
-  return (valueA - valueB) * factor;
-};
-
-import { Skeleton } from "@/components/ui/skeleton";
+const maskValue = (value: string, isPrivate: boolean) => (isPrivate ? "••••••" : value);
 
 interface HoldingsTableProps {
   holdings: Holding[];
@@ -152,180 +146,178 @@ interface HoldingsTableProps {
   // eslint-disable-next-line no-unused-vars
   onSelect?: (value: string) => void;
   isLoading?: boolean;
+  isPrivate?: boolean;
+  totalPortfolioValue?: number;
 }
 
-export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }: HoldingsTableProps) {
-  const { fxRate } = useCurrency();
-  const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
-    key: "marketValue",
-    direction: "desc",
-  });
-  const cacheKey = "portfolio.fundamentals.cache.v1";
-  const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>(() => {
-    if (typeof window === "undefined") return {};
-    try {
-      const raw = window.localStorage.getItem(cacheKey);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw) as Record<string, FundamentalPoint>;
-      if (parsed && typeof parsed === "object") {
-        return parsed;
-      }
-    } catch {
-      // ignore cache parse errors
-    }
-    return {};
-  });
+export function HoldingsTable({ 
+  holdings, 
+  onSelect, 
+  isLoading, 
+  isPrivate = false,
+  totalPortfolioValue = 0 
+}: HoldingsTableProps) {
+  const { currency } = useCurrency();
+  const [sortKey, setSortKey] = useState<SortKey>("marketValue");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [fundamentals, setFundamentals] = useState<Record<string, FundamentalPoint>>({});
   const [fmpLimited, setFmpLimited] = useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(cacheKey, JSON.stringify(fundamentals));
-    } catch {
-      // ignore cache write errors
+  const compare = (a: Holding, b: Holding, key: SortKey, direction: SortDirection) => {
+    const factor = direction === "asc" ? 1 : -1;
+    if (key === "ticker") {
+      return a.ticker.localeCompare(b.ticker) * factor;
     }
-  }, [cacheKey, fundamentals]);
+    const internalKey = (key === "weight" ? "marketValue" : key) as keyof Holding;
+    const valueA = (a[internalKey] as number) ?? 0;
+    const valueB = (b[internalKey] as number) ?? 0;
+    return (valueA - valueB) * factor;
+  };
+
+const quantityFormatter = new Intl.NumberFormat("es-ES", {
+  maximumFractionDigits: 4,
+});
+
+  const sortedHoldings = useMemo(() => {
+    return [...holdings].sort((a, b) => compare(a, b, sortKey, sortDirection));
+  }, [holdings, sortKey, sortDirection]);
 
   useEffect(() => {
-    const tickers = holdings.map((holding) => holding.ticker).filter(Boolean);
-    if (tickers.length === 0) return;
-    const controller = new AbortController();
-    fetch(`/api/fundamentals?tickers=${encodeURIComponent(tickers.join(","))}`, {
-      signal: controller.signal,
-    })
-      .then((res) => res.json())
-      .then((payload) => {
-        const data = Array.isArray(payload?.data) ? payload.data : [];
-        const next = data.reduce((acc: Record<string, FundamentalPoint>, item: FundamentalPoint) => {
+    const fetchFundamentals = async () => {
+      try {
+        const tickers = holdings.map((h) => h.ticker).filter(Boolean);
+        if (tickers.length === 0) return;
+        const res = await fetch(`/api/fundamentals?tickers=${encodeURIComponent(tickers.join(","))}`);
+        const data = await res.json();
+        const payload = Array.isArray(data?.data) ? data.data : [];
+        const next = payload.reduce((acc: Record<string, FundamentalPoint>, item: FundamentalPoint) => {
           if (item?.ticker) acc[item.ticker] = item;
           return acc;
         }, {});
         setFundamentals((prev) => mergeFundamentals(prev, next));
-        setFmpLimited(Boolean(payload?.meta?.fmpLimited));
-      })
-      .catch(() => { });
-    return () => controller.abort();
-  }, [holdings]);
-
-  const sortedHoldings = useMemo(
-    () => [...holdings].sort((a, b) => compare(a, b, sort.key, sort.direction)),
-    [holdings, sort]
-  );
+        setFmpLimited(Boolean(data?.meta?.fmpLimited));
+      } catch (err) {
+        console.error("Failed to fetch fundamentals:", err);
+      }
+    };
+    fetchFundamentals();
+  }, [holdings.length]);
 
   const handleSort = (key: SortKey) => {
-    setSort((prev) => {
-      if (prev.key === key) {
-        return { key, direction: prev.direction === "asc" ? "desc" : "asc" };
-      }
-      return { key, direction: key === "ticker" ? "asc" : "desc" };
-    });
+    if (sortKey === key) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDirection("desc");
+    }
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/35 to-surface/90 shadow-panel">
+    <div className="overflow-hidden rounded-2xl border border-border/75 bg-gradient-to-b from-surface-muted/30 to-surface/90 shadow-panel">
       <div className="overflow-x-auto">
-        <table className="min-w-[980px] w-full table-auto divide-y divide-border/70">
+        <table className="min-w-[1240px] w-full table-auto divide-y divide-border/70 text-left text-sm">
           <thead className="bg-surface-muted/70 text-xs uppercase tracking-[0.08em] text-muted">
             <tr>
-              {columns.map((column) => {
-                const isActive = sort.key === column.key;
-                const directionIcon = sort.direction === "asc" ? "↑" : "↓";
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    className={cn(
-                      "cursor-pointer px-4 py-3.5 text-left font-semibold",
-                      column.align === "right" && "text-right",
-                      column.key === "ticker" && "w-[320px] max-w-[320px]",
-                      isActive && "text-text"
+              {columns.map((col) => (
+                <th
+                  key={col.key}
+                  className={cn(
+                    "cursor-pointer px-4 py-3.5 font-semibold transition-colors hover:text-text",
+                    col.align === "right" ? "text-right" : "text-left"
+                  )}
+                  onClick={() => handleSort(col.key)}
+                >
+                  <div className={cn("flex items-center gap-1", col.align === "right" && "justify-end")}>
+                    {col.label}
+                    {sortKey === col.key && (
+                      <span className="text-primary">{sortDirection === "asc" ? "↑" : "↓"}</span>
                     )}
-                    onClick={() => handleSort(column.key)}
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      {column.label}
-                      <span className={cn("text-[10px]", isActive ? "opacity-100" : "opacity-40")}>
-                        {directionIcon}
-                      </span>
-                    </span>
-                  </th>
-                );
-              })}
-              <th className="px-4 py-3.5 text-left font-semibold">Señales</th>
+                  </div>
+                </th>
+              ))}
+              <th className="px-4 py-3.5 font-semibold">Señales</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/60 text-sm">
+          <tbody className="divide-y divide-border/70 text-text">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <tr key={`skeleton-${i}`}>
-                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-12" /></td>
-                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-20 ml-auto" /></td>
-                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-20 ml-auto" /></td>
-                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 ml-auto" /></td>
-                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-16 ml-auto" /></td>
-                  <td className="px-4 py-3.5"><Skeleton className="h-5 w-24 ml-auto" /></td>
-                  <td className="px-4 py-3.5" colSpan={3}><Skeleton className="h-5 w-full" /></td>
+                <tr key={i}>
+                  {columns.map((col, j) => (
+                    <td key={j} className="px-4 py-4">
+                      <Skeleton className="h-4 w-full opacity-20" />
+                    </td>
+                  ))}
+                  <td className="px-4 py-4"></td>
                 </tr>
               ))
             ) : (
               sortedHoldings.map((holding) => {
-                const isPositive = holding.pnlValue >= 0;
-                const isSelected = selectedTicker === holding.ticker;
+                const isPositive = holding.pnlPercent >= 0;
                 const fundamental = fundamentals[holding.ticker];
                 const financialInfo = getFinancialInfo(fundamental, fmpLimited);
                 const riskInfo = getRiskInfo(fundamental, fmpLimited);
                 const technicalInfo = getTechnicalInfo(fundamental, fmpLimited);
+                const weight = totalPortfolioValue > 0 ? (holding.marketValue / totalPortfolioValue) * 100 : 0;
+
                 return (
                   <tr
                     key={holding.ticker}
-                    className={cn(
-                      "cursor-pointer transition-colors hover:bg-surface-muted/45",
-                      isSelected && "bg-primary/10 ring-1 ring-primary/25"
-                    )}
+                    className="group cursor-pointer transition-colors hover:bg-surface-muted/40"
                     onClick={() => onSelect?.(holding.ticker)}
                   >
-                    <td className="w-[320px] max-w-[320px] whitespace-nowrap px-4 py-3.5 font-semibold text-text">
-                      <div className="min-w-0 flex flex-col">
-                        <span className="block truncate text-base text-text" title={holding.name || holding.ticker}>
-                          {holding.name || holding.ticker}
-                        </span>
-                        {holding.name && (
-                          <span className="block truncate text-xs text-muted font-normal" title={holding.ticker}>
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8 shrink-0 shadow-glow" />
+                        <div className="flex flex-col">
+                          <span className="max-w-[180px] truncate font-bold text-text">
                             {holding.ticker}
                           </span>
-                        )}
+                          <span className="max-w-[180px] truncate text-xs text-muted/60">
+                            {maskValue(quantityFormatter.format(holding.totalQuantity), isPrivate)} {holding.ticker.includes(":") ? "acciones" : "unidades"} · {holding.name || holding.ticker}
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right text-muted">
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-base font-semibold text-text">
-                          {formatCurrency(holding.averageBuyPrice, "EUR")}
+                          {maskValue(formatCurrency(holding.averageBuyPrice, currency), isPrivate)}
                         </span>
-                        <span className="text-xs text-muted">
-                          {formatCurrency(
-                            convertCurrency(holding.averageBuyPrice, "USD", fxRate, "EUR"),
-                            "USD"
-                          )}
-                        </span>
+                        {holding.averageBuyPriceRaw !== undefined && holding.currency !== currency && (
+                           <span className="text-[10px] text-muted/50 font-mono">
+                             {maskValue(formatCurrency(holding.averageBuyPriceRaw, holding.currency), isPrivate)}
+                           </span>
+                        )}
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right text-text">
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-base font-semibold text-text">
-                          {formatCurrency(holding.currentPrice, "EUR")}
+                          {maskValue(formatCurrency(holding.currentPrice, currency), isPrivate)}
                         </span>
-                        <span className="text-xs text-muted">
-                          {formatCurrency(
-                            convertCurrency(holding.currentPrice, "USD", fxRate, "EUR"),
-                            "USD"
-                          )}
-                        </span>
+                        {holding.currentPriceRaw !== undefined && holding.currency !== currency && (
+                           <span className="text-[10px] text-muted/50 font-mono">
+                             {maskValue(formatCurrency(holding.currentPriceRaw, holding.currency), isPrivate)}
+                           </span>
+                        )}
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right">
-                      <Badge tone={isPositive ? "success" : "danger"}>
-                        {formatPercent(holding.pnlPercent / 100)}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge tone={isPositive ? "success" : "danger"}>
+                          {maskValue(formatPercent(holding.pnlPercent / 100), isPrivate)}
+                        </Badge>
+                        {holding.pnlStockValue !== undefined && holding.pnlFxValue !== undefined && (
+                          <div className="flex flex-col items-end text-[10px] leading-tight text-muted font-mono">
+                            <span className={holding.pnlStockValue >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}>
+                              P: {maskValue(formatCurrency(holding.pnlStockValue, currency), isPrivate)}
+                            </span>
+                            <span className={holding.pnlFxValue >= 0 ? "text-emerald-500/80" : "text-rose-500/80"}>
+                              FX: {maskValue(formatCurrency(holding.pnlFxValue, currency), isPrivate)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3.5 text-right">
                       {holding.dayChangePercent !== undefined ? (
@@ -339,15 +331,17 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                     <td className="whitespace-nowrap px-4 py-3.5 text-right font-medium text-text">
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-base font-semibold text-text">
-                          {formatCurrency(holding.marketValue, "EUR")}
+                          {maskValue(formatCurrency(holding.marketValue, currency), isPrivate)}
                         </span>
-                        <span className="text-xs text-muted">
-                          {formatCurrency(
-                            convertCurrency(holding.marketValue, "USD", fxRate, "EUR"),
-                            "USD"
-                          )}
-                        </span>
+                        {holding.marketValueRaw !== undefined && holding.currency !== currency && (
+                           <span className="text-[10px] text-muted/50 font-mono">
+                             {maskValue(formatCurrency(holding.marketValueRaw, holding.currency), isPrivate)}
+                           </span>
+                        )}
                       </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 text-right text-text font-semibold">
+                       {formatPercent(weight / 100)}
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex flex-wrap items-center gap-2">
@@ -357,8 +351,8 @@ export function HoldingsTable({ holdings, selectedTicker, onSelect, isLoading }:
                           <Badge tone={technicalInfo.tone}>
                             {technicalInfo.label}
                             {technicalInfo.hint ? (
-                              <span className="text-[10px] uppercase tracking-[0.08em] text-muted">
-                                {technicalInfo.hint}
+                              <span className="text-[10px] ml-1 uppercase tracking-[0.08em] text-muted/60 font-semibold">
+                                ({technicalInfo.hint})
                               </span>
                             ) : null}
                           </Badge>

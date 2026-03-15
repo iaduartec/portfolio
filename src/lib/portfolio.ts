@@ -22,6 +22,7 @@ export type PositionAuditSnapshot = {
 type PositionLot = {
   quantity: number;
   costPerShare: number;
+  costPerShareRaw: number;
 };
 
 const buildPositionKey = (tx: Pick<Transaction, "ticker" | "account">) =>
@@ -238,7 +239,9 @@ export const computeHoldings = (
     if (tx.type === "BUY") {
       const totalCost = tx.quantity * priceBase + feeBase;
       const costPerShare = tx.quantity > 0 ? totalCost / tx.quantity : priceBase;
-      entry.lots.push({ quantity: tx.quantity, costPerShare });
+      const totalCostRaw = tx.quantity * tx.price + (tx.fee ?? 0);
+      const costPerShareRaw = tx.quantity > 0 ? totalCostRaw / tx.quantity : tx.price;
+      entry.lots.push({ quantity: tx.quantity, costPerShare, costPerShareRaw });
     } else if (tx.type === "SELL") {
       let remaining = tx.quantity;
       while (remaining > quantityEpsilon && entry.lots.length > 0) {
@@ -252,9 +255,11 @@ export const computeHoldings = (
       const totalQty = sumLots(entry.lots);
       if (totalQty > quantityEpsilon) {
         const feePerShare = feeBase / totalQty;
+        const feePerShareRaw = fee / totalQty;
         entry.lots = entry.lots.map((lot) => ({
           ...lot,
           costPerShare: lot.costPerShare + feePerShare,
+          costPerShareRaw: lot.costPerShareRaw + feePerShareRaw,
         }));
       }
     }
@@ -281,8 +286,25 @@ export const computeHoldings = (
         ? convertCurrencyFrom(currentPriceRaw!, currency, baseCurrency, fxRate, baseCurrency)
         : averageBuyPrice;
       const marketValue = totalQuantity * currentPriceBase;
+      const marketValueRaw = currentPriceRaw !== undefined ? totalQuantity * currentPriceRaw : undefined;
       const pnlValue = marketValue - totalCost;
       const pnlPercent = totalCost > 0 ? (pnlValue / totalCost) * 100 : 0;
+
+      const totalCostRaw = data.lots.reduce((sum, lot) => sum + lot.quantity * lot.costPerShareRaw, 0);
+      const averageBuyPriceRaw = totalCostRaw / totalQuantity;
+
+      // Calculate FX vs Stock split if currency is different from base
+      let pnlStockValue: number | undefined;
+      let pnlFxValue: number | undefined;
+
+      if (currency !== baseCurrency && currentPriceRaw !== undefined) {
+        const totalCostRaw = data.lots.reduce((sum, lot) => sum + lot.quantity * lot.costPerShareRaw, 0);
+        const pnlRaw = (currentPriceRaw * totalQuantity) - totalCostRaw;
+        // pnlStockValue is the gain from price in current exchange rate terms
+        pnlStockValue = convertCurrencyFrom(pnlRaw, currency, baseCurrency, fxRate, baseCurrency);
+        // pnlFxValue is the difference
+        pnlFxValue = pnlValue - pnlStockValue;
+      }
       const dayChange =
         override?.dayChange !== undefined
           ? convertCurrencyFrom(override.dayChange, currency, baseCurrency, fxRate, baseCurrency) * totalQuantity
@@ -299,10 +321,15 @@ export const computeHoldings = (
         account: data.account,
         totalQuantity,
         averageBuyPrice,
+        averageBuyPriceRaw,
         currentPrice: currentPriceBase,
+        currentPriceRaw,
         marketValue,
+        marketValueRaw,
         pnlValue,
         pnlPercent,
+        pnlStockValue,
+        pnlFxValue,
         ...(dayChange !== undefined ? { dayChange } : {}),
         ...(dayChangePercent !== undefined ? { dayChangePercent } : {}),
       };
@@ -361,11 +388,14 @@ export const computeRealizedTrades = (
     if (tx.type === "BUY") {
       const totalCost = tx.quantity * priceBase + feeBase;
       const costPerShare = tx.quantity > 0 ? totalCost / tx.quantity : priceBase;
-      entry.lots.push({ quantity: tx.quantity, costPerShare });
+      const totalCostRaw = tx.quantity * tx.price + (tx.fee ?? 0);
+      const costPerShareRaw = tx.quantity > 0 ? totalCostRaw / tx.quantity : tx.price;
+      entry.lots.push({ quantity: tx.quantity, costPerShare, costPerShareRaw });
     } else if (tx.type === "SELL") {
       let remaining = tx.quantity;
       let soldQuantity = 0;
       let soldCost = 0;
+      let soldCostRaw = 0;
       while (remaining > 0 && entry.lots.length > 0) {
         const lot = entry.lots[0];
         const sold = Math.min(lot.quantity, remaining);
@@ -373,11 +403,14 @@ export const computeRealizedTrades = (
         remaining -= sold;
         soldQuantity += sold;
         soldCost += sold * lot.costPerShare;
+        soldCostRaw += sold * lot.costPerShareRaw;
         if (lot.quantity <= 0) entry.lots.shift();
       }
       if (soldQuantity > 0) {
         const pnlValue = soldQuantity * priceBase - soldCost - feeBase;
+        const pnlValueRaw = soldQuantity * tx.price - soldCostRaw - fee;
         const entryPrice = soldQuantity > 0 ? soldCost / soldQuantity : 0;
+        const entryPriceRaw = soldQuantity > 0 ? soldCostRaw / soldQuantity : 0;
         const latestPriceRaw = priceMap[tx.ticker.toUpperCase()]?.price;
         const currentPrice =
           Number.isFinite(latestPriceRaw)
@@ -402,8 +435,11 @@ export const computeRealizedTrades = (
           date: tx.date,
           quantity: soldQuantity,
           entryPrice,
+          entryPriceRaw,
           exitPrice: priceBase,
+          exitPriceRaw: tx.price,
           pnlValue,
+          pnlValueRaw,
           currentPrice,
           postSalePnlValue,
           postSaleOutcome,

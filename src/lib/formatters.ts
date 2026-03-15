@@ -86,3 +86,13 @@ export const inferCurrencyFromTicker = (
 };
 
 export const formatPercent = (value: number) => percentFormatter.format(value);
+
+export const formatTradeDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  return date.toLocaleDateString("es-ES", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+};
