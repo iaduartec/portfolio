@@ -3,6 +3,7 @@ import { PortfolioChartsGrid } from "@/components/charts/PortfolioChartsGrid";
 import { AITechnicalAnalysis } from "@/components/ai/AITechnicalAnalysis";
 import { LabGlobalAnalyzer } from "@/components/charts/LabGlobalAnalyzer";
 import { CorrelationHeatmap } from "@/components/charts/CorrelationHeatmap";
+import { MontecarloCalculator } from "@/components/charts/MontecarloCalculator";
 import Link from "next/link";
 
 export default function PatternLabPage() {
@@ -47,7 +48,18 @@ export default function PatternLabPage() {
           <CorrelationHeatmap />
         </section>
 
-        {/* Block 4: AI Strategic Analysis */}
+        {/* Block 4: Simulación Montecarlo */}
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-semibold text-text">Proyección Montecarlo</h2>
+            <p className="text-sm text-muted">
+              100 iteraciones estocásticas proyectando el valor de tu portafolio usando su volatilidad estimada y rentabilidad actual ajustada.
+            </p>
+          </div>
+          <MontecarloCalculator />
+        </section>
+
+        {/* Block 5: AI Strategic Analysis */}
         <AITechnicalAnalysis />
       </div>
     </Shell>

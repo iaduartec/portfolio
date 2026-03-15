@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { PortfolioMonthlyIncomeChart } from "@/components/charts/PortfolioMonthlyIncomeChart";
+import { PortfolioDividendsChart } from "@/components/charts/PortfolioDividendsChart";
+import { SectorTreemap } from "@/components/charts/SectorTreemap";
+import { TearSheetExportButton } from "@/components/portfolio/TearSheetExportButton";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { Card } from "@/components/ui/card";
@@ -38,7 +40,7 @@ import type { Route } from "next";
 type PortfolioAccountView = "all" | "brokerage" | "robo";
 type PortfolioDateRange = "all" | "1m" | "3m" | "6m" | "ytd" | "1y";
 type PerformancePoint = { label: string; value: number; timestamp: number };
-type IncomePoint = { label: string; value: number };
+
 type HistoryClosePoint = { timestamp: number; close: number };
 type AccountSeries = {
   valuePoints: PerformancePoint[];
@@ -722,47 +724,6 @@ const computeAccountMetrics = (
   };
 };
 
-const buildMonthlyRealizedSeries = (trades: RealizedTrade[]): IncomePoint[] => {
-  const realizedByMonth = trades
-    .map((trade) => {
-      const timestamp = toTimestamp(trade.date);
-      if (!timestamp || !Number.isFinite(trade.pnlValue)) return null;
-
-      return {
-        monthStart: getMonthStart(timestamp),
-        value: trade.pnlValue,
-      };
-    })
-    .filter((entry): entry is { monthStart: number; value: number } => entry !== null)
-    .sort((a, b) => a.monthStart - b.monthStart);
-
-  if (realizedByMonth.length === 0) return [];
-
-  const totals = new Map<number, number>();
-  for (const entry of realizedByMonth) {
-    totals.set(entry.monthStart, (totals.get(entry.monthStart) ?? 0) + entry.value);
-  }
-
-  const currentMonth = getMonthStart(Date.now());
-  const lastRealizedMonth = Math.max(
-    realizedByMonth[realizedByMonth.length - 1]?.monthStart ?? currentMonth,
-    currentMonth
-  );
-  const startDate = new Date(lastRealizedMonth);
-  startDate.setUTCMonth(startDate.getUTCMonth() - 5);
-  const startMonth = getMonthStart(startDate.getTime());
-  const includeYear = new Date(startMonth).getUTCFullYear() !== new Date(lastRealizedMonth).getUTCFullYear();
-  const points: IncomePoint[] = [];
-
-  for (let month = startMonth; month <= lastRealizedMonth; month = getNextMonthStart(month)) {
-    points.push({
-      label: formatMonthLabel(month, includeYear),
-      value: Number((totals.get(month) ?? 0).toFixed(2)),
-    });
-  }
-
-  return points;
-};
 
 function RevolutSparkline({ data, color = "#22c55e", height = 60, chartId }: { data: any[]; color?: string; height?: number; chartId: string }) {
   if (!data || data.length < 2) return <div style={{ height }} />;
@@ -901,10 +862,7 @@ export function PortfolioClient() {
     () => computeAccountMetrics(selectedTransactions, selectedHoldings, selectedTrades, fxRate, baseCurrency),
     [selectedTransactions, selectedHoldings, selectedTrades, fxRate, baseCurrency],
   );
-  const selectedMonthlyRealizedSeries = useMemo(
-    () => buildMonthlyRealizedSeries(selectedTrades),
-    [selectedTrades],
-  );
+
   const selectedLargestHolding = useMemo(
     () =>
       selectedHoldings.reduce<Holding | null>((largest, holding) => {
@@ -1092,10 +1050,13 @@ export function PortfolioClient() {
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div id="portfolio-snapshot" className="flex flex-col gap-6 bg-background rounded-b-3xl pb-2">
           <div className="flex items-center justify-between px-2 pt-2">
               <div className="flex flex-col">
-                <h2 className="text-2xl font-bold tracking-tight text-white">Análisis</h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-2xl font-bold tracking-tight text-white">Análisis</h2>
+                  <TearSheetExportButton targetId="portfolio-snapshot" />
+                </div>
                 <label className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-muted/80">
                   <span className="sr-only">Seleccionar cuenta</span>
                   <select
@@ -1304,16 +1265,20 @@ export function PortfolioClient() {
              </div>
           </Card>
 
-          <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden">
-            <p className="text-sm font-medium text-muted/60 mb-6">Desglose de ingresos</p>
-            <div className="h-[200px]">
-              <PortfolioMonthlyIncomeChart 
-                data={selectedMonthlyRealizedSeries} 
-              />
-            </div>
-          </Card>
-
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden flex flex-col justify-center">
+              <p className="text-sm font-medium text-muted/60 mb-3">Dividendos cobrados (LTM) y rentabilidad base</p>
+              <div className="h-[260px] w-full pt-4">
+                <PortfolioDividendsChart 
+                  transactions={selectedTransactions} 
+                  holdings={selectedHoldings}
+                />
+              </div>
+            </Card>
+            <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden flex flex-col justify-center">
+              <SectorTreemap holdings={selectedHoldings} />
+            </Card>
+          </div>
 
           <div className="mt-10 grid gap-10 opacity-60 hover:opacity-100 transition-opacity">
             <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Posiciones Abiertas">
