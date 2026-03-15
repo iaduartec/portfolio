@@ -1,6 +1,7 @@
 import { Transaction } from "@/types/transactions";
 import { Holding, PortfolioSummary, RealizedTrade } from "@/types/portfolio";
 import { convertCurrencyFrom, inferCurrencyFromTicker, type CurrencyCode } from "@/lib/formatters";
+import { isNonInvestmentTicker } from "@/lib/portfolioGroups";
 
 export type PriceSnapshot = {
   name?: string;
@@ -14,11 +15,105 @@ type PositionLot = {
   costPerShare: number;
 };
 
+const buildPositionKey = (tx: Pick<Transaction, "ticker" | "account">) =>
+  `${tx.account ?? "UNASSIGNED"}::${tx.ticker}`;
+
 const sumLots = (lots: PositionLot[]) =>
   lots.reduce((total, lot) => total + lot.quantity, 0);
 
 const sumLotCost = (lots: PositionLot[]) =>
   lots.reduce((total, lot) => total + lot.quantity * lot.costPerShare, 0);
+
+const getTransactionCurrency = (tx: Transaction, baseCurrency: CurrencyCode) => {
+  if (tx.currency) return tx.currency;
+  if (tx.ticker) return inferCurrencyFromTicker(tx.ticker);
+  return baseCurrency;
+};
+
+const getTransactionGrossAmount = (tx: Transaction) => {
+  if (Number.isFinite(tx.grossAmount) && (tx.grossAmount ?? 0) !== 0) {
+    return Math.abs(tx.grossAmount ?? 0);
+  }
+  const hasQuantity = Number.isFinite(tx.quantity) && tx.quantity !== 0;
+  const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
+  if (hasQuantity && hasPrice) return tx.quantity * tx.price;
+  if (hasPrice) return Math.abs(tx.price);
+  if (hasQuantity) return tx.quantity;
+  return 0;
+};
+
+const getTransactionSignedAmount = (tx: Transaction) => {
+  if (Number.isFinite(tx.grossAmount) && (tx.grossAmount ?? 0) !== 0) {
+    return tx.grossAmount ?? 0;
+  }
+  const gross = getTransactionGrossAmount(tx);
+  if (tx.type === "BUY" || tx.type === "FEE") return -gross;
+  if (tx.type === "SELL" || tx.type === "DIVIDEND") return gross;
+  if (Number.isFinite(tx.price) && tx.price !== 0) return tx.price;
+  return gross;
+};
+
+const getTransactionFeeAmount = (tx: Transaction) => {
+  if (Number.isFinite(tx.fee)) return Math.abs(tx.fee ?? 0);
+  if (tx.type !== "FEE") return 0;
+  return getTransactionGrossAmount(tx);
+};
+
+const normalizeZero = (value: number) => (Math.abs(value) < 1e-6 ? 0 : value);
+
+export const computeCashBalancesByCurrency = (
+  transactions: Transaction[],
+  baseCurrency: CurrencyCode,
+) => {
+  const balances = new Map<CurrencyCode, number>();
+  const ordered = [...transactions].sort((a, b) => {
+    const timeA = Date.parse(a.date);
+    const timeB = Date.parse(b.date);
+    if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+      return timeA - timeB;
+    }
+    return 0;
+  });
+
+  for (const tx of ordered) {
+    const currency = getTransactionCurrency(tx, baseCurrency);
+    const current = balances.get(currency) ?? 0;
+    const gross = getTransactionGrossAmount(tx);
+    const signed = getTransactionSignedAmount(tx);
+    const fee = getTransactionFeeAmount(tx);
+    const isExternalCashFlow = tx.type === "OTHER" && (!tx.ticker || isNonInvestmentTicker(tx.ticker));
+
+    let delta = 0;
+    if (isExternalCashFlow) {
+      delta = signed;
+    } else if (tx.type === "BUY") {
+      delta = -(gross + fee);
+    } else if (tx.type === "SELL") {
+      delta = gross - fee;
+    } else if (tx.type === "DIVIDEND") {
+      delta = signed >= 0 ? signed - fee : signed + fee;
+    } else if (tx.type === "FEE") {
+      delta = -fee;
+    }
+
+    balances.set(currency, normalizeZero(current + delta));
+  }
+
+  return balances;
+};
+
+export const computeCashBalanceBase = (
+  transactions: Transaction[],
+  fxRate: number,
+  baseCurrency: CurrencyCode,
+) => {
+  const balances = computeCashBalancesByCurrency(transactions, baseCurrency);
+  let total = 0;
+  for (const [currency, amount] of balances.entries()) {
+    total += convertCurrencyFrom(amount, currency, baseCurrency, fxRate, baseCurrency);
+  }
+  return normalizeZero(total);
+};
 
 export const computeHoldings = (
   transactions: Transaction[],
@@ -29,7 +124,13 @@ export const computeHoldings = (
   const quantityEpsilon = 1e-6;
   const positions = new Map<
     string,
-    { lots: PositionLot[]; lastPriceRaw: number; currency: CurrencyCode }
+    {
+      ticker: string;
+      account: Transaction["account"];
+      lots: PositionLot[];
+      lastPriceRaw: number;
+      currency: CurrencyCode;
+    }
   >();
   
   const ordered = [...transactions].sort((a, b) => {
@@ -44,18 +145,22 @@ export const computeHoldings = (
   ordered.forEach((tx) => {
     if (!tx.ticker) return;
     const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-    const entry = positions.get(tx.ticker) ?? {
+    const key = buildPositionKey(tx);
+    const entry = positions.get(key) ?? {
+      ticker: tx.ticker,
+      account: tx.account,
       lots: [],
       lastPriceRaw: 0,
       currency,
     };
     const fee = tx.fee ?? 0;
+    const tradeFxRate = tx.fxRate ?? fxRate;
     if (!entry.currency) entry.currency = currency;
     if (Number.isFinite(tx.price) && tx.price > 0) {
       entry.lastPriceRaw = tx.price;
     }
-    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
-    const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
+    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, tradeFxRate, baseCurrency);
+    const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, tradeFxRate, baseCurrency);
 
     if (tx.type === "BUY") {
       const totalCost = tx.quantity * priceBase + feeBase;
@@ -81,12 +186,12 @@ export const computeHoldings = (
       }
     }
 
-    positions.set(tx.ticker, entry);
+    positions.set(key, entry);
   });
 
   return Array.from(positions.entries())
-    .map(([ticker, data]) => {
-      const tickerKey = ticker.toUpperCase();
+    .map(([, data]) => {
+      const tickerKey = data.ticker.toUpperCase();
       const totalQuantity = sumLots(data.lots);
       if (totalQuantity <= quantityEpsilon) return null;
       const totalCost = sumLotCost(data.lots);
@@ -112,12 +217,13 @@ export const computeHoldings = (
       const dayChangePercent = override?.dayChangePercent;
 
       // Find the name from the last transaction for this ticker (CSV fallback)
-      const lastTxWithName = ordered.filter(tx => tx.ticker === ticker && tx.name).pop();
+      const lastTxWithName = ordered.filter((tx) => tx.ticker === data.ticker && tx.name).pop();
 
       const holding: Holding = {
-        ticker,
+        ticker: data.ticker,
         name: override?.name || lastTxWithName?.name,
         currency,
+        account: data.account,
         totalQuantity,
         averageBuyPrice,
         currentPrice: currentPriceBase,
@@ -170,11 +276,13 @@ export const computeRealizedTrades = (
   ordered.forEach((tx, idx) => {
     if (!tx.ticker) return;
     const currency = tx.currency ?? inferCurrencyFromTicker(tx.ticker);
-    const entry = positions.get(tx.ticker) ?? { lots: [], currency };
+    const key = buildPositionKey(tx);
+    const entry = positions.get(key) ?? { lots: [], currency };
     const fee = tx.fee ?? 0;
+    const tradeFxRate = tx.fxRate ?? fxRate;
     if (!entry.currency) entry.currency = currency;
-    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
-    const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, fxRate, baseCurrency);
+    const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, tradeFxRate, baseCurrency);
+    const feeBase = convertCurrencyFrom(fee, currency, baseCurrency, tradeFxRate, baseCurrency);
 
     if (tx.type === "BUY") {
       const totalCost = tx.quantity * priceBase + feeBase;
@@ -201,6 +309,7 @@ export const computeRealizedTrades = (
           ticker: tx.ticker,
           name: tickerNameMap.get(tx.ticker) ?? tx.name,
           currency,
+          account: tx.account,
           date: tx.date,
           quantity: soldQuantity,
           entryPrice,
@@ -210,7 +319,7 @@ export const computeRealizedTrades = (
       }
     }
 
-    positions.set(tx.ticker, entry);
+    positions.set(key, entry);
   });
 
   return realized;

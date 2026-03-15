@@ -7,7 +7,11 @@ import {
   loadStoredTransactionsSource,
   loadStoredTransactionsVersion,
   persistTransactions,
+  SESSION_ID_KEY,
+  TRANSACTIONS_SOURCE_KEY,
+  TRANSACTIONS_STORAGE_KEY,
   TRANSACTIONS_UPDATED_EVENT,
+  TRANSACTIONS_VERSION_KEY,
 } from "@/lib/storage";
 import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
@@ -17,10 +21,15 @@ import {
   computeRealizedTrades, 
   PriceSnapshot 
 } from "@/lib/portfolio";
-import { toTransaction } from "@/hooks/usePortfolioData.utils";
+import { backfillTransactionAccounts, toTransaction } from "@/hooks/usePortfolioData.utils";
 
-const DEFAULT_PORTFOLIO_VERSION = "2026-03-15-merged-roboadvisor-csv";
-const DEFAULT_PORTFOLIO_FILES = ["/portfolio-seed-2026-03.csv", "/roboadvisor-revolut-2026-03.csv"];
+const DEFAULT_PORTFOLIO_VERSION = "2026-03-15-desktop-default-csvs-v1";
+const STORAGE_RESET_KEY = "myinvestview:storage-reset-version";
+const STORAGE_RESET_VERSION = "2026-03-15-reset-default-seed-v1";
+const DEFAULT_PORTFOLIO_FILES = [
+  { file: "/portfolio-seed-2026-03.csv", account: "BROKERAGE" as const },
+  { file: "/roboadvisor-revolut-2026-03.csv", account: "ROBO_ADVISOR" as const },
+];
 
 const transactionSort = (a: Transaction, b: Transaction) => {
   const timeA = Date.parse(a.date);
@@ -40,6 +49,8 @@ const getTransactionKey = (tx: Transaction) =>
     tx.price,
     tx.fee ?? "",
     tx.currency ?? "",
+    tx.account ?? "",
+    tx.fxRate ?? "",
   ].join("|");
 
 const mergeTransactions = (groups: Transaction[][]) => {
@@ -57,7 +68,36 @@ const mergeTransactions = (groups: Transaction[][]) => {
     }
   });
 
-  return Array.from(merged.values()).sort(transactionSort);
+  return backfillTransactionAccounts(Array.from(merged.values()).sort(transactionSort));
+};
+
+export const dedupeTransactions = (rows: Transaction[]) => {
+  const deduped = new Map<string, Transaction>();
+
+  rows.forEach((tx) => {
+    const key = [
+      tx.date,
+      tx.ticker,
+      tx.type,
+      tx.quantity,
+      tx.price,
+      tx.fee ?? "",
+      tx.currency ?? "",
+      tx.account ?? "",
+      tx.fxRate ?? "",
+      tx.grossAmount ?? "",
+    ].join("|");
+    const existing = deduped.get(key);
+    if (!existing) {
+      deduped.set(key, tx);
+      return;
+    }
+    if (!existing.name && tx.name) {
+      deduped.set(key, { ...existing, name: tx.name });
+    }
+  });
+
+  return Array.from(deduped.values()).sort(transactionSort);
 };
 
 type PortfolioDataValue = {
@@ -77,11 +117,24 @@ function usePortfolioDataValue(): PortfolioDataValue {
   const [priceMap, setPriceMap] = useState<Record<string, PriceSnapshot>>({});
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isLoadingQuotes, setIsLoadingQuotes] = useState(false);
+  const normalizeTransactions = (rows: Transaction[]) =>
+    dedupeTransactions(backfillTransactionAccounts(rows));
 
   // Load and sync transactions
   useEffect(() => {
     const loadDefaultData = async () => {
       try {
+        if (typeof window !== "undefined") {
+          const appliedResetVersion = window.localStorage.getItem(STORAGE_RESET_KEY);
+          if (appliedResetVersion !== STORAGE_RESET_VERSION) {
+            window.localStorage.removeItem(TRANSACTIONS_STORAGE_KEY);
+            window.localStorage.removeItem(TRANSACTIONS_SOURCE_KEY);
+            window.localStorage.removeItem(TRANSACTIONS_VERSION_KEY);
+            window.sessionStorage.removeItem(SESSION_ID_KEY);
+            window.localStorage.setItem(STORAGE_RESET_KEY, STORAGE_RESET_VERSION);
+          }
+        }
+
         const stored = loadStoredTransactions();
         const storedSource = loadStoredTransactionsSource();
         const storedVersion = loadStoredTransactionsVersion();
@@ -92,14 +145,21 @@ function usePortfolioDataValue(): PortfolioDataValue {
           storedVersion === DEFAULT_PORTFOLIO_VERSION;
 
         if (shouldUseStoredUserPortfolio || shouldUseCurrentDefaultPortfolio) {
-          setTransactions(stored);
+          const normalizedStored = normalizeTransactions(stored);
+          if (normalizedStored !== stored) {
+            persistTransactions(normalizedStored, {
+              source: storedSource ?? "user",
+              version: storedVersion ?? "",
+            });
+          }
+          setTransactions(normalizedStored);
           return;
         }
 
         const parsedGroups: Transaction[][] = [];
 
-        for (const file of DEFAULT_PORTFOLIO_FILES) {
-          const response = await fetch(file);
+        for (const source of DEFAULT_PORTFOLIO_FILES) {
+          const response = await fetch(source.file);
           if (!response.ok) continue;
 
           const text = await response.text();
@@ -110,7 +170,11 @@ function usePortfolioDataValue(): PortfolioDataValue {
               skipEmptyLines: true,
               complete: (results: ParseResult<Record<string, string | number>>) => {
                 const rows = Array.isArray(results.data) ? results.data : [];
-                resolve(rows.map(toTransaction).filter((row): row is Transaction => Boolean(row)));
+                resolve(
+                  rows
+                    .map((row) => toTransaction(row, { account: source.account }))
+                    .filter((row): row is Transaction => Boolean(row)),
+                );
               },
             });
           });
@@ -138,7 +202,7 @@ function usePortfolioDataValue(): PortfolioDataValue {
 
     loadDefaultData();
 
-    const sync = () => setTransactions(loadStoredTransactions());
+    const sync = () => setTransactions(normalizeTransactions(loadStoredTransactions()));
     window.addEventListener("storage", sync);
     window.addEventListener(TRANSACTIONS_UPDATED_EVENT, sync);
 

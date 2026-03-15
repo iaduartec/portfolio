@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AllocationChart, ALLOCATION_COLORS } from "@/components/charts/AllocationChart";
-import { PortfolioPerformanceChart } from "@/components/charts/PortfolioPerformanceChart";
 import { PortfolioMonthlyIncomeChart } from "@/components/charts/PortfolioMonthlyIncomeChart";
 import { HoldingsTable } from "@/components/portfolio/HoldingsTable";
 import { RealizedTradesTable } from "@/components/portfolio/RealizedTradesTable";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortfolioData } from "@/hooks/usePortfolioData";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  YAxis,
+} from "recharts";
 import {
   formatPercent,
   formatCurrency,
@@ -21,34 +25,32 @@ import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import { cn } from "@/lib/utils";
 import { isFundTicker, isNonInvestmentTicker } from "@/lib/portfolioGroups";
+import { computeCashBalanceBase } from "@/lib/portfolio";
 import type { Holding, RealizedTrade } from "@/types/portfolio";
-import type { Transaction } from "@/types/transactions";
+import type { InvestmentAccount, Transaction } from "@/types/transactions";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 
-const RESIDUAL_ALLOCATION_THRESHOLD = 0.015;
-const ROBOADVISOR_NAME = "Roboadvisor Revolut";
-const METRIC_CARD_CLASS =
-  "flex flex-col items-center justify-center rounded-2xl border border-border/70 bg-gradient-to-b from-surface-muted/55 to-surface/85 py-8 shadow-panel backdrop-blur-xl";
 
-type SectorPoint = {
-  ticker: string;
-  sector?: string;
-};
 
-type AllocationItem = {
-  key: string;
-  label: string;
-  displayLabel: string;
-  value: number;
-  percent: number;
-};
-
-type PortfolioTab = "stocks" | "etf";
+type PortfolioAccountView = "all" | "brokerage" | "robo";
 type PerformancePoint = { label: string; value: number };
 type IncomePoint = { label: string; value: number };
 type HistoryClosePoint = { timestamp: number; close: number };
+type AccountSeries = {
+  valuePoints: PerformancePoint[];
+  gainLossPoints: PerformancePoint[];
+  roiPoints: PerformancePoint[];
+};
+type AccountMetrics = {
+  totalValue: number;
+  cashBalance: number;
+  realized: number;
+  unrealized: number;
+  totalPnl: number;
+  roi: number;
+};
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -130,13 +132,53 @@ const getTransactionCurrency = (tx: Transaction, baseCurrency: CurrencyCode) => 
   return baseCurrency;
 };
 
+const getTransactionAccount = (tx: Transaction): InvestmentAccount => {
+  if (tx.account) return tx.account;
+  if (tx.ticker && isFundTicker(tx.ticker)) return "ROBO_ADVISOR";
+  if (!tx.ticker || isNonInvestmentTicker(tx.ticker)) return "BROKERAGE";
+  return "BROKERAGE";
+};
+
+const getHoldingAccount = (holding: Holding): InvestmentAccount => {
+  if (holding.account) return holding.account;
+  return isFundTicker(holding.ticker) ? "ROBO_ADVISOR" : "BROKERAGE";
+};
+
+const getRealizedTradeAccount = (trade: RealizedTrade): InvestmentAccount => {
+  if (trade.account) return trade.account;
+  return isFundTicker(trade.ticker) ? "ROBO_ADVISOR" : "BROKERAGE";
+};
+
+const matchesAccountView = (
+  account: InvestmentAccount,
+  accountView: PortfolioAccountView,
+) => {
+  if (accountView === "all") return true;
+  if (accountView === "brokerage") return account === "BROKERAGE" || account === "UNASSIGNED";
+  return account === "ROBO_ADVISOR";
+};
+
 const getTransactionGrossAmount = (tx: Transaction) => {
+  if (Number.isFinite(tx.grossAmount) && (tx.grossAmount ?? 0) !== 0) {
+    return Math.abs(tx.grossAmount ?? 0);
+  }
   const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
   const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
   if (hasQty && hasPrice) return tx.quantity * tx.price;
   if (hasPrice) return tx.price;
   if (hasQty) return tx.quantity;
   return 0;
+};
+
+const getTransactionSignedAmount = (tx: Transaction) => {
+  if (Number.isFinite(tx.grossAmount) && (tx.grossAmount ?? 0) !== 0) {
+    return tx.grossAmount ?? 0;
+  }
+  const gross = getTransactionGrossAmount(tx);
+  if (tx.type === "BUY" || tx.type === "FEE") return -gross;
+  if (tx.type === "SELL" || tx.type === "DIVIDEND") return gross;
+  if (Number.isFinite(tx.price) && tx.price !== 0) return tx.price;
+  return gross;
 };
 
 const transactionPriority = (tx: Transaction) => {
@@ -182,44 +224,69 @@ const findCloseAtOrBefore = (points: HistoryClosePoint[], targetTimestamp: numbe
   return answer >= 0 ? points[answer].close : undefined;
 };
 
+const findIndexAtOrBefore = (points: { timestamp: number }[], targetTimestamp: number) => {
+  if (points.length === 0) return -1;
+  let lo = 0;
+  let hi = points.length - 1;
+  let answer = -1;
+
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (points[mid].timestamp <= targetTimestamp) {
+      answer = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return answer;
+};
+
 const getTransactionFeeBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
   const currency = getTransactionCurrency(tx, baseCurrency);
+  const effectiveFxRate = tx.fxRate ?? fxRate;
   const explicitFee = Number.isFinite(tx.fee) ? Math.abs(tx.fee ?? 0) : 0;
   if (explicitFee > 0) {
-    return convertCurrencyFrom(explicitFee, currency, baseCurrency, fxRate, baseCurrency);
+    return convertCurrencyFrom(explicitFee, currency, baseCurrency, effectiveFxRate, baseCurrency);
   }
   if (tx.type !== "FEE") return 0;
   const fallbackFee = Math.abs(getTransactionGrossAmount(tx));
   if (!Number.isFinite(fallbackFee) || fallbackFee === 0) return 0;
-  return convertCurrencyFrom(fallbackFee, currency, baseCurrency, fxRate, baseCurrency);
+  return convertCurrencyFrom(fallbackFee, currency, baseCurrency, effectiveFxRate, baseCurrency);
 };
 
 const getDividendNetBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
   const currency = getTransactionCurrency(tx, baseCurrency);
-  const gross = getTransactionGrossAmount(tx);
-  const net = gross - (tx.fee ?? 0);
-  return convertCurrencyFrom(net, currency, baseCurrency, fxRate, baseCurrency);
+  const effectiveFxRate = tx.fxRate ?? fxRate;
+  const gross = getTransactionSignedAmount(tx);
+  const fee = Number.isFinite(tx.fee) ? Math.abs(tx.fee ?? 0) : 0;
+  const net = gross >= 0 ? gross - fee : gross + fee;
+  return convertCurrencyFrom(net, currency, baseCurrency, effectiveFxRate, baseCurrency);
 };
 
 const getExternalCashFlowBase = (tx: Transaction, fxRate: number, baseCurrency: CurrencyCode) => {
   if (tx.type !== "OTHER") return null;
   if (tx.ticker && !isNonInvestmentTicker(tx.ticker)) return null;
-  const gross = getTransactionGrossAmount(tx);
+  const gross = getTransactionSignedAmount(tx);
   if (!Number.isFinite(gross) || gross === 0) return null;
   const currency = getTransactionCurrency(tx, baseCurrency);
-  return convertCurrencyFrom(gross, currency, baseCurrency, fxRate, baseCurrency);
+  const effectiveFxRate = tx.fxRate ?? fxRate;
+  return convertCurrencyFrom(gross, currency, baseCurrency, effectiveFxRate, baseCurrency);
 };
 
 type RunningPortfolioState = {
-  cash: number;
+  cashByCurrency: Map<CurrencyCode, number>;
   netExternalContributions: number;
+  totalCostBasis: number;
   quantities: Map<string, number>;
   lastTradePriceBase: Map<string, number>;
 };
 
 const createRunningPortfolioState = (): RunningPortfolioState => ({
-  cash: 0,
+  cashByCurrency: new Map<CurrencyCode, number>(),
   netExternalContributions: 0,
+  totalCostBasis: 0,
   quantities: new Map<string, number>(),
   lastTradePriceBase: new Map<string, number>(),
 });
@@ -232,7 +299,9 @@ const applyTransactionToState = (
 ) => {
   const externalCashFlowBase = getExternalCashFlowBase(tx, fxRate, baseCurrency);
   if (externalCashFlowBase !== null) {
-    state.cash += externalCashFlowBase;
+    const currency = getTransactionCurrency(tx, baseCurrency);
+    const currentCash = state.cashByCurrency.get(currency) ?? 0;
+    state.cashByCurrency.set(currency, currentCash + getTransactionSignedAmount(tx));
     state.netExternalContributions += externalCashFlowBase;
     return externalCashFlowBase;
   }
@@ -240,34 +309,62 @@ const applyTransactionToState = (
   const hasInvestmentTicker = Boolean(tx.ticker) && !isNonInvestmentTicker(tx.ticker);
   const currency = getTransactionCurrency(tx, baseCurrency);
   const quantity = Number.isFinite(tx.quantity) ? Math.abs(tx.quantity) : 0;
-  const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, fxRate, baseCurrency);
+  const effectiveFxRate = tx.fxRate ?? fxRate;
+  const priceBase = convertCurrencyFrom(tx.price, currency, baseCurrency, effectiveFxRate, baseCurrency);
   const feeBase = getTransactionFeeBase(tx, fxRate, baseCurrency);
+  const gross = getTransactionGrossAmount(tx);
+  const fee = Number.isFinite(tx.fee) ? Math.abs(tx.fee ?? 0) : (tx.type === "FEE" ? gross : 0);
+  const currentCash = state.cashByCurrency.get(currency) ?? 0;
+  
   if (hasInvestmentTicker && Number.isFinite(priceBase) && priceBase > 0) {
     state.lastTradePriceBase.set(tx.ticker, priceBase);
   }
 
   if (tx.type === "BUY") {
     if (!hasInvestmentTicker) return 0;
-    state.cash -= quantity * priceBase + feeBase;
+    const cost = quantity * priceBase + feeBase;
+    const costInCurrency = gross + fee;
+    
+    // Auto-Cash Injection: if the user hasn't recorded enough deposits to cover the buy,
+    // we assume an implied external cash flow. This prevents negative equity distortion.
+    let injection = 0;
+    let nextCash = currentCash;
+    if (nextCash < costInCurrency) {
+      const injectionInCurrency = costInCurrency - nextCash;
+      injection = convertCurrencyFrom(
+        injectionInCurrency,
+        currency,
+        baseCurrency,
+        effectiveFxRate,
+        baseCurrency,
+      );
+      nextCash += injectionInCurrency;
+      state.netExternalContributions += injection;
+    }
+    
+    state.cashByCurrency.set(currency, nextCash - costInCurrency);
+    state.totalCostBasis += cost;
     state.quantities.set(tx.ticker, (state.quantities.get(tx.ticker) ?? 0) + quantity);
-    return 0;
+    return injection;
   }
 
   if (tx.type === "SELL") {
     if (!hasInvestmentTicker) return 0;
-    state.cash += quantity * priceBase - feeBase;
+    state.cashByCurrency.set(currency, currentCash + gross - fee);
     const previous = state.quantities.get(tx.ticker) ?? 0;
     state.quantities.set(tx.ticker, Math.max(0, previous - quantity));
     return 0;
   }
 
   if (tx.type === "DIVIDEND") {
-    state.cash += getDividendNetBase(tx, fxRate, baseCurrency);
+    const signedAmount = getTransactionSignedAmount(tx);
+    const netDividend = signedAmount >= 0 ? signedAmount - fee : signedAmount + fee;
+    state.cashByCurrency.set(currency, currentCash + netDividend);
     return 0;
   }
 
   if (tx.type === "FEE") {
-    state.cash -= Math.abs(feeBase);
+    state.cashByCurrency.set(currency, currentCash - fee);
     return 0;
   }
 
@@ -278,7 +375,7 @@ const buildPerformanceSeries = (
   transactions: Transaction[],
   fxRate: number,
   baseCurrency: CurrencyCode
-): PerformancePoint[] => {
+): AccountSeries => {
   const ordered = sortTransactionsForCash(transactions)
     .map((tx) => {
       const timestamp = toTimestamp(tx.date);
@@ -289,7 +386,8 @@ const buildPerformanceSeries = (
     .sort((a, b) => a.timestamp - b.timestamp);
 
   if (ordered.length === 0) {
-    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: 0 }];
+    const empty = [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: 0 }];
+    return { valuePoints: empty, gainLossPoints: empty, roiPoints: empty };
   }
 
   const startMonth = getMonthStart(ordered[0].timestamp);
@@ -300,16 +398,18 @@ const buildPerformanceSeries = (
 
   const quantityEpsilon = 1e-6;
   const state = createRunningPortfolioState();
-  const points: PerformancePoint[] = [];
+  const valuePoints: PerformancePoint[] = [];
+  const gainLossPoints: PerformancePoint[] = [];
+  const roiPoints: PerformancePoint[] = [];
   let txIndex = 0;
   let previousEquity: number | null = null;
-  let cumulativeReturnFactor = 1;
+  let cumulativeGrowth = 1;
 
   for (let month = startMonth; month <= endMonth; month = getNextMonthStart(month)) {
     const monthEnd = getMonthEnd(month);
-    let externalCashFlowInMonth = 0;
+    let periodExternalFlow = 0;
     while (txIndex < ordered.length && ordered[txIndex].timestamp <= monthEnd) {
-      externalCashFlowInMonth += applyTransactionToState(state, ordered[txIndex].tx, fxRate, baseCurrency);
+      periodExternalFlow += applyTransactionToState(state, ordered[txIndex].tx, fxRate, baseCurrency);
       txIndex += 1;
     }
 
@@ -317,45 +417,62 @@ const buildPerformanceSeries = (
     for (const [ticker, quantity] of state.quantities.entries()) {
       if (quantity <= quantityEpsilon) continue;
       const priceBase = state.lastTradePriceBase.get(ticker) ?? 0;
-      if (!Number.isFinite(priceBase) || priceBase <= 0) continue;
       totalValue += quantity * priceBase;
     }
+    for (const [currency, amount] of state.cashByCurrency.entries()) {
+      totalValue += convertCurrencyFrom(amount, currency, baseCurrency, fxRate, baseCurrency);
+    }
 
-    const equity = totalValue + state.cash;
-    if (previousEquity !== null && previousEquity > 0) {
-      const periodReturn = (equity - previousEquity - externalCashFlowInMonth) / previousEquity;
+    const equity = totalValue;
+    const gainLoss = equity - state.netExternalContributions;
+    if (previousEquity !== null && previousEquity > quantityEpsilon) {
+      const periodReturn = (equity - previousEquity - periodExternalFlow) / previousEquity;
       if (Number.isFinite(periodReturn)) {
-        cumulativeReturnFactor *= 1 + periodReturn;
+        cumulativeGrowth *= 1 + periodReturn;
       }
     }
     previousEquity = equity;
+    const roiPercent = (cumulativeGrowth - 1) * 100;
 
-    points.push({
+    valuePoints.push({
       label: formatMonthLabel(month, includeYear),
-      value: Number(((cumulativeReturnFactor - 1) * 100).toFixed(2)),
+      value: Number(equity.toFixed(2)),
+    });
+    gainLossPoints.push({
+      label: formatMonthLabel(month, includeYear),
+      value: Number(gainLoss.toFixed(2)),
+    });
+    roiPoints.push({
+      label: formatMonthLabel(month, includeYear),
+      value: Number(roiPercent.toFixed(2)),
     });
   }
 
-  return points;
+  return { valuePoints, gainLossPoints, roiPoints };
 };
 
 const buildPerformanceSeriesWithHistory = async (
-  transactions: Transaction[],
-  fxRate: number,
-  baseCurrency: CurrencyCode
-): Promise<PerformancePoint[] | null> => {
-  const ordered = sortTransactionsForCash(transactions);
-  if (ordered.length === 0) {
-    return [{ label: formatMonthLabel(getMonthStart(Date.now()), false), value: 0 }];
-  }
+  allTransactions: Transaction[],
+  currentFxRate: number,
+  baseCurrency: CurrencyCode,
+  accountView: PortfolioAccountView,
+): Promise<AccountSeries | null> => {
+  const transactions = allTransactions.filter((tx) =>
+    matchesAccountView(getTransactionAccount(tx), accountView),
+  );
 
-  const firstTimestamp = toTimestamp(ordered[0].date);
-  if (!firstTimestamp) return null;
-  const startDay = getDayStart(firstTimestamp);
+  const ordered = sortTransactionsForCash(transactions);
+  if (ordered.length === 0) return null;
+
+  const minTxDate = transactions.reduce((min, tx) => {
+    const ts = toTimestamp(tx.date);
+    return ts !== null && ts < min ? ts : min;
+  }, Date.now());
+
+  const startDay = getDayStart(minTxDate);
   const endDay = getDayStart(Date.now());
   const includeYear = new Date(startDay).getUTCFullYear() !== new Date(endDay).getUTCFullYear();
 
-  const tickerCurrency = new Map<string, CurrencyCode>();
   const tickers = Array.from(
     new Set(
       ordered
@@ -363,10 +480,35 @@ const buildPerformanceSeriesWithHistory = async (
         .filter((ticker): ticker is string => Boolean(ticker) && !isNonInvestmentTicker(ticker))
     )
   );
-  for (const tx of ordered) {
-    if (!tx.ticker || tickerCurrency.has(tx.ticker)) continue;
-    tickerCurrency.set(tx.ticker, tx.currency ?? inferCurrencyFromTicker(tx.ticker));
+  
+  const tickerCurrency = new Map<string, CurrencyCode>();
+  for (const ticker of tickers) {
+    tickerCurrency.set(ticker, inferCurrencyFromTicker(ticker));
   }
+
+  // Fetch Historical FX rates (primarily EUR/USD)
+  let historicalFx: { timestamp: number; close: number }[] = [];
+  try {
+    const fxRes = await fetch("/api/yahoo?action=history&symbol=EURUSD=X&range=5y&interval=1d");
+    if (fxRes.ok) {
+      const fxJson = await fxRes.json();
+      historicalFx = (fxJson.data?.points ?? [])
+        .map((p: any) => ({
+          timestamp: normalizeHistoryTimestamp(p.timestamp),
+          close: Number(p.close),
+        }))
+        .filter((p: any) => p.timestamp && p.close > 0)
+        .sort((a: any, b: any) => a.timestamp - b.timestamp);
+    }
+  } catch (err) {
+    console.warn("Failed to fetch historical FX rates", err);
+  }
+
+  const getDayFxRate = (timestamp: number) => {
+    if (historicalFx.length === 0) return currentFxRate;
+    const idx = findIndexAtOrBefore(historicalFx, timestamp);
+    return idx >= 0 ? historicalFx[idx].close : currentFxRate;
+  };
 
   const historyEntries = await Promise.all(
     tickers.map(async (ticker) => {
@@ -379,19 +521,19 @@ const buildPerformanceSeriesWithHistory = async (
         const json = (await res.json()) as {
           data?: { points?: Array<{ timestamp?: number; close?: number }> };
         };
-        const currency = tickerCurrency.get(ticker) ?? inferCurrencyFromTicker(ticker);
         const points = (json.data?.points ?? [])
           .map((point) => {
             const timestamp = normalizeHistoryTimestamp(point.timestamp);
             const rawClose = Number(point.close);
-            if (!timestamp || !Number.isFinite(rawClose)) return null;
-            const close = convertCurrencyFrom(rawClose, currency, baseCurrency, fxRate, baseCurrency);
-            return Number.isFinite(close) ? { timestamp, close } : null;
+            if (!timestamp || !Number.isFinite(rawClose) || rawClose <= 0) return null;
+            // We keep raw prices here and convert using dayFxRate in the loop
+            return { timestamp, close: rawClose };
           })
           .filter((point): point is HistoryClosePoint => point !== null)
           .sort((a, b) => a.timestamp - b.timestamp);
         return [ticker, points] as const;
-      } catch {
+      } catch (err) {
+        console.warn("Failed to fetch historical data for", ticker, err);
         return [ticker, [] as HistoryClosePoint[]] as const;
       }
     })
@@ -401,18 +543,24 @@ const buildPerformanceSeriesWithHistory = async (
   const quantityEpsilon = 1e-6;
   const state = createRunningPortfolioState();
   let txIndex = 0;
-  const points: PerformancePoint[] = [];
+  const valuePoints: PerformancePoint[] = [];
+  const roiPoints: PerformancePoint[] = [];
+  const gainLossPoints: PerformancePoint[] = [];
+  let previousROI = 0;
   let previousEquity: number | null = null;
-  let cumulativeReturnFactor = 1;
+  let cumulativeGrowth = 1;
 
   for (let day = startDay; day <= endDay; day = getNextDayStart(day)) {
     const dayEnd = getDayEnd(day);
-    let externalCashFlowInDay = 0;
+    const dayFxRate = getDayFxRate(dayEnd);
+    let dayExternalFlow = 0;
+    
     while (txIndex < ordered.length) {
       const tx = ordered[txIndex];
       const txTimestamp = toTimestamp(tx.date);
       if (!txTimestamp || txTimestamp > dayEnd) break;
-      externalCashFlowInDay += applyTransactionToState(state, tx, fxRate, baseCurrency);
+      const txFxRate = getDayFxRate(txTimestamp);
+      dayExternalFlow += applyTransactionToState(state, tx, txFxRate, baseCurrency);
       txIndex += 1;
     }
 
@@ -420,55 +568,118 @@ const buildPerformanceSeriesWithHistory = async (
     for (const [ticker, qty] of state.quantities.entries()) {
       if (qty <= quantityEpsilon) continue;
       const series = historyByTicker.get(ticker) ?? [];
-      const close = findCloseAtOrBefore(series, dayEnd) ?? state.lastTradePriceBase.get(ticker) ?? 0;
-      totalValue += qty * close;
+      const rawPrice = findCloseAtOrBefore(series, dayEnd);
+      
+      const currency = tickerCurrency.get(ticker) ?? baseCurrency;
+      const historicalPrice = rawPrice !== undefined 
+        ? convertCurrencyFrom(rawPrice, currency, baseCurrency, dayFxRate, baseCurrency)
+        : undefined;
+
+      let effectivePrice = 0;
+      if (historicalPrice !== undefined && historicalPrice > 0) {
+        effectivePrice = historicalPrice;
+        state.lastTradePriceBase.set(ticker, historicalPrice);
+      } else {
+        effectivePrice = state.lastTradePriceBase.get(ticker) ?? 0;
+      }
+      
+      totalValue += qty * effectivePrice;
+    }
+    for (const [currency, amount] of state.cashByCurrency.entries()) {
+      totalValue += convertCurrencyFrom(amount, currency, baseCurrency, dayFxRate, baseCurrency);
     }
 
-    const equity = totalValue + state.cash;
-    if (previousEquity !== null && previousEquity > 0) {
-      const periodReturn = (equity - previousEquity - externalCashFlowInDay) / previousEquity;
-      if (Number.isFinite(periodReturn)) {
-        cumulativeReturnFactor *= 1 + periodReturn;
+    const equity = totalValue;
+    const gainLoss = equity - state.netExternalContributions;
+    if (previousEquity !== null && previousEquity > quantityEpsilon) {
+      const dayReturn = (equity - previousEquity - dayExternalFlow) / previousEquity;
+      if (Number.isFinite(dayReturn)) {
+        cumulativeGrowth *= 1 + dayReturn;
       }
     }
     previousEquity = equity;
+    let roiPercent = (cumulativeGrowth - 1) * 100;
+    
+    // Safety check for suspicious movements
+    const isSuspicious = state.quantities.size > 0 && (roiPercent < previousROI - 15 || roiPercent > previousROI + 50);
+    const isZeroError = equity <= 0 && state.quantities.size > 0;
 
-    points.push({
+    if ((isSuspicious || isZeroError) && roiPoints.length > 0) {
+      roiPercent = previousROI;
+    } else {
+      previousROI = roiPercent;
+    }
+
+    valuePoints.push({
       label: formatDayLabel(day, includeYear),
-      value: Number(((cumulativeReturnFactor - 1) * 100).toFixed(2)),
+      value: Number(equity.toFixed(2)),
+    });
+    roiPoints.push({
+      label: formatDayLabel(day, includeYear),
+      value: Number(roiPercent.toFixed(2)),
+    });
+
+    gainLossPoints.push({
+      label: formatDayLabel(day, includeYear),
+      value: Number(convertCurrencyFrom(gainLoss, baseCurrency, baseCurrency, dayFxRate, baseCurrency).toFixed(2)),
     });
   }
 
-  if (points.length === 0) return null;
-  return points;
+  if (roiPoints.length === 0) return null;
+  return { valuePoints, gainLossPoints, roiPoints };
 };
 
-const groupResidualAllocation = (items: AllocationItem[]) => {
-  const major = items.filter((item) => item.percent >= RESIDUAL_ALLOCATION_THRESHOLD);
-  const residual = items.filter((item) => item.percent < RESIDUAL_ALLOCATION_THRESHOLD);
-
-  if (residual.length === 0) return items;
-
-  const residualValue = residual.reduce((sum, item) => sum + item.value, 0);
-  const residualPercent = residual.reduce((sum, item) => sum + item.percent, 0);
-
-  return [
-    ...major,
-    {
-      key: "OTHERS",
-      label: "Otros",
-      displayLabel: "Otros",
-      value: residualValue,
-      percent: residualPercent,
-    },
-  ];
-};
+// --- REVOLUT STYLE COMPONENTS ---
 
 const computeSummaryFromHoldings = (subset: Holding[]) => {
   const totalValue = subset.reduce((sum, holding) => sum + holding.marketValue, 0);
   const totalPnl = subset.reduce((sum, holding) => sum + holding.pnlValue, 0);
   const dailyPnl = subset.reduce((sum, holding) => sum + (holding.dayChange ?? 0), 0);
   return { totalValue, totalPnl, dailyPnl };
+};
+
+const computeAccountMetrics = (
+  accountTransactions: Transaction[],
+  accountHoldings: Holding[],
+  accountRealizedTrades: RealizedTrade[],
+  fxRate: number,
+  baseCurrency: CurrencyCode,
+): AccountMetrics => {
+  const cashBalance = computeCashBalanceBase(accountTransactions, fxRate, baseCurrency);
+
+  const dividendIncome = accountTransactions
+    .filter((tx) => tx.type === "DIVIDEND")
+    .reduce((sum, tx) => sum + getDividendNetBase(tx, fxRate, baseCurrency), 0);
+  const standaloneFees = accountTransactions
+    .filter((tx) => tx.type === "FEE")
+    .reduce((sum, tx) => sum + getTransactionFeeBase(tx, fxRate, baseCurrency), 0);
+  const realizedTradesBase = accountRealizedTrades.reduce((sum, trade) => sum + trade.pnlValue, 0);
+  const unrealized = accountHoldings.reduce((sum, holding) => sum + holding.pnlValue, 0);
+  const realized = realizedTradesBase + dividendIncome - standaloneFees;
+  const totalPnl = realized + unrealized;
+  const totalInvested = accountTransactions
+    .filter((tx) => tx.type === "BUY")
+    .reduce((sum, tx) => {
+      const currency = getTransactionCurrency(tx, baseCurrency);
+      const effectiveFxRate = tx.fxRate ?? fxRate;
+      const grossBase = convertCurrencyFrom(
+        getTransactionGrossAmount(tx),
+        currency,
+        baseCurrency,
+        effectiveFxRate,
+        baseCurrency,
+      );
+      return sum + grossBase + getTransactionFeeBase(tx, fxRate, baseCurrency);
+    }, 0);
+
+  return {
+    totalValue: accountHoldings.reduce((sum, holding) => sum + holding.marketValue, 0) + cashBalance,
+    cashBalance,
+    realized,
+    unrealized,
+    totalPnl,
+    roi: totalInvested > 0 ? (totalPnl / totalInvested) * 100 : 0,
+  };
 };
 
 const buildMonthlyRealizedSeries = (trades: RealizedTrade[]): IncomePoint[] => {
@@ -513,154 +724,209 @@ const buildMonthlyRealizedSeries = (trades: RealizedTrade[]): IncomePoint[] => {
   return points;
 };
 
+function RevolutSparkline({ data, color = "#22c55e", height = 60 }: { data: any[]; color?: string; height?: number }) {
+  if (!data || data.length < 2) return <div style={{ height }} />;
+  
+  const min = Math.min(...data.map(d => d.value));
+  const max = Math.max(...data.map(d => d.value));
+  const padding = (max - min) * 0.1;
+  const domain = [min - padding, max + padding];
+
+  return (
+    <div style={{ height }} className="w-full opacity-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
+          <defs>
+            <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={2}
+            fill={`url(#grad-${color})`}
+            isAnimationActive={false}
+            dot={false}
+          />
+          <YAxis hide domain={domain} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function RevolutTickerIcon({ ticker, className }: { ticker: string; className?: string }) {
+  const colors: Record<string, string> = {
+    "REP.MC": "bg-[#FF4D00]",
+    "BTC-USD": "bg-[#F7931A]",
+    "NVDA": "bg-[#76B900]",
+    "AAPL": "bg-[#A2AAAD]",
+    "MSFT": "bg-[#00A4EF]",
+    "AMZN": "bg-[#FF9900]",
+    "GOOGL": "bg-[#4285F4]",
+    "SPY": "bg-[#1d4ed8]",
+  };
+  
+  const bgColor = colors[ticker] || "bg-primary/20";
+  const initial = ticker.charAt(0);
+  
+  return (
+    <div className={cn("flex items-center justify-center rounded-full text-[10px] font-bold text-white", bgColor, className)}>
+      {initial}
+    </div>
+  );
+}
+
 export function PortfolioClient() {
   const { holdings, realizedTrades, transactions, isLoading } = usePortfolioData();
   const { currency, baseCurrency, fxRate } = useCurrency();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [sectorByTicker, setSectorByTicker] = useState<Record<string, string>>({});
-  const [performanceSeries, setPerformanceSeries] = useState<PerformancePoint[]>([]);
-  const activeTab: PortfolioTab = searchParams.get("tab") === "etf" ? "etf" : "stocks";
+  const [valueSeries, setValueSeries] = useState<PerformancePoint[]>([]);
+  const [profitSeries, setProfitSeries] = useState<PerformancePoint[]>([]);
+  const [roiSeries, setRoiSeries] = useState<PerformancePoint[]>([]);
+  const accountView: PortfolioAccountView =
+    searchParams.get("account") === "brokerage"
+      ? "brokerage"
+      : searchParams.get("account") === "robo"
+        ? "robo"
+        : "all";
   const showBootstrapState = isLoading && transactions.length === 0;
 
-  const handleTabChange = (tab: PortfolioTab) => {
-    if (tab === activeTab) return;
+  const handleAccountViewChange = (nextView: PortfolioAccountView) => {
+    if (nextView === accountView) return;
     const next = new URLSearchParams(searchParams.toString());
-    next.set("tab", tab);
+    next.set("account", nextView);
     router.replace(`${pathname}?${next.toString()}` as Route, { scroll: false });
   };
 
-  const stockHoldings = useMemo(
+  const brokerageTransactions = useMemo(
+    () => transactions.filter((tx) => matchesAccountView(getTransactionAccount(tx), "brokerage")),
+    [transactions],
+  );
+  const roboTransactions = useMemo(
+    () => transactions.filter((tx) => matchesAccountView(getTransactionAccount(tx), "robo")),
+    [transactions],
+  );
+  const brokerageHoldings = useMemo(
+    () => holdings.filter((holding) => matchesAccountView(getHoldingAccount(holding), "brokerage")),
+    [holdings],
+  );
+  const roboHoldings = useMemo(
+    () => holdings.filter((holding) => matchesAccountView(getHoldingAccount(holding), "robo")),
+    [holdings],
+  );
+  const brokerageTrades = useMemo(
     () =>
-      holdings.filter(
-        (holding) => !isFundTicker(holding.ticker) && !isNonInvestmentTicker(holding.ticker)
-      ),
-    [holdings]
+      realizedTrades.filter((trade) => matchesAccountView(getRealizedTradeAccount(trade), "brokerage")),
+    [realizedTrades],
   );
-  const etfHoldings = useMemo(
-    () => holdings.filter((holding) => isFundTicker(holding.ticker)),
-    [holdings]
+  const roboTrades = useMemo(
+    () => realizedTrades.filter((trade) => matchesAccountView(getRealizedTradeAccount(trade), "robo")),
+    [realizedTrades],
   );
-  const stockSummary = useMemo(() => computeSummaryFromHoldings(stockHoldings), [stockHoldings]);
-  const etfSummary = useMemo(() => computeSummaryFromHoldings(etfHoldings), [etfHoldings]);
-  const etfTotalCost = useMemo(
-    () => Math.max(0, etfSummary.totalValue - etfSummary.totalPnl),
-    [etfSummary.totalValue, etfSummary.totalPnl]
+
+  const selectedTransactions = useMemo(() => {
+    if (accountView === "brokerage") return brokerageTransactions;
+    if (accountView === "robo") return roboTransactions;
+    return transactions;
+  }, [accountView, brokerageTransactions, roboTransactions, transactions]);
+  const selectedHoldings = useMemo(() => {
+    if (accountView === "brokerage") return brokerageHoldings;
+    if (accountView === "robo") return roboHoldings;
+    return holdings;
+  }, [accountView, brokerageHoldings, roboHoldings, holdings]);
+  const selectedTrades = useMemo(() => {
+    if (accountView === "brokerage") return brokerageTrades;
+    if (accountView === "robo") return roboTrades;
+    return realizedTrades;
+  }, [accountView, brokerageTrades, roboTrades, realizedTrades]);
+  const selectedSummary = useMemo(
+    () => computeSummaryFromHoldings(selectedHoldings),
+    [selectedHoldings],
   );
-  const etfReturnPercent = useMemo(
-    () => (etfTotalCost > 0 ? etfSummary.totalPnl / etfTotalCost : 0),
-    [etfSummary.totalPnl, etfTotalCost]
+  const selectedMetrics = useMemo(
+    () => computeAccountMetrics(selectedTransactions, selectedHoldings, selectedTrades, fxRate, baseCurrency),
+    [selectedTransactions, selectedHoldings, selectedTrades, fxRate, baseCurrency],
   );
-  const stockTrades = useMemo(
+  const selectedMonthlyRealizedSeries = useMemo(
+    () => buildMonthlyRealizedSeries(selectedTrades),
+    [selectedTrades],
+  );
+  const selectedLargestHolding = useMemo(
     () =>
-      realizedTrades.filter(
-        (trade) => !isFundTicker(trade.ticker) && !isNonInvestmentTicker(trade.ticker)
-      ),
-    [realizedTrades]
+      selectedHoldings.reduce<Holding | null>((largest, holding) => {
+        if (!largest || holding.marketValue > largest.marketValue) return holding;
+        return largest;
+      }, null),
+    [selectedHoldings],
   );
-  const etfTrades = useMemo(
-    () => realizedTrades.filter((trade) => isFundTicker(trade.ticker)),
-    [realizedTrades]
-  );
-  const stockTransactions = useMemo(
+  const selectedAllocation = useMemo(
     () =>
-      transactions.filter(
-        (tx) => !isFundTicker(tx.ticker) && !isNonInvestmentTicker(tx.ticker)
-      ),
-    [transactions]
-  );
-  const performanceTransactions = useMemo(() => transactions, [transactions]);
-  const etfTransactions = useMemo(
-    () => transactions.filter((tx) => isFundTicker(tx.ticker)),
-    [transactions]
-  );
-
-  useEffect(() => {
-    const tickers = holdings.map((holding) => holding.ticker).filter(Boolean);
-    if (tickers.length === 0) return;
-
-    const controller = new AbortController();
-    fetch(`/api/fundamentals?tickers=${encodeURIComponent(tickers.join(","))}`, {
-      signal: controller.signal,
-    })
-      .then((res) => res.json())
-      .then((payload) => {
-        const data = Array.isArray(payload?.data) ? (payload.data as SectorPoint[]) : [];
-        const next: Record<string, string> = {};
-        data.forEach((item) => {
-          if (item?.ticker && item?.sector) {
-            next[item.ticker] = item.sector;
-          }
-        });
-        setSectorByTicker(next);
-      })
-      .catch(() => {});
-
-    return () => controller.abort();
-  }, [holdings]);
-
-  const assetAllocation = useMemo(
-    () => {
-      const items = stockHoldings
+      [...selectedHoldings]
+        .sort((a, b) => b.marketValue - a.marketValue)
         .map((holding) => ({
-          key: holding.ticker,
-          label: holding.ticker,
-          displayLabel: holding.name || holding.ticker,
-          value: holding.marketValue,
-          percent: stockSummary.totalValue > 0 ? holding.marketValue / stockSummary.totalValue : 0,
-        }))
-        .sort((a, b) => b.value - a.value);
-      return groupResidualAllocation(items);
-    },
-    [stockHoldings, stockSummary.totalValue]
+          ...holding,
+          percent: selectedSummary.totalValue > 0 ? holding.marketValue / selectedSummary.totalValue : 0,
+        })),
+    [selectedHoldings, selectedSummary.totalValue],
   );
 
-  const sectorAllocation = useMemo(
-    () => {
-      const sectorTotals = stockHoldings.reduce(
-        (acc, holding) => {
-          const sector = sectorByTicker[holding.ticker] || "Sin sector";
-          acc[sector] = (acc[sector] ?? 0) + holding.marketValue;
-          return acc;
-        },
-        {} as Record<string, number>
-      );
+  const accountLabel =
+    accountView === "brokerage"
+      ? "Cuenta de corretaje"
+      : accountView === "robo"
+        ? "Robo advisor"
+        : "Todas las cuentas de inversión";
+  const heroTitle =
+    accountView === "brokerage"
+      ? "Cuenta de corretaje"
+      : accountView === "robo"
+        ? "Robo advisor"
+        : "Todas las cuentas";
+  const heroDescription =
+    accountView === "brokerage"
+      ? "Vista ejecutiva de la cuenta de corretaje con valor actual, rentabilidad y detalle de posiciones abiertas."
+      : accountView === "robo"
+        ? "Lectura consolidada del robo advisor con cierres, fees de gestión y evolución histórica."
+        : "Consolida corretaje y robo advisor en una sola lectura, con métricas cercanas a la analítica de Revolut.";
+  const displayedValueChange =
+    valueSeries.length >= 2
+      ? (valueSeries[valueSeries.length - 1]?.value ?? 0) - (valueSeries[0]?.value ?? 0)
+      : selectedMetrics.totalValue;
+  const displayedProfitChange = selectedMetrics.totalPnl;
+  const displayedReturnPct = roiSeries[roiSeries.length - 1]?.value ?? selectedMetrics.roi;
 
-      const items = Object.entries(sectorTotals)
-        .map(([sector, value]) => ({
-          key: sector,
-          label: sector,
-          displayLabel: sector,
-          value,
-          percent: stockSummary.totalValue > 0 ? value / stockSummary.totalValue : 0,
-        }))
-        .sort((a, b) => b.value - a.value);
-      return groupResidualAllocation(items);
-    },
-    [stockHoldings, stockSummary.totalValue, sectorByTicker]
-  );
   const fallbackPerformanceSeries = useMemo(
-    () => buildPerformanceSeries(performanceTransactions, fxRate, baseCurrency),
-    [performanceTransactions, fxRate, baseCurrency]
+    () => buildPerformanceSeries(selectedTransactions, fxRate, baseCurrency),
+    [selectedTransactions, fxRate, baseCurrency]
   );
 
   useEffect(() => {
-    setPerformanceSeries(fallbackPerformanceSeries);
+    setValueSeries(fallbackPerformanceSeries.valuePoints);
+    setProfitSeries(fallbackPerformanceSeries.gainLossPoints);
+    setRoiSeries(fallbackPerformanceSeries.roiPoints);
   }, [fallbackPerformanceSeries]);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadHistoricalPerformance = async () => {
-      if (performanceTransactions.length === 0) return;
-      const enriched = await buildPerformanceSeriesWithHistory(
-        performanceTransactions,
+      if (selectedTransactions.length === 0) return;
+      const result = await buildPerformanceSeriesWithHistory(
+        selectedTransactions,
         fxRate,
-        baseCurrency
+        baseCurrency,
+        accountView,
       );
-      if (!cancelled && enriched && enriched.length > 0) {
-        setPerformanceSeries(enriched);
+      if (!cancelled && result) {
+        setValueSeries(result.valuePoints);
+        setProfitSeries(result.gainLossPoints);
+        setRoiSeries(result.roiPoints);
       }
     };
 
@@ -669,114 +935,7 @@ export function PortfolioClient() {
     return () => {
       cancelled = true;
     };
-  }, [performanceTransactions, fxRate, baseCurrency]);
-
-  const dividendsCollected = useMemo(() => {
-    return stockTransactions
-      .filter((tx) => tx.type === "DIVIDEND")
-      .reduce((sum, tx) => {
-        const txCurrency = tx.currency ?? baseCurrency;
-        const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
-        const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
-        const gross = hasQty && hasPrice
-          ? tx.quantity * tx.price
-          : hasPrice
-            ? tx.price
-            : hasQty
-              ? tx.quantity
-              : 0;
-        const net = gross - (tx.fee ?? 0);
-        const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
-        return sum + (Number.isFinite(amount) ? amount : 0);
-      }, 0);
-  }, [stockTransactions, fxRate, baseCurrency]);
-  const stockClosedSalesTotal = useMemo(
-    () => stockTrades.reduce((sum, trade) => sum + trade.pnlValue, 0),
-    [stockTrades]
-  );
-  const stockMonthlyRealizedSeries = useMemo(
-    () => buildMonthlyRealizedSeries(stockTrades),
-    [stockTrades]
-  );
-  const largestStockHolding = useMemo(
-    () =>
-      stockHoldings.reduce<Holding | null>((largest, holding) => {
-        if (!largest || holding.marketValue > largest.marketValue) return holding;
-        return largest;
-      }, null),
-    [stockHoldings]
-  );
-  const bestStockHolding = useMemo(
-    () =>
-      stockHoldings.reduce<Holding | null>((best, holding) => {
-        if (!best || holding.pnlPercent > best.pnlPercent) return holding;
-        return best;
-      }, null),
-    [stockHoldings]
-  );
-  const worstStockHolding = useMemo(
-    () =>
-      stockHoldings.reduce<Holding | null>((worst, holding) => {
-        if (!worst || holding.pnlPercent < worst.pnlPercent) return holding;
-        return worst;
-      }, null),
-    [stockHoldings]
-  );
-
-  const etfDividendsCollected = useMemo(() => {
-    return etfTransactions
-      .filter((tx) => tx.type === "DIVIDEND")
-      .reduce((sum, tx) => {
-        const txCurrency = tx.currency ?? baseCurrency;
-        const hasQty = Number.isFinite(tx.quantity) && tx.quantity !== 0;
-        const hasPrice = Number.isFinite(tx.price) && tx.price !== 0;
-        const gross = hasQty && hasPrice
-          ? tx.quantity * tx.price
-          : hasPrice
-            ? tx.price
-            : hasQty
-              ? tx.quantity
-              : 0;
-        const net = gross - (tx.fee ?? 0);
-        const amount = convertCurrencyFrom(net, txCurrency, baseCurrency, fxRate, baseCurrency);
-        return sum + (Number.isFinite(amount) ? amount : 0);
-      }, 0);
-  }, [etfTransactions, fxRate, baseCurrency]);
-  const etfClosedSalesTotal = useMemo(
-    () => etfTrades.reduce((sum, trade) => sum + trade.pnlValue, 0),
-    [etfTrades]
-  );
-  const etfMonthlyRealizedSeries = useMemo(
-    () => buildMonthlyRealizedSeries(etfTrades),
-    [etfTrades]
-  );
-
-  const etfTxStats = useMemo(() => {
-    return etfTransactions.reduce(
-      (acc, tx) => {
-        if (tx.type === "BUY") acc.buy += 1;
-        if (tx.type === "SELL") acc.sell += 1;
-        if (tx.type === "DIVIDEND") acc.dividend += 1;
-        return acc;
-      },
-      { buy: 0, sell: 0, dividend: 0 }
-    );
-  }, [etfTransactions]);
-
-  const etfAllocation = useMemo(
-    () =>
-      [...etfHoldings]
-        .sort((a, b) => b.marketValue - a.marketValue)
-        .map((holding) => ({
-          ...holding,
-          percent: etfSummary.totalValue > 0 ? holding.marketValue / etfSummary.totalValue : 0,
-        })),
-    [etfHoldings, etfSummary.totalValue]
-  );
-  const maxEtfPercent = useMemo(
-    () => etfAllocation.reduce((max, holding) => Math.max(max, holding.percent), 0),
-    [etfAllocation]
-  );
+  }, [selectedTransactions, fxRate, baseCurrency, accountView]);
 
   return (
     <div className="relative flex flex-col gap-10">
@@ -789,12 +948,10 @@ export function PortfolioClient() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/90">Gestión de inversiones</p>
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-text md:text-6xl">
-            {activeTab === "stocks" ? "Acciones" : "ETFs y Fondos"}
+            {heroTitle}
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted md:text-lg">
-            {activeTab === "stocks"
-              ? "Opera con una vista ejecutiva de distribucion, rendimiento historico y detalle de posiciones abiertas."
-              : "Supervisa tu bloque de ETFs/Fondos con contexto de rendimiento y composicion en una sola vista."}
+            {heroDescription}
           </p>
           <Link
             href="/lab"
@@ -805,400 +962,197 @@ export function PortfolioClient() {
           <div className="mt-1 inline-flex rounded-xl border border-border/70 bg-background/45 p-1.5">
             <button
               type="button"
-              onClick={() => handleTabChange("stocks")}
+              onClick={() => handleAccountViewChange("all")}
               className={cn(
                 "rounded-lg px-4 py-2 text-sm font-semibold transition",
-                activeTab === "stocks"
+                accountView === "all"
                   ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
                   : "text-muted hover:text-text"
               )}
             >
-              Acciones
+              Todas
             </button>
             <button
               type="button"
-              onClick={() => handleTabChange("etf")}
+              onClick={() => handleAccountViewChange("brokerage")}
               className={cn(
                 "rounded-lg px-4 py-2 text-sm font-semibold transition",
-                activeTab === "etf"
+                accountView === "brokerage"
                   ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
                   : "text-muted hover:text-text"
               )}
             >
-              ETFs/Fondos
+              Corretaje
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAccountViewChange("robo")}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm font-semibold transition",
+                accountView === "robo"
+                  ? "bg-primary text-background shadow-[0_0_20px_rgba(62,199,255,0.32)]"
+                  : "text-muted hover:text-text"
+              )}
+            >
+              Robo
             </button>
           </div>
         </div>
       </section>
-
       {showBootstrapState ? (
-        <>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-            {[0, 1, 2].map((index) => (
-              <Card key={index} className={cn(METRIC_CARD_CLASS, "items-start px-6")}>
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="mt-4 h-10 w-32" />
-              </Card>
-            ))}
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-[300px] w-full rounded-3xl" />
+          <div className="grid grid-cols-2 gap-6">
+            <Skeleton className="h-[200px] w-full rounded-3xl" />
+            <Skeleton className="h-[200px] w-full rounded-3xl" />
           </div>
-          <Card
-            className="border-primary/20 bg-gradient-to-b from-surface-muted/45 to-surface/90"
-            title="Rendimiento total de la cartera"
-            subtitle="Cargando histórico y posiciones..."
-          >
-            <Skeleton className="h-64 w-full rounded-2xl" />
-          </Card>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card title="Distribución" subtitle="Preparando composición y sectores">
-              <Skeleton className="h-64 w-full rounded-2xl" />
-            </Card>
-            <Card title="Participaciones" subtitle="Cargando posiciones abiertas">
-              <Skeleton className="h-64 w-full rounded-2xl" />
-            </Card>
-          </div>
-        </>
-      ) : activeTab === "stocks" ? (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className={cn(METRIC_CARD_CLASS, "border-primary/20 from-primary/10 to-surface/90")}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">Valor de Cartera</p>
-              <p className="text-3xl font-bold text-text">
-                {formatCurrency(convertCurrency(stockSummary.totalValue, currency, fxRate, baseCurrency), currency)}
-              </p>
-            </Card>
-            <Card className={METRIC_CARD_CLASS}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Diario</p>
-              <p className={cn("text-3xl font-bold", stockSummary.dailyPnl >= 0 ? "text-success" : "text-danger")}>
-                {formatCurrency(convertCurrency(stockSummary.dailyPnl, currency, fxRate, baseCurrency), currency)}
-              </p>
-            </Card>
-            <Card className={METRIC_CARD_CLASS}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Total</p>
-              <p className={cn("text-3xl font-bold", stockSummary.totalPnl >= 0 ? "text-success" : "text-danger")}>
-                {formatCurrency(convertCurrency(stockSummary.totalPnl, currency, fxRate, baseCurrency), currency)}
-              </p>
-            </Card>
-          </div>
-
-          <Card
-            className="border-primary/20 bg-gradient-to-b from-surface-muted/45 to-surface/90"
-            title="Rendimiento total de la cartera"
-            subtitle="Incluye acciones + ETFs/fondos (sin inflar por aportaciones)"
-          >
-            <PortfolioPerformanceChart data={performanceSeries} />
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92">
-              <p className="text-xs uppercase tracking-[0.08em] text-muted">Posiciones abiertas</p>
-              <p className="mt-3 text-3xl font-bold text-text">{stockHoldings.length}</p>
-              <p className="mt-2 text-sm text-muted">Acciones activas ahora mismo.</p>
-            </Card>
-            <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92">
-              <p className="text-xs uppercase tracking-[0.08em] text-muted">Mayor peso</p>
-              <p className="mt-3 text-lg font-semibold text-text">
-                {largestStockHolding?.name || largestStockHolding?.ticker || "Sin datos"}
-              </p>
-              <p className="mt-2 text-sm text-muted">
-                {largestStockHolding && stockSummary.totalValue > 0
-                  ? `${formatPercent(largestStockHolding.marketValue / stockSummary.totalValue)} de la cartera`
-                  : "Sin concentración relevante todavía."}
-              </p>
-            </Card>
-            <Card className="border-success/20 bg-gradient-to-b from-success/10 to-surface/92">
-              <p className="text-xs uppercase tracking-[0.08em] text-muted">Mejor posición</p>
-              <p className="mt-3 text-lg font-semibold text-text">
-                {bestStockHolding?.name || bestStockHolding?.ticker || "Sin datos"}
-              </p>
-              <p className="mt-2 text-sm text-success">
-                {bestStockHolding ? formatPercent(bestStockHolding.pnlPercent / 100) : "N/D"}
-              </p>
-            </Card>
-            <Card className="border-danger/20 bg-gradient-to-b from-danger/10 to-surface/92">
-              <p className="text-xs uppercase tracking-[0.08em] text-muted">Peor posición</p>
-              <p className="mt-3 text-lg font-semibold text-text">
-                {worstStockHolding?.name || worstStockHolding?.ticker || "Sin datos"}
-              </p>
-              <p className="mt-2 text-sm text-danger">
-                {worstStockHolding ? formatPercent(worstStockHolding.pnlPercent / 100) : "N/D"}
-              </p>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-            <Card
-              className="bg-gradient-to-b from-surface-muted/38 to-surface/92"
-              title="Distribucion"
-              subtitle="Peso por activo (residuales agrupados en Otros)"
-            >
-              {assetAllocation.length > 0 ? (
-                <>
-                  <AllocationChart data={assetAllocation} />
-                  <div className="mt-3 grid gap-1.5 text-xs">
-                    {assetAllocation.map((item, index) => (
-                      <div key={item.key} className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-2.5 rounded-full"
-                            style={{ backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length] }}
-                          />
-                          <div className="flex min-w-0 flex-col">
-                            <span className="truncate text-text" title={item.displayLabel}>
-                              {item.displayLabel}
-                            </span>
-                            {item.displayLabel !== item.label ? (
-                              <span className="truncate text-[11px] text-muted" title={item.label}>
-                                {item.label}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <span className="text-muted">{formatPercent(item.percent)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {sectorAllocation.length > 0 ? (
-                    <div className="mt-5 border-t border-border/60 pt-4">
-                      <p className="mb-2 text-[11px] uppercase tracking-[0.08em] text-muted">
-                        Agrupado por sector
-                      </p>
-                      <div className="grid gap-1.5 text-xs">
-                        {sectorAllocation.map((item) => (
-                          <div key={item.key} className="flex items-center justify-between gap-2">
-                            <span className="truncate text-text" title={item.label}>
-                              {item.label}
-                            </span>
-                            <span className="text-muted">{formatPercent(item.percent)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-sm text-muted">Sin asignación todavía.</p>
-              )}
-            </Card>
-            <div className="flex flex-col gap-6">
-              <Card
-                className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-                title="Ventas cerradas"
-                subtitle="Entradas, salidas y P&amp;L realizado"
-                footer={
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <span className="rounded-full border border-border/70 bg-surface-muted/35 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-                      {stockTrades.length} cierres
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]",
-                        stockClosedSalesTotal >= 0
-                          ? "border-success/30 bg-success/10 text-success"
-                          : "border-danger/30 bg-danger/10 text-danger"
-                      )}
-                    >
-                      Total {formatCurrency(convertCurrency(stockClosedSalesTotal, currency, fxRate, baseCurrency), currency)}
-                    </span>
-                  </div>
-                }
-              >
-                <RealizedTradesTable trades={stockTrades} />
-              </Card>
-              <Card
-                className="border-success/25 bg-gradient-to-b from-success/10 to-surface/90"
-                title="Dividendos cobrados"
-                subtitle="Total acumulado de dividendos"
-              >
-                <p className="text-3xl font-bold text-success">
-                  {formatCurrency(convertCurrency(dividendsCollected, currency, fxRate, baseCurrency), currency)}
-                </p>
-              </Card>
-            </div>
-          </div>
-
-          <Card
-            className="border-primary/25 bg-gradient-to-b from-primary/10 to-surface/90"
-            title="Beneficios / pérdidas por mes"
-            subtitle="Suma mensual del P&amp;L realizado en ventas cerradas de acciones"
-          >
-            {stockMonthlyRealizedSeries.length > 0 ? (
-              <PortfolioMonthlyIncomeChart data={stockMonthlyRealizedSeries} />
-            ) : (
-              <p className="text-sm text-muted">Todavía no hay ventas cerradas suficientes para construir una serie mensual.</p>
-            )}
-          </Card>
-
-          <Card
-            className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-            title="Participaciones"
-            subtitle="Solo posiciones abiertas"
-          >
-            {stockHoldings.length ? (
-              <HoldingsTable holdings={stockHoldings} />
-            ) : (
-              <p className="text-sm text-muted">No hay posiciones abiertas todavía.</p>
-            )}
-          </Card>
-        </>
+        </div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <Card className={cn(METRIC_CARD_CLASS, "border-primary/20 from-primary/10 to-surface/90")}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">Valor {ROBOADVISOR_NAME}</p>
-              <p className="text-3xl font-bold text-text">
-                {formatCurrency(convertCurrency(etfSummary.totalValue, currency, fxRate, baseCurrency), currency)}
-              </p>
-            </Card>
-            <Card className={METRIC_CARD_CLASS}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">P&L Total</p>
-              <p className={cn("text-3xl font-bold", etfSummary.totalPnl >= 0 ? "text-success" : "text-danger")}>
-                {formatCurrency(convertCurrency(etfSummary.totalPnl, currency, fxRate, baseCurrency), currency)}
-              </p>
-            </Card>
-            <Card className={METRIC_CARD_CLASS}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">Rentabilidad</p>
-              <p className={cn("text-3xl font-bold", etfReturnPercent >= 0 ? "text-success" : "text-danger")}>
-                {formatPercent(etfReturnPercent)}
-              </p>
-            </Card>
-            <Card className={cn(METRIC_CARD_CLASS, "border-success/25 from-success/10 to-surface/90")}>
-              <p className="text-xs uppercase tracking-widest text-muted mb-2">Dividendos ETFs/Fondos</p>
-              <p className="text-3xl font-bold text-success">
-                {formatCurrency(convertCurrency(etfDividendsCollected, currency, fxRate, baseCurrency), currency)}
-              </p>
-            </Card>
-          </div>
-
-          <div className="flex flex-col gap-6">
-            <Card
-              className="bg-gradient-to-b from-surface-muted/38 to-surface/92"
-              title={`${ROBOADVISOR_NAME} · Desglose`}
-              subtitle="Peso por ETF/Fondo (barra relativa, % real a la derecha)"
-            >
-              {etfAllocation.length ? (
-                <div className="space-y-3">
-                  {etfAllocation.map((holding, index) => (
-                    <div
-                      key={holding.ticker}
-                      className="rounded-xl border border-border/60 bg-surface-muted/35 p-3.5 shadow-[0_14px_32px_rgba(2,8,20,0.34)]"
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-2 text-sm">
-                        <span className="font-semibold text-text">{holding.name || holding.ticker}</span>
-                        <span className="text-muted">{formatPercent(holding.percent)}</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-surface">
-                        <div
-                          className="h-full rounded-full"
-                          style={{
-                            width: `${Math.max(
-                              4,
-                              maxEtfPercent > 0 ? (holding.percent / maxEtfPercent) * 100 : 0
-                            )}%`,
-                            backgroundColor: ALLOCATION_COLORS[index % ALLOCATION_COLORS.length],
-                          }}
-                        />
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted">
-                        <span className="tabular-nums">{holding.totalQuantity.toFixed(4)} participaciones</span>
-                        <span
-                          className={cn(
-                            "font-semibold",
-                            holding.pnlValue >= 0 ? "text-success" : "text-danger"
-                          )}
-                        >
-                          {formatPercent(holding.pnlPercent / 100)}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted">
-                        <span
-                          className={cn(
-                            "font-semibold",
-                            holding.pnlValue >= 0 ? "text-success" : "text-danger"
-                          )}
-                        >
-                          {formatCurrency(convertCurrency(holding.pnlValue, currency, fxRate, baseCurrency), currency)}
-                        </span>
-                        <span>{formatCurrency(convertCurrency(holding.marketValue, currency, fxRate, baseCurrency), currency)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted">No hay posiciones de ETFs/fondos en el robadvisor.</p>
-              )}
-            </Card>
-            <div className="grid gap-6 lg:grid-cols-[2fr_3fr]">
-              <Card
-                className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-                title="Ventas cerradas ETFs/Fondos"
-                subtitle="Rentabilidades obtenidas en cierres anteriores"
-                footer={
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <span className="rounded-full border border-border/70 bg-surface-muted/35 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted">
-                      {etfTrades.length} cierres
-                    </span>
-                    <span
-                      className={cn(
-                        "rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em]",
-                        etfClosedSalesTotal >= 0
-                          ? "border-success/30 bg-success/10 text-success"
-                          : "border-danger/30 bg-danger/10 text-danger"
-                      )}
-                    >
-                      Total {formatCurrency(convertCurrency(etfClosedSalesTotal, currency, fxRate, baseCurrency), currency)}
-                    </span>
-                  </div>
-                }
-              >
-                <RealizedTradesTable trades={etfTrades} />
-              </Card>
-              <div className="flex flex-col gap-6">
-                <Card
-                  className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-                  title="Movimientos del Roboadvisor"
-                  subtitle="Actividad detectada en tus CSV"
-                >
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.08em] text-muted">Compras</p>
-                      <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.buy}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.08em] text-muted">Ventas</p>
-                      <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.sell}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-surface-muted/30 p-4">
-                      <p className="text-xs uppercase tracking-[0.08em] text-muted">Dividendos</p>
-                      <p className="mt-1 text-2xl font-bold text-text">{etfTxStats.dividend}</p>
-                    </div>
-                  </div>
-                </Card>
-                <Card
-                  className="bg-gradient-to-b from-surface-muted/30 to-surface/92"
-                  title="Participaciones ETFs/Fondos"
-                  subtitle={`Posiciones abiertas en ${ROBOADVISOR_NAME}`}
-                >
-                  {etfHoldings.length ? (
-                    <HoldingsTable holdings={etfHoldings} />
-                  ) : (
-                    <p className="text-sm text-muted">No hay participaciones abiertas en ETFs/fondos.</p>
-                  )}
-                </Card>
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between px-2 pt-2">
+            <div className="flex flex-col">
+              <h2 className="text-2xl font-bold tracking-tight text-white">Análisis</h2>
+              <div className="mt-4 flex items-center gap-1.5 text-sm font-medium text-muted/60">
+                {accountLabel}
+                <span className="text-[10px] opacity-40">▼</span>
               </div>
             </div>
-            <Card
-              className="border-primary/25 bg-gradient-to-b from-primary/10 to-surface/90"
-              title="Beneficios / pérdidas ETFs/Fondos por mes"
-              subtitle="Suma mensual del P&amp;L realizado en ventas cerradas del robadvisor"
-            >
-              {etfMonthlyRealizedSeries.length > 0 ? (
-                <PortfolioMonthlyIncomeChart data={etfMonthlyRealizedSeries} />
-              ) : (
-                <p className="text-sm text-muted">No hay ventas cerradas suficientes en ETFs/fondos para una serie mensual.</p>
-              )}
+            <button className="text-sm font-semibold text-primary/90 hover:opacity-80">Desde el principio</button>
+          </div>
+
+          <Card className="overflow-hidden border-none bg-[#1C1C1E] p-6 shadow-2xl transition-all hover:bg-[#2C2C2E]">
+            <div className="mb-4">
+              <p className="text-sm font-medium text-muted/60">Valor total</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <p className="text-3xl font-bold text-text">
+                  {formatCurrency(convertCurrency(selectedMetrics.totalValue, currency, fxRate, baseCurrency), currency)}
+                </p>
+                <div className={cn("flex items-center gap-1 text-sm font-semibold", (displayedValueChange >= 0 ? "text-success" : "text-danger"))}>
+                   <span className="text-[10px]">{displayedValueChange >= 0 ? "▲" : "▼"}</span>
+                   {formatCurrency(convertCurrency(Math.abs(displayedValueChange), currency, fxRate, baseCurrency), currency)}
+                </div>
+              </div>
+            </div>
+            <div className="h-[180px] -mx-6 -mb-6 mt-4">
+              <RevolutSparkline 
+                data={valueSeries} 
+                height={180} 
+                color={displayedValueChange >= 0 ? "#22c55e" : "#ef4444"} 
+              />
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="flex flex-col justify-between border-none bg-[#1C1C1E] p-6 shadow-xl transition-all hover:bg-[#2C2C2E]">
+              <div>
+                <p className="text-sm font-medium text-muted/60">Rendimiento</p>
+                <p className={cn("mt-1 text-2xl font-bold", displayedReturnPct >= 0 ? "text-success" : "text-danger")}>
+                  {displayedReturnPct >= 0 ? "+" : ""}{formatPercent(displayedReturnPct / 100)}
+                </p>
+              </div>
+              <div className="mt-6 h-[80px]">
+                <RevolutSparkline 
+                  data={roiSeries} 
+                  height={80} 
+                  color={displayedReturnPct >= 0 ? "#22c55e" : "#ef4444"} 
+                />
+              </div>
+            </Card>
+
+            <Card className="flex flex-col justify-between border-none bg-[#1C1C1E] p-6 shadow-xl transition-all hover:bg-[#2C2C2E]">
+              <div>
+                <p className="text-sm font-medium text-muted/60">Ganancias y Pérdidas</p>
+                <p className={cn("mt-1 text-2xl font-bold", displayedProfitChange >= 0 ? "text-success" : "text-danger")}>
+                  {displayedProfitChange >= 0 ? "+" : ""}{formatCurrency(convertCurrency(displayedProfitChange, currency, fxRate, baseCurrency), currency)}
+                </p>
+              </div>
+              <div className="mt-6 h-[80px]">
+                <RevolutSparkline 
+                  data={profitSeries} 
+                  height={80} 
+                  color={displayedProfitChange >= 0 ? "#22c55e" : "#ef4444"} 
+                />
+              </div>
+              <div className="mt-auto flex flex-col items-end gap-1 pt-8">
+                <div className="flex items-center gap-2">
+                  <p className={cn("text-xs font-semibold", selectedMetrics.realized >= 0 ? "text-text" : "text-danger")}>
+                    {selectedMetrics.realized >= 0 ? "+" : ""}{formatCurrency(convertCurrency(selectedMetrics.realized, currency, fxRate, baseCurrency), currency)}
+                  </p>
+                  <p className="text-[10px] font-medium text-muted/50 tracking-wide">realizadas</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className={cn("text-xs font-semibold", selectedMetrics.unrealized >= 0 ? "text-text" : "text-danger")}>
+                    {selectedMetrics.unrealized >= 0 ? "+" : ""}{formatCurrency(convertCurrency(selectedMetrics.unrealized, currency, fxRate, baseCurrency), currency)}
+                  </p>
+                  <p className="text-[10px] font-medium text-muted/50 tracking-wide">no realizadas</p>
+                </div>
+              </div>
             </Card>
           </div>
-        </>
+
+          <Card className="relative overflow-hidden border-none bg-[#1C1C1E] p-6 shadow-xl">
+             <div className="flex justify-between items-start">
+               <div>
+                  <p className="text-sm font-medium text-muted/60">Asignación</p>
+                  <div className="mt-12 flex items-center gap-2">
+                    <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-text">
+                       <div className="flex py-0.5 space-x-[-2px]">
+                         <div className="w-[1px] h-2 bg-text/40" />
+                         <div className="w-[1px] h-3 bg-text/70" />
+                         <div className="w-[1px] h-2 bg-text/40" />
+                       </div>
+                       Mayor participación
+                    </div>
+                  </div>
+                  <p className="text-sm font-bold text-text">
+                    {selectedLargestHolding?.name || selectedLargestHolding?.ticker || "---"} <span className="text-muted/50 font-medium px-1">·</span> 
+                    {selectedLargestHolding && selectedSummary.totalValue > 0 
+                      ? formatPercent(selectedLargestHolding.marketValue / selectedSummary.totalValue)
+                      : "0%"}
+                  </p>
+                </div>
+
+                <div className="flex items-end gap-3 h-[140px] pt-4 pr-1">
+                  {selectedAllocation.slice(0, 3).map((holding, idx) => (
+                    <div key={holding.ticker} className="flex flex-col items-center gap-3">
+                       <div 
+                          className="w-10 rounded-sm bg-white" 
+                          style={{ 
+                            opacity: 1 - (idx * 0.35),
+                            height: `${Math.max(15, (holding.marketValue / (selectedAllocation[0]?.marketValue || 1)) * 100)}%` 
+                          }} 
+                        />
+                        <RevolutTickerIcon ticker={holding.ticker} className="h-8 w-8" />
+                    </div>
+                  ))}
+               </div>
+             </div>
+          </Card>
+
+          <Card className="border-none bg-[#1C1C1E] p-6 shadow-xl overflow-hidden">
+            <p className="text-sm font-medium text-muted/60 mb-6">Desglose de ingresos</p>
+            <div className="h-[200px]">
+              <PortfolioMonthlyIncomeChart 
+                data={selectedMonthlyRealizedSeries} 
+              />
+            </div>
+          </Card>
+
+          <div className="mt-4">
+             <p className="px-2 text-[10px] leading-relaxed text-muted/30 uppercase tracking-[0.05em] text-center max-w-md mx-auto">
+                Revolut Securities Europe UAB, autorizada y regulada por el Banco de Lituania, presta los servicios de inversión.
+             </p>
+          </div>
+
+          <div className="mt-10 grid gap-10 opacity-60 hover:opacity-100 transition-opacity">
+            <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Posiciones Abiertas">
+               <HoldingsTable holdings={selectedHoldings} />
+            </Card>
+            <Card className="bg-gradient-to-b from-surface-muted/30 to-surface/92" title="Ventas Cerradas">
+               <RealizedTradesTable trades={selectedTrades} />
+            </Card>
+          </div>
+        </div>
       )}
       <AIChat />
     </div>

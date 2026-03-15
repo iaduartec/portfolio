@@ -1,4 +1,37 @@
+const XETR_DEFAULT_ETF_TICKERS = [
+  "2B72",
+  "79U0",
+  "AMEL",
+  "AMEM",
+  "DBXJ",
+  "EBUY",
+  "EXI2",
+  "EXW1",
+  "IS3K",
+  "IS3Q",
+  "LEMA",
+  "LGQK",
+  "LYMS",
+  "LYP5",
+  "LYP6",
+  "PRAJ",
+  "UBUD",
+  "WELK",
+  "XDWI",
+  "XDWT",
+  "XUCD",
+] as const;
+
+const XETR_YAHOO_OVERRIDES = Object.fromEntries(
+  XETR_DEFAULT_ETF_TICKERS.map((ticker) => [ticker, `${ticker}.DE`]),
+) as Record<string, string>;
+
+const XETR_TRADINGVIEW_OVERRIDES = Object.fromEntries(
+  XETR_DEFAULT_ETF_TICKERS.map((ticker) => [ticker, `XETR:${ticker}`]),
+) as Record<string, string>;
+
 const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
+  ...XETR_YAHOO_OVERRIDES,
   CAD: "CIE.MC",
   ENL: "ENEL.MI",
   "41L": "ROVI.MC",
@@ -17,6 +50,7 @@ const YAHOO_TICKER_OVERRIDES: Record<string, string> = {
 };
 
 export const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
+  ...XETR_TRADINGVIEW_OVERRIDES,
   CAD: "BME:CIE",
   ENL: "MIL:ENEL",
   "41L": "BME:ROVI",
@@ -32,9 +66,6 @@ export const TRADINGVIEW_TICKER_OVERRIDES: Record<string, string> = {
   AAPL: "NASDAQ:AAPL",
   MU: "NASDAQ:MU",
   GOOGL: "NASDAQ:GOOGL",
-  EXW1: "XETR:EXW1",
-  IS3K: "XETR:IS3K",
-  XUCD: "XETR:XUCD",
 };
 
 const TRADINGVIEW_SUFFIX_TO_EXCHANGE: Record<string, string> = {

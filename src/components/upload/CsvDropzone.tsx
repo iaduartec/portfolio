@@ -13,6 +13,7 @@ import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
 import {
   normalizeCurrency,
+  inferAccountFromRows,
   normalizeTicker,
   toTransaction,
   TICKER_SUFFIX_OVERRIDES,
@@ -38,6 +39,8 @@ const buildTransactionFingerprint = (tx: Transaction) =>
     toFixedNumberKey(tx.price),
     toFixedNumberKey(tx.fee),
     tx.currency ?? "",
+    tx.account ?? "",
+    toFixedNumberKey(tx.fxRate),
     tx.name?.trim() ?? "",
   ].join("|");
 
@@ -86,7 +89,10 @@ export function CsvDropzone({ onSave }: CsvDropzoneProps) {
       skipEmptyLines: true,
       complete: (results: ParseResult<ParsedRow>) => {
         const rows = Array.isArray(results.data) ? results.data : [];
-        const parsed = rows.map(toTransaction).filter((row): row is Transaction => Boolean(row));
+        const inferredAccount = inferAccountFromRows(rows);
+        const parsed = rows
+          .map((row) => toTransaction(row, { account: inferredAccount }))
+          .filter((row): row is Transaction => Boolean(row));
         const ambiguous = Array.from(
           new Set(
             parsed

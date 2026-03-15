@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "@/lib/formatters";
+import type { InvestmentAccount } from "@/types/transactions";
 
 export interface PricePoint {
   ticker: string;
@@ -10,6 +11,7 @@ export interface Holding {
   ticker: string;
   name?: string;
   currency: CurrencyCode;
+  account?: InvestmentAccount;
   totalQuantity: number;
   averageBuyPrice: number;
   currentPrice: number;
@@ -31,6 +33,7 @@ export interface RealizedTrade {
   ticker: string;
   name?: string;
   currency: CurrencyCode;
+  account?: InvestmentAccount;
   date: string;
   quantity: number;
   entryPrice: number;
