@@ -59,6 +59,7 @@ type AiAuditResult = {
     publisher: string;
     link: string;
     publishedAt?: string;
+    scope?: "asset" | "macro";
   }[];
 };
 
@@ -795,7 +796,14 @@ export function PortfolioValueChart({
                         rel="noreferrer"
                         className="block rounded border border-border/50 bg-surface/40 px-2 py-1.5 transition-colors hover:border-accent/50"
                       >
-                        <p className="text-[10px] font-medium text-text">{item.title}</p>
+                        <p className="flex items-center gap-2 text-[10px] font-medium text-text">
+                          <span>{item.title}</span>
+                          {item.scope && (
+                            <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[8px] uppercase tracking-widest text-muted">
+                              {item.scope === "macro" ? "Macro" : "Activo"}
+                            </span>
+                          )}
+                        </p>
                         <p className="mt-0.5 text-[9px] text-muted">
                           {item.publisher}
                           {item.publishedAt ? ` · ${new Date(item.publishedAt).toLocaleDateString("es-ES")}` : ""}
