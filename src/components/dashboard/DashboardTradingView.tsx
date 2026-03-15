@@ -1,130 +1,384 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { TradingViewSymbolInfo } from "@/components/charts/TradingViewSymbolInfo";
-import { TradingViewFundamentals } from "@/components/charts/TradingViewFundamentals";
-import { TradingViewTechnicalAnalysis } from "@/components/charts/TradingViewTechnicalAnalysis";
-import { TradingViewTopStories } from "@/components/charts/TradingViewTopStories";
-import { TradingViewCompanyProfile } from "@/components/charts/TradingViewCompanyProfile";
-import { TradingViewAdvancedChart } from "@/components/charts/TradingViewAdvancedChart";
-import { Holding } from "@/types/portfolio";
-import { resolveTradingViewSymbol } from "@/lib/marketSymbols";
+import { PortfolioValueChart } from "@/components/charts/PortfolioValueChart";
+import { useCurrency } from "@/components/currency/CurrencyProvider";
+import {
+  convertCurrencyFrom,
+  formatCurrency,
+  formatPercent,
+  inferCurrencyFromTicker,
+  type CurrencyCode,
+} from "@/lib/formatters";
+import type { Holding } from "@/types/portfolio";
 
 interface DashboardTradingViewProps {
-    selectedHolding: Holding | undefined;
+  selectedHolding: Holding | undefined;
 }
 
+type QuoteSnapshot = {
+  symbol: string;
+  price?: number;
+  dayChangePercent?: number;
+  volume?: number;
+  avgVolume?: number;
+  fiftyTwoWeekLow?: number;
+  fiftyTwoWeekHigh?: number;
+};
+
+type FundamentalsSnapshot = {
+  trailingPE?: number;
+  forwardPE?: number;
+  priceToBook?: number;
+  marketCap?: number;
+  returnOnEquity?: number;
+  targetMeanPrice?: number;
+};
+
+type RatingsSnapshot = {
+  recommendationMean?: number;
+  recommendationKey?: string;
+};
+
+type DividendsSnapshot = {
+  dividendYield?: number;
+  payoutRatio?: number;
+};
+
+type ProfileSnapshot = {
+  sector?: string;
+  industry?: string;
+  country?: string;
+  website?: string;
+  longBusinessSummary?: string;
+};
+
+const toCompactNumber = (value?: number) => {
+  if (value === undefined || !Number.isFinite(value)) return "N/D";
+  return new Intl.NumberFormat("es-ES", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+const toneClass = (value?: number) => {
+  if (value === undefined || !Number.isFinite(value)) return "text-text";
+  return value >= 0 ? "text-success" : "text-danger";
+};
+
+const recommendationLabel = (ratings: RatingsSnapshot | null) => {
+  const raw = (ratings?.recommendationKey ?? "").replace(/_/g, " ").trim();
+  if (!raw) return "N/D";
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+};
+
+const valuationLabel = (fundamentals: FundamentalsSnapshot | null) => {
+  const pe = fundamentals?.trailingPE;
+  const pb = fundamentals?.priceToBook;
+  if (pe !== undefined && pe > 40) return "Exigente";
+  if (pb !== undefined && pb > 8) return "Exigente";
+  if (pe !== undefined && pe > 0 && pe < 18) return "Moderada";
+  if (pb !== undefined && pb > 0 && pb < 3) return "Moderada";
+  return "Neutral";
+};
+
+const buildTechnicalRead = (holding: Holding, quote: QuoteSnapshot | null) => {
+  const dayChangePercent = quote?.dayChangePercent ?? holding.dayChangePercent;
+  const totalPnlPercent = holding.pnlPercent;
+  if (dayChangePercent !== undefined && dayChangePercent >= 2 && totalPnlPercent >= 0) {
+    return "Momentum diario positivo con la posicion ya en beneficios.";
+  }
+  if (dayChangePercent !== undefined && dayChangePercent <= -2 && totalPnlPercent < 0) {
+    return "Debilidad diaria y estructura de posicion deteriorada; exige control de riesgo.";
+  }
+  if (totalPnlPercent >= 15) {
+    return "Posicion ganadora; vigila toma parcial de beneficios y soportes recientes.";
+  }
+  if (totalPnlPercent <= -10) {
+    return "Posicion castigada; revisa si el deterioro es tactico o ya fundamental.";
+  }
+  return "Estructura mixta; conviene esperar confirmacion adicional antes de mover tamaño.";
+};
+
+const trimSummary = (text?: string) => {
+  if (!text) return "Sin resumen disponible.";
+  return text.length > 420 ? `${text.slice(0, 417)}...` : text;
+};
+
 export function DashboardTradingView({ selectedHolding }: DashboardTradingViewProps) {
-    const [isWidgetEnabled, setIsWidgetEnabled] = useState(false);
-    const tradingViewSymbol = selectedHolding ? resolveTradingViewSymbol(selectedHolding.ticker) : "";
-    const tradingViewHref = useMemo(() => {
-        if (!tradingViewSymbol) return "https://www.tradingview.com/";
-        return `https://www.tradingview.com/symbols/${tradingViewSymbol.replace(":", "-")}/`;
-    }, [tradingViewSymbol]);
+  const { currency, fxRate, baseCurrency } = useCurrency();
+  const [panelData, setPanelData] = useState<{
+    ticker: string | null;
+    quote: QuoteSnapshot | null;
+    fundamentals: FundamentalsSnapshot | null;
+    ratings: RatingsSnapshot | null;
+    dividends: DividendsSnapshot | null;
+    profile: ProfileSnapshot | null;
+  }>({
+    ticker: null,
+    quote: null,
+    fundamentals: null,
+    ratings: null,
+    dividends: null,
+    profile: null,
+  });
 
+  const activeTicker = selectedHolding?.ticker ?? null;
+
+  useEffect(() => {
+    if (!activeTicker) return;
+
+    let ignore = false;
+
+    const loadPanel = async () => {
+      const requests = await Promise.allSettled([
+        fetch(`/api/yahoo?action=quote&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
+        fetch(`/api/yahoo?action=fundamentals&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
+        fetch(`/api/yahoo?action=ratings&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
+        fetch(`/api/yahoo?action=dividends&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
+        fetch(`/api/yahoo?action=profile&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
+      ]);
+
+      if (ignore) return;
+
+      const parseJson = async <T,>(response: Response) => {
+        const json = (await response.json()) as { data?: T | null };
+        return json.data ?? null;
+      };
+
+      const quoteData =
+        requests[0].status === "fulfilled" && requests[0].value.ok
+          ? await parseJson<QuoteSnapshot>(requests[0].value)
+          : null;
+      const fundamentalsData =
+        requests[1].status === "fulfilled" && requests[1].value.ok
+          ? await parseJson<FundamentalsSnapshot>(requests[1].value)
+          : null;
+      const ratingsData =
+        requests[2].status === "fulfilled" && requests[2].value.ok
+          ? await parseJson<RatingsSnapshot>(requests[2].value)
+          : null;
+      const dividendsData =
+        requests[3].status === "fulfilled" && requests[3].value.ok
+          ? await parseJson<DividendsSnapshot>(requests[3].value)
+          : null;
+      const profileData =
+        requests[4].status === "fulfilled" && requests[4].value.ok
+          ? await parseJson<ProfileSnapshot>(requests[4].value)
+          : null;
+
+      setPanelData({
+        ticker: activeTicker,
+        quote: quoteData,
+        fundamentals: fundamentalsData,
+        ratings: ratingsData,
+        dividends: dividendsData,
+        profile: profileData,
+      });
+    };
+
+    void loadPanel();
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeTicker]);
+
+  const quote = panelData.ticker === activeTicker ? panelData.quote : null;
+  const fundamentals = panelData.ticker === activeTicker ? panelData.fundamentals : null;
+  const ratings = panelData.ticker === activeTicker ? panelData.ratings : null;
+  const dividends = panelData.ticker === activeTicker ? panelData.dividends : null;
+  const profile = panelData.ticker === activeTicker ? panelData.profile : null;
+  const isLoading = Boolean(activeTicker) && panelData.ticker !== activeTicker;
+
+  const holdingCurrency = useMemo<CurrencyCode>(
+    () => selectedHolding?.currency ?? inferCurrencyFromTicker(selectedHolding?.ticker ?? ""),
+    [selectedHolding?.currency, selectedHolding?.ticker]
+  );
+
+  const displayedPrice = useMemo(() => {
+    if (!selectedHolding) return undefined;
+    const rawPrice = quote?.price ?? selectedHolding.currentPrice;
+    return convertCurrencyFrom(rawPrice, holdingCurrency, currency, fxRate, baseCurrency);
+  }, [baseCurrency, currency, fxRate, holdingCurrency, quote?.price, selectedHolding]);
+
+  const displayedTarget =
+    fundamentals?.targetMeanPrice === undefined
+      ? undefined
+      : convertCurrencyFrom(fundamentals.targetMeanPrice, holdingCurrency, currency, fxRate, baseCurrency);
+
+  if (!selectedHolding) {
     return (
-        <section aria-labelledby="tradingview-title">
-            <Card
-                title={<span id="tradingview-title">TradingView</span>}
-                subtitle={
-                    selectedHolding
-                        ? `${selectedHolding.name || selectedHolding.ticker}${
-                              selectedHolding.name ? ` (${selectedHolding.ticker})` : ""
-                          } · Panel financiero completo con analisis tecnico y noticias`
-                        : "Panel financiero completo con analisis tecnico y noticias"
-                }
-            >
-                {selectedHolding ? (
-                    <div className="tv-dark-scope mx-auto grid w-full max-w-[960px] grid-cols-1 gap-8 md:grid-cols-2">
-                        {isWidgetEnabled ? (
-                            <>
-                                <section className="md:col-span-2" aria-label="Informacion del simbolo">
-                                    <TradingViewSymbolInfo symbol={tradingViewSymbol} />
-                                </section>
-                                <section className="md:col-span-2 h-[500px]" aria-label="Grafico avanzado">
-                                    <TradingViewAdvancedChart symbol={tradingViewSymbol} />
-                                </section>
-                                <section className="md:col-span-2 h-[390px]" aria-label="Perfil de la empresa">
-                                    <TradingViewCompanyProfile symbol={tradingViewSymbol} />
-                                </section>
-                                <section className="md:col-span-2 h-[775px]" aria-label="Fundamentos financieros">
-                                    <TradingViewFundamentals symbol={tradingViewSymbol} />
-                                </section>
-                                <section className="h-[425px]" aria-label="Analisis tecnico">
-                                    <TradingViewTechnicalAnalysis symbol={tradingViewSymbol} />
-                                </section>
-                                <section className="h-[600px]" aria-label="Noticias destacadas">
-                                    <TradingViewTopStories symbol={tradingViewSymbol} height="100%" />
-                                </section>
-                            </>
-                        ) : (
-                            <div className="md:col-span-2 rounded-2xl border border-border/70 bg-surface-muted/35 p-8">
-                                <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-                                    <p className="text-xs uppercase tracking-[0.12em] text-primary/85">
-                                        Widgets externos
-                                    </p>
-                                    <h3 className="mt-3 text-xl font-semibold text-white">
-                                        Carga el panel de TradingView bajo demanda
-                                    </h3>
-                                    <p className="mt-3 text-sm leading-relaxed text-muted">
-                                        Algunos bloqueadores de privacidad impiden cargar chunks internos de TradingView y
-                                        llenan la consola de errores. El panel ahora se activa solo cuando lo pides.
-                                    </p>
-                                    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsWidgetEnabled(true)}
-                                            className="rounded-xl border border-primary/45 bg-primary/15 px-5 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
-                                        >
-                                            Cargar panel TradingView
-                                        </button>
-                                        <a
-                                            href={tradingViewHref}
-                                            className="rounded-xl border border-border/80 bg-surface/70 px-5 py-2.5 text-sm font-semibold text-text transition-colors hover:border-accent/45 hover:text-white"
-                                            target="_blank"
-                                            rel="noopener nofollow"
-                                        >
-                                            Abrir en TradingView
-                                        </a>
-                                    </div>
-                                    <p className="mt-4 text-xs text-muted">
-                                        Si tu navegador bloquea el tracker de TradingView, usa el enlace externo o permite
-                                        temporalmente ese dominio.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-
-                        <footer className="md:col-span-2 rounded-xl border border-border/70 bg-surface-muted/45 p-4 text-sm text-muted">
-                            <p className="mb-2 text-xs uppercase tracking-[0.08em] text-muted">Tecnologia TradingView</p>
-                            <p>
-                                Graficos e informacion financiera proporcionados por TradingView. Explora mas{" "}
-                                <a
-                                    href="https://www.tradingview.com/features/"
-                                    className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                    target="_blank"
-                                    rel="noopener nofollow"
-                                >
-                                    funciones avanzadas
-                                </a>{" "}
-                                o{" "}
-                                <a
-                                    href="https://www.tradingview.com/widget/"
-                                    className="text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                                    target="_blank"
-                                    rel="noopener nofollow"
-                                >
-                                    usa widgets
-                                </a>{" "}
-                                en tu sitio.
-                            </p>
-                        </footer>
-                    </div>
-                ) : (
-                    <p className="text-sm text-muted p-4">Selecciona un ticker para ver el panel TradingView.</p>
-                )}
-            </Card>
-        </section>
+      <section aria-labelledby="local-market-panel-title">
+        <Card
+          title={<span id="local-market-panel-title">Panel financiero local</span>}
+          subtitle="Selecciona una posición para ver gráfico, fundamentales y contexto sin depender de widgets externos."
+        >
+          <p className="p-4 text-sm text-muted">Selecciona un ticker para cargar el panel local.</p>
+        </Card>
+      </section>
     );
+  }
+
+  return (
+    <section aria-labelledby="local-market-panel-title">
+      <Card
+        title={<span id="local-market-panel-title">Panel financiero local</span>}
+        subtitle={`${selectedHolding.name || selectedHolding.ticker}${
+          selectedHolding.name ? ` (${selectedHolding.ticker})` : ""
+        } · Gráfico propio, fundamentales y señal resumida`}
+      >
+        <div className="grid gap-6">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.9fr)]">
+            <PortfolioValueChart
+              ticker={selectedHolding.ticker}
+              name={selectedHolding.name || selectedHolding.ticker}
+              showProjectionInsights
+              chartHeight={460}
+              range="1y"
+            />
+
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Precio y momentum</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                  <div>
+                    <p className="text-xs text-muted">Precio actual</p>
+                    <p className="mt-1 text-2xl font-semibold text-white">
+                      {displayedPrice !== undefined ? formatCurrency(displayedPrice, currency) : "N/D"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Cambio diario</p>
+                    <p className={`mt-1 text-xl font-semibold ${toneClass(quote?.dayChangePercent ?? selectedHolding.dayChangePercent)}`}>
+                      {quote?.dayChangePercent !== undefined || selectedHolding.dayChangePercent !== undefined
+                        ? formatPercent(((quote?.dayChangePercent ?? selectedHolding.dayChangePercent ?? 0) as number) / 100)
+                        : "N/D"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">P&L posición</p>
+                    <p className={`mt-1 text-xl font-semibold ${toneClass(selectedHolding.pnlPercent)}`}>
+                      {formatPercent(selectedHolding.pnlPercent / 100)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Lectura táctica</p>
+                    <p className="mt-1 text-sm leading-relaxed text-text">{buildTechnicalRead(selectedHolding, quote)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Snapshot fundamental</p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Metric label="PER" value={fundamentals?.trailingPE?.toFixed(2) ?? "N/D"} />
+                  <Metric label="P/B" value={fundamentals?.priceToBook?.toFixed(2) ?? "N/D"} />
+                  <Metric label="ROE" value={fundamentals?.returnOnEquity !== undefined ? formatPercent(fundamentals.returnOnEquity) : "N/D"} />
+                  <Metric label="Valuación" value={valuationLabel(fundamentals)} />
+                  <Metric label="Mkt Cap" value={toCompactNumber(fundamentals?.marketCap)} />
+                  <Metric
+                    label="Precio objetivo"
+                    value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "N/D"}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
+                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Consenso y flujo</p>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Metric label="Consenso" value={recommendationLabel(ratings)} />
+                  <Metric label="Score analistas" value={ratings?.recommendationMean?.toFixed(2) ?? "N/D"} />
+                  <Metric
+                    label="Dividendo"
+                    value={dividends?.dividendYield !== undefined ? formatPercent(dividends.dividendYield) : "N/D"}
+                  />
+                  <Metric
+                    label="Payout"
+                    value={dividends?.payoutRatio !== undefined ? formatPercent(dividends.payoutRatio) : "N/D"}
+                  />
+                  <Metric label="Volumen" value={toCompactNumber(quote?.volume)} />
+                  <Metric label="Vol. medio" value={toCompactNumber(quote?.avgVolume)} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+            <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Perfil de empresa</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {profile?.sector && <Tag>{profile.sector}</Tag>}
+                {profile?.industry && <Tag>{profile.industry}</Tag>}
+                {profile?.country && <Tag>{profile.country}</Tag>}
+                {!profile?.sector && !profile?.industry && !profile?.country && <Tag>N/D</Tag>}
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-text/90">{trimSummary(profile?.longBusinessSummary)}</p>
+              {profile?.website && (
+                <a
+                  href={profile.website}
+                  target="_blank"
+                  rel="noopener nofollow"
+                  className="mt-4 inline-flex text-sm font-medium text-accent hover:underline"
+                >
+                  Visitar web corporativa
+                </a>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
+              <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Rango y contexto</p>
+              <div className="mt-3 grid gap-3">
+                <Metric
+                  label="52w mínimo"
+                  value={
+                    quote?.fiftyTwoWeekLow !== undefined
+                      ? formatCurrency(
+                          convertCurrencyFrom(quote.fiftyTwoWeekLow, holdingCurrency, currency, fxRate, baseCurrency),
+                          currency
+                        )
+                      : "N/D"
+                  }
+                />
+                <Metric
+                  label="52w máximo"
+                  value={
+                    quote?.fiftyTwoWeekHigh !== undefined
+                      ? formatCurrency(
+                          convertCurrencyFrom(quote.fiftyTwoWeekHigh, holdingCurrency, currency, fxRate, baseCurrency),
+                          currency
+                        )
+                      : "N/D"
+                  }
+                />
+                <Metric label="Valor posición" value={formatCurrency(selectedHolding.marketValue, currency)} />
+                <Metric label="Cargando datos" value={isLoading ? "Sí" : "No"} />
+              </div>
+              <p className="mt-4 text-xs leading-relaxed text-muted">
+                Este panel ya no usa embeds de TradingView. Tira de histórico local, Yahoo y tus métricas de cartera.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </section>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-surface/45 p-3">
+      <p className="text-[10px] uppercase tracking-[0.08em] text-muted">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-white">{value}</p>
+    </div>
+  );
+}
+
+function Tag({ children }: { children: string }) {
+  return (
+    <span className="rounded-full border border-border/70 bg-surface/60 px-2.5 py-1 text-[11px] font-medium text-text">
+      {children}
+    </span>
+  );
 }

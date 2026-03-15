@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { createContext, createElement, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import Papa, { ParseResult } from "papaparse";
 import {
   loadStoredTransactions,
@@ -20,6 +20,7 @@ import {
 import { toTransaction } from "@/hooks/usePortfolioData.utils";
 
 const DEFAULT_PORTFOLIO_VERSION = "2026-03-15-merged-roboadvisor-csv";
+const DEFAULT_PORTFOLIO_FILES = ["/portfolio-seed-2026-03.csv", "/roboadvisor-revolut-2026-03.csv"];
 
 const transactionSort = (a: Transaction, b: Transaction) => {
   const timeA = Date.parse(a.date);
@@ -59,7 +60,18 @@ const mergeTransactions = (groups: Transaction[][]) => {
   return Array.from(merged.values()).sort(transactionSort);
 };
 
-export function usePortfolioData() {
+type PortfolioDataValue = {
+  transactions: Transaction[];
+  holdings: ReturnType<typeof computeHoldings>;
+  summary: ReturnType<typeof computeSummary>;
+  realizedTrades: ReturnType<typeof computeRealizedTrades>;
+  hasTransactions: boolean;
+  isLoading: boolean;
+};
+
+const PortfolioDataContext = createContext<PortfolioDataValue | undefined>(undefined);
+
+function usePortfolioDataValue(): PortfolioDataValue {
   const { fxRate, baseCurrency } = useCurrency();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [priceMap, setPriceMap] = useState<Record<string, PriceSnapshot>>({});
@@ -84,16 +96,9 @@ export function usePortfolioData() {
           return;
         }
 
-        const defaultFiles = [
-          "/portfolio-seed-2026-03.csv",
-          "/roboadvisor-revolut-2026-03.csv",
-          "/DA0F4AD2-C6CC-4ED7-A1EA-612069957DA4.csv",
-          "/Mi cartera_2025-11-29.csv",
-        ];
-
         const parsedGroups: Transaction[][] = [];
 
-        for (const file of defaultFiles) {
+        for (const file of DEFAULT_PORTFOLIO_FILES) {
           const response = await fetch(file);
           if (!response.ok) continue;
 
@@ -209,4 +214,17 @@ export function usePortfolioData() {
     hasTransactions,
     isLoading: isBootstrapping || isLoadingQuotes,
   };
+}
+
+export function PortfolioDataProvider({ children }: { children: ReactNode }) {
+  const value = usePortfolioDataValue();
+  return createElement(PortfolioDataContext.Provider, { value }, children);
+}
+
+export function usePortfolioData() {
+  const context = useContext(PortfolioDataContext);
+  if (!context) {
+    throw new Error("usePortfolioData must be used within PortfolioDataProvider");
+  }
+  return context;
 }

@@ -129,6 +129,36 @@ export async function GET(request: Request) {
         );
         const rows = Array.isArray(json?.quoteResponse?.result) ? json.quoteResponse.result : [];
         data = rows.map((row: Record<string, unknown>) => quoteFields(row));
+        const receivedSymbols = new Set(
+          data.map((row) => String(row.symbol ?? "").trim().toUpperCase()).filter(Boolean)
+        );
+        const missingSymbols = normalizedSymbols.filter(
+          (target) => !receivedSymbols.has(String(target).trim().toUpperCase())
+        );
+        if (missingSymbols.length > 0) {
+          const fallback = await fetch(
+            `${origin}/api/quotes?tickers=${encodeURIComponent(missingSymbols.join(","))}`,
+            { next: { revalidate: 60 } }
+          );
+          const fallbackJson = await fallback.json();
+          const rows = Array.isArray(fallbackJson?.quotes) ? fallbackJson.quotes : [];
+          const fallbackData = rows.map((row: Record<string, unknown>) => ({
+            symbol: String(row.ticker ?? ""),
+            name: String(row.name ?? ""),
+            exchange: "",
+            currency: "USD",
+            marketState: "",
+            price: toNumber(row.price),
+            dayChange: toNumber(row.dayChange),
+            dayChangePercent: toNumber(row.dayChangePercent),
+            marketCap: undefined,
+            volume: undefined,
+            avgVolume: undefined,
+            fiftyTwoWeekLow: undefined,
+            fiftyTwoWeekHigh: undefined,
+          }));
+          data = [...data, ...fallbackData];
+        }
       } catch {
         const fallback = await fetch(
           `${origin}/api/quotes?tickers=${encodeURIComponent(normalizedSymbols.join(","))}`,

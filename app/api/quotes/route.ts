@@ -199,7 +199,7 @@ const fetchAlphaQuote = async (ticker: string, apiKey: string): Promise<Quote | 
 
 const fetchYahooQuote = async (ticker: string): Promise<Quote | null> => {
   const symbol = normalizeSymbolForYahoo(ticker);
-  if (!/^[A-Z0-9.]+$/.test(symbol)) return null;
+  if (!/^[A-Z0-9.=-]+$/.test(symbol)) return null;
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     symbol
   )}?interval=1d&range=5d`;

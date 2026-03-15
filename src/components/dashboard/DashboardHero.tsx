@@ -45,7 +45,7 @@ export function DashboardHero() {
           Rendimiento diario y acumulado
         </div>
         <span className="h-1 w-1 rounded-full bg-border" />
-        <div className="inline-flex items-center gap-2 text-accent">Análisis IA + TradingView</div>
+        <div className="inline-flex items-center gap-2 text-accent">Análisis IA + paneles locales</div>
       </div>
     </section>
   );
