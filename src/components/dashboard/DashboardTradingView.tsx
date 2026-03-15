@@ -62,11 +62,6 @@ const toCompactNumber = (value?: number) => {
   }).format(value);
 };
 
-const toneClass = (value?: number) => {
-  if (value === undefined || !Number.isFinite(value)) return "text-text";
-  return value >= 0 ? "text-success" : "text-danger";
-};
-
 const recommendationLabel = (ratings: RatingsSnapshot | null) => {
   const raw = (ratings?.recommendationKey ?? "").replace(/_/g, " ").trim();
   if (!raw) return "Sin consenso";
@@ -168,6 +163,33 @@ const buildDistanceLabel = (
   const diff = currentValue - referenceValue;
   const pct = referenceValue !== 0 ? diff / referenceValue : 0;
   return `${diff >= 0 ? "+" : ""}${formatCurrency(diff, currency)} · ${formatPercent(pct)}`;
+};
+
+const buildSignalTone = (holding: Holding, quote: QuoteSnapshot | null) => {
+  const dayMove = quote?.dayChangePercent ?? holding.dayChangePercent;
+  const pnl = holding.pnlPercent;
+
+  if (dayMove !== undefined && dayMove >= 2 && pnl >= 0) {
+    return {
+      label: "Impulso favorable",
+      tone: "success" as const,
+      detail: "Precio y posición empujan en la misma dirección.",
+    };
+  }
+
+  if (dayMove !== undefined && dayMove <= -2 && pnl < 0) {
+    return {
+      label: "Presión defensiva",
+      tone: "danger" as const,
+      detail: "La sesión refuerza una posición ya débil.",
+    };
+  }
+
+  return {
+    label: "Seguimiento táctico",
+    tone: "default" as const,
+    detail: "No hay confirmación suficiente para sobrerreaccionar.",
+  };
 };
 
 export function DashboardTradingView({ selectedHolding }: DashboardTradingViewProps) {
@@ -288,6 +310,8 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
 
   const dataQualityLabel = buildDataQualityLabel(quote, fundamentals, ratings, dividends, profile);
   const executiveSummary = buildExecutiveSummary(selectedHolding, quote, fundamentals, ratings);
+  const signalTone = buildSignalTone(selectedHolding, quote);
+  const tacticalRead = buildTechnicalRead(selectedHolding, quote);
 
   return (
     <section aria-labelledby="local-market-panel-title">
@@ -298,16 +322,37 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
         } · Gráfico propio, fundamentales y señal resumida`}
       >
         <div className="grid gap-6">
-          <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-surface-muted/35 to-surface-muted/25 p-5">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Lectura ejecutiva</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tag tone={signalTone.tone}>{signalTone.label}</Tag>
+                  <Tag>{dataQualityLabel}</Tag>
+                  <Tag>{valuationLabel(fundamentals)}</Tag>
+                  <Tag>{recommendationLabel(ratings)}</Tag>
+                </div>
+                <p className="mt-4 text-[10px] uppercase tracking-[0.12em] text-muted">Lectura ejecutiva</p>
                 <p className="mt-2 max-w-3xl text-sm leading-relaxed text-text/90">{executiveSummary}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Tag>{dataQualityLabel}</Tag>
-                <Tag>{valuationLabel(fundamentals)}</Tag>
-                <Tag>{recommendationLabel(ratings)}</Tag>
+              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-3">
+                <HeroMetric
+                  label="Precio"
+                  value={displayedPrice !== undefined ? formatCurrency(displayedPrice, currency) : "No disponible"}
+                />
+                <HeroMetric
+                  label="P&L"
+                  value={formatPercent(selectedHolding.pnlPercent / 100)}
+                  tone={selectedHolding.pnlPercent >= 0 ? "success" : "danger"}
+                />
+                <HeroMetric
+                  label="Cambio día"
+                  value={
+                    quote?.dayChangePercent !== undefined || selectedHolding.dayChangePercent !== undefined
+                      ? formatPercent(((quote?.dayChangePercent ?? selectedHolding.dayChangePercent ?? 0) as number) / 100)
+                      : "No disponible"
+                  }
+                  tone={(quote?.dayChangePercent ?? selectedHolding.dayChangePercent ?? 0) >= 0 ? "success" : "danger"}
+                />
               </div>
             </div>
           </div>
@@ -324,36 +369,19 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
 
             <div className="grid gap-4">
               <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
-                <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Precio y momentum</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                  <div>
-                    <p className="text-xs text-muted">Precio actual</p>
-                    <p className="mt-1 text-2xl font-semibold text-white">
-                      {displayedPrice !== undefined ? formatCurrency(displayedPrice, currency) : "No disponible"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Cambio diario</p>
-                    <p className={`mt-1 text-xl font-semibold ${toneClass(quote?.dayChangePercent ?? selectedHolding.dayChangePercent)}`}>
-                      {quote?.dayChangePercent !== undefined || selectedHolding.dayChangePercent !== undefined
-                        ? formatPercent(((quote?.dayChangePercent ?? selectedHolding.dayChangePercent ?? 0) as number) / 100)
-                        : "No disponible"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">P&L posición</p>
-                    <p className={`mt-1 text-xl font-semibold ${toneClass(selectedHolding.pnlPercent)}`}>
-                      {formatPercent(selectedHolding.pnlPercent / 100)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Precio medio</p>
-                    <p className="mt-1 text-xl font-semibold text-white">{formatCurrency(displayedAverageBuyPrice, currency)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted">Lectura táctica</p>
-                    <p className="mt-1 text-sm leading-relaxed text-text">{buildTechnicalRead(selectedHolding, quote)}</p>
-                  </div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Lectura táctica</p>
+                  <Tag tone={signalTone.tone}>{signalTone.detail}</Tag>
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-text">{tacticalRead}</p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <Metric label="Precio medio" value={formatCurrency(displayedAverageBuyPrice, currency)} />
+                  <Metric label="Vs precio medio" value={buildDistanceLabel(displayedPrice, displayedAverageBuyPrice, currency)} />
+                  <Metric
+                    label="Precio objetivo"
+                    value={displayedTarget !== undefined ? formatCurrency(displayedTarget, currency) : "No disponible"}
+                  />
+                  <Metric label="Vs objetivo" value={buildDistanceLabel(displayedTarget, displayedPrice, currency)} />
                 </div>
               </div>
 
@@ -416,7 +444,7 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
 
             <div className="rounded-2xl border border-border/70 bg-surface-muted/35 p-4">
               <p className="text-[10px] uppercase tracking-[0.12em] text-muted">Rango y contexto</p>
-              <div className="mt-3 grid gap-3">
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <Metric
                   label="52w mínimo"
                   value={
@@ -430,8 +458,6 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
                   }
                 />
                 <Metric label="Valor posición" value={formatCurrency(selectedHolding.marketValue, currency)} />
-                <Metric label="Vs precio medio" value={buildDistanceLabel(displayedPrice, displayedAverageBuyPrice, currency)} />
-                <Metric label="Vs objetivo" value={buildDistanceLabel(displayedTarget, displayedPrice, currency)} />
                 <Metric label="Estado de carga" value={isLoading ? "Actualizando" : "Listo"} />
               </div>
               <p className="mt-4 text-xs leading-relaxed text-muted">
@@ -454,9 +480,45 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Tag({ children }: { children: string }) {
+function HeroMetric({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "danger";
+}) {
   return (
-    <span className="rounded-full border border-border/70 bg-surface/60 px-2.5 py-1 text-[11px] font-medium text-text">
+    <div className="rounded-xl border border-border/60 bg-surface/50 p-3">
+      <p className="text-[10px] uppercase tracking-[0.08em] text-muted">{label}</p>
+      <p
+        className={`mt-1 text-lg font-semibold ${
+          tone === "success" ? "text-success" : tone === "danger" ? "text-danger" : "text-white"
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Tag({
+  children,
+  tone = "default",
+}: {
+  children: string;
+  tone?: "default" | "success" | "danger";
+}) {
+  const toneClassName =
+    tone === "success"
+      ? "border-emerald-500/25 bg-emerald-500/10 text-success"
+      : tone === "danger"
+        ? "border-rose-500/25 bg-rose-500/10 text-danger"
+        : "border-border/70 bg-surface/60 text-text";
+
+  return (
+    <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${toneClassName}`}>
       {children}
     </span>
   );

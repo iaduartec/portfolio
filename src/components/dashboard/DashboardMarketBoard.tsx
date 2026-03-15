@@ -102,6 +102,25 @@ const buildMarketBreadthLabel = (quotes: QuoteRow[]) => {
   return { label: "Sesgo mixto", tone: "warning" as const };
 };
 
+const buildHeadlineRead = (
+  breadth: ReturnType<typeof buildMarketBreadthLabel>,
+  strongestMacroTile: {
+    tile: MarketTile;
+    quote?: QuoteRow;
+  } | null,
+  macroDrivers: string[],
+) => {
+  const driverText = strongestMacroTile
+    ? `${strongestMacroTile.tile.label} ${formatMove(strongestMacroTile.quote?.dayChangePercent)}`
+    : "sin driver macro dominante";
+
+  if (macroDrivers[0]) {
+    return `${breadth.label}. Driver principal: ${driverText}. ${macroDrivers[0]}`;
+  }
+
+  return `${breadth.label}. Seguimiento de ${driverText}.`;
+};
+
 type DashboardMarketBoardProps = {
   holdings: Holding[];
 };
@@ -177,6 +196,10 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
 
     return macroTiles[0] ?? null;
   }, [quoteMap]);
+  const headlineRead = useMemo(
+    () => buildHeadlineRead(breadth, strongestMacroTile, macroDrivers),
+    [breadth, strongestMacroTile, macroDrivers]
+  );
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.35fr,0.9fr]">
@@ -184,28 +207,34 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
         title="Mercado hoy"
         subtitle="Panel rápido inspirado en Investing.com: índices, activos macro y lectura táctica."
       >
-        <div className="mb-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Cobertura</p>
-            <div className="mt-2 flex items-center gap-2">
+        <div className="mb-5 grid gap-4">
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-surface-muted/30 to-surface-muted/20 p-5">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge tone={breadth.tone}>{breadth.label}</Badge>
-              <span className="text-sm text-text">{quotes.length}/{MARKET_TILES.length} activos</span>
+              <Badge tone="default">{quotes.length}/{MARKET_TILES.length} activos</Badge>
+              <Badge tone={strongestMacroTile ? getTone(strongestMacroTile.quote?.dayChangePercent) : "default"}>
+                {strongestMacroTile ? strongestMacroTile.tile.label : "Sin señal dominante"}
+              </Badge>
             </div>
+            <p className="mt-3 text-sm leading-relaxed text-text">{headlineRead}</p>
           </div>
-          <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Driver macro</p>
-            <p className="mt-2 text-sm font-semibold text-white">
-              {strongestMacroTile ? strongestMacroTile.tile.label : "Sin señal dominante"}
-            </p>
-            <p className="mt-1 text-xs text-muted">
-              {strongestMacroTile ? formatMove(strongestMacroTile.quote?.dayChangePercent) : "Movimiento limitado"}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted">Lectura rápida</p>
-            <p className="mt-2 text-sm text-text">
-              {macroDrivers[0] ?? "Sin suficiente movimiento para extraer una lectura táctica clara."}
-            </p>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <CompactSignal
+              label="Cobertura"
+              value={`${quotes.length}/${MARKET_TILES.length}`}
+              detail={breadth.label}
+            />
+            <CompactSignal
+              label="Driver macro"
+              value={strongestMacroTile ? strongestMacroTile.tile.label : "Ninguno"}
+              detail={strongestMacroTile ? formatMove(strongestMacroTile.quote?.dayChangePercent) : "Sin desplazamiento"}
+            />
+            <CompactSignal
+              label="Señal inmediata"
+              value={macroDrivers[0] ? "Activa" : "Neutral"}
+              detail={macroDrivers[0] ?? "Sin suficiente movimiento para una lectura táctica."}
+            />
           </div>
         </div>
         <div className="grid gap-5 lg:grid-cols-2">
@@ -225,7 +254,7 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
                   return (
                     <div
                       key={tile.symbol}
-                      className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/60 px-3 py-3"
+                      className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/60 px-3 py-2.5"
                     >
                       <div>
                         <p className="text-sm font-medium text-text">{tile.label}</p>
@@ -321,6 +350,24 @@ export function DashboardMarketBoard({ holdings }: DashboardMarketBoardProps) {
           </div>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function CompactSignal({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 bg-surface-muted/35 p-4">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-muted">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{detail}</p>
     </div>
   );
 }
