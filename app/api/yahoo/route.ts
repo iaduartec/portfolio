@@ -225,6 +225,105 @@ export async function GET(request: Request) {
       return NextResponse.json({ action, error: "Missing symbol" }, { status: 400 });
     }
 
+    if (action === "snapshot") {
+      let q: ReturnType<typeof quoteFields> | null = null;
+      try {
+        const quoteJson = await fetchYahoo(`/v7/finance/quote?symbols=${encodeURIComponent(normalized)}`);
+        const quoteRow = Array.isArray(quoteJson?.quoteResponse?.result) ? quoteJson.quoteResponse.result[0] : {};
+        q = quoteRow ? quoteFields(quoteRow) : null;
+      } catch {
+        try {
+          const fallback = await fetch(`${origin}/api/quotes?tickers=${encodeURIComponent(normalized)}`);
+          const fallbackJson = await fallback.json();
+          const row = Array.isArray(fallbackJson?.quotes) ? fallbackJson.quotes[0] : null;
+          if (row) {
+            q = {
+              symbol: String(row.ticker ?? ""),
+              name: String(row.name ?? ""),
+              exchange: "",
+              currency: "USD",
+              marketState: "",
+              price: toNumber(row.price),
+              dayChange: toNumber(row.dayChange),
+              dayChangePercent: toNumber(row.dayChangePercent),
+              marketCap: undefined,
+              volume: undefined,
+              avgVolume: undefined,
+              fiftyTwoWeekLow: undefined,
+              fiftyTwoWeekHigh: undefined,
+            };
+          }
+        } catch {
+          // completely ignored
+        }
+      }
+
+      try {
+        const summary = await quoteSummaryModules(normalized, [
+          "summaryDetail",
+          "defaultKeyStatistics",
+          "financialData",
+          "recommendationTrend",
+          "assetProfile"
+        ]);
+
+        const details = summary?.summaryDetail ?? {};
+        const keyStats = summary?.defaultKeyStatistics ?? {};
+        const financialData = summary?.financialData ?? {};
+        const profile = summary?.assetProfile ?? {};
+
+        const data = {
+          ticker: normalized,
+          quote: q,
+          fundamentals: {
+            trailingPE: toNumber(keyStats.trailingPE?.raw ?? details.trailingPE?.raw),
+            forwardPE: toNumber(details.forwardPE?.raw),
+            priceToBook: toNumber(keyStats.priceToBook?.raw),
+            priceToSalesTtm: toNumber(details.priceToSalesTrailing12Months?.raw),
+            marketCap: toNumber(details.marketCap?.raw ?? q?.marketCap),
+            enterpriseToEbitda: toNumber(keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw),
+            trailingEps: toNumber(keyStats.trailingEps?.raw),
+            returnOnEquity: toNumber(financialData.returnOnEquity?.raw),
+            returnOnAssets: toNumber(financialData.returnOnAssets?.raw),
+            targetMeanPrice: toNumber(financialData.targetMeanPrice?.raw),
+          },
+          ratings: {
+            recommendationMean: toNumber(financialData.recommendationMean?.raw),
+            recommendationKey: financialData.recommendationKey,
+            recommendationTrend: summary?.recommendationTrend?.trend ?? [],
+          },
+          dividends: {
+            dividendYield: toNumber(details.dividendYield?.raw),
+            payoutRatio: toNumber(details.payoutRatio?.raw),
+          },
+          profile: {
+            sector: profile.sector,
+            industry: profile.industry,
+            country: profile.country,
+            website: profile.website,
+            longBusinessSummary: profile.longBusinessSummary,
+          }
+        };
+
+        return NextResponse.json({ action, data, source: "yahoo-finance" });
+      } catch {
+        // Fallback or partial
+        const fallbackData = await getFallbackFundamentals(origin, normalized);
+        return NextResponse.json({
+          action,
+          data: {
+             ticker: normalized,
+             quote: q,
+             fundamentals: fallbackData,
+             ratings: null,
+             dividends: null,
+             profile: null
+          },
+          source: fallbackData ? "yahoo-finance-fallback" : "yahoo-finance-unavailable",
+        });
+      }
+    }
+
     if (action === "fundamentals") {
       try {
         const summary = await quoteSummaryModules(normalized, [

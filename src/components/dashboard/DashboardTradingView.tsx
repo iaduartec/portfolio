@@ -132,57 +132,33 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
     let ignore = false;
 
     const loadPanel = async () => {
-      const requests = await Promise.allSettled([
-        fetch(`/api/yahoo?action=quote&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
-        fetch(`/api/yahoo?action=fundamentals&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
-        fetch(`/api/yahoo?action=ratings&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
-        fetch(`/api/yahoo?action=dividends&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
-        fetch(`/api/yahoo?action=profile&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" }),
-      ]);
+      try {
+        const response = await fetch(`/api/yahoo?action=snapshot&symbol=${encodeURIComponent(activeTicker)}`, { cache: "no-store" });
+        if (ignore) return;
+        
+        const json = await response.json();
+        const data = json.data ?? {};
 
-      if (ignore) return;
-
-      const parseObjectJson = async <T,>(response: Response) => {
-        const json = (await response.json()) as { data?: T | null };
-        return json.data ?? null;
-      };
-
-      const parseListJson = async <T,>(response: Response) => {
-        const json = (await response.json()) as { data?: T[] | null };
-        return json.data ?? null;
-      };
-
-      const quoteData =
-        requests[0].status === "fulfilled" && requests[0].value.ok
-          ? await parseListJson<QuoteSnapshot>(requests[0].value)
-          : null;
-      const fundamentalsData =
-        requests[1].status === "fulfilled" && requests[1].value.ok
-          ? await parseObjectJson<FundamentalsSnapshot>(requests[1].value)
-          : null;
-      const ratingsData =
-        requests[2].status === "fulfilled" && requests[2].value.ok
-          ? await parseObjectJson<RatingsSnapshot>(requests[2].value)
-          : null;
-      const dividendsData =
-        requests[3].status === "fulfilled" && requests[3].value.ok
-          ? await parseObjectJson<DividendsSnapshot>(requests[3].value)
-          : null;
-      const profileData =
-        requests[4].status === "fulfilled" && requests[4].value.ok
-          ? await parseObjectJson<ProfileSnapshot>(requests[4].value)
-          : null;
-
-      const resolvedQuoteData = Array.isArray(quoteData) ? quoteData[0] ?? null : quoteData;
-
-      setPanelData({
-        ticker: activeTicker,
-        quote: resolvedQuoteData,
-        fundamentals: fundamentalsData,
-        ratings: ratingsData,
-        dividends: dividendsData,
-        profile: profileData,
-      });
+        setPanelData({
+          ticker: activeTicker,
+          quote: data.quote ?? null,
+          fundamentals: data.fundamentals ?? null,
+          ratings: data.ratings ?? null,
+          dividends: data.dividends ?? null,
+          profile: data.profile ?? null,
+        });
+      } catch {
+        if (!ignore) {
+          setPanelData({
+            ticker: activeTicker,
+            quote: null,
+            fundamentals: null,
+            ratings: null,
+            dividends: null,
+            profile: null,
+          });
+        }
+      }
     };
 
     void loadPanel();
