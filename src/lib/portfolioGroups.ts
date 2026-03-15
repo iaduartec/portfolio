@@ -1,4 +1,26 @@
-const ROBOADVISOR_ETF_SYMBOLS = new Set(["EXW1", "IS3K", "XUCD"]);
+const ROBOADVISOR_ETF_SYMBOLS = new Set([
+  "2B72",
+  "79U0",
+  "AMEL",
+  "AMEM",
+  "DBXJ",
+  "EBUY",
+  "EXI2",
+  "EXW1",
+  "IS3K",
+  "IS3Q",
+  "LEMA",
+  "LGQK",
+  "LYMS",
+  "LYP5",
+  "LYP6",
+  "PRAJ",
+  "UBUD",
+  "WELK",
+  "XDWI",
+  "XDWT",
+  "XUCD",
+]);
 const NON_INVESTMENT_TICKERS = new Set([
   "CASH",
   "EUR",

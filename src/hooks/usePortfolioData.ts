@@ -11,7 +11,7 @@ import {
 } from "@/lib/storage";
 import { Transaction } from "@/types/transactions";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
-import { 
+import {
   computeHoldings, 
   computeSummary, 
   computeRealizedTrades, 
@@ -19,7 +19,45 @@ import {
 } from "@/lib/portfolio";
 import { toTransaction } from "@/hooks/usePortfolioData.utils";
 
-const DEFAULT_PORTFOLIO_VERSION = "2026-03-14-full-cashflows";
+const DEFAULT_PORTFOLIO_VERSION = "2026-03-15-merged-roboadvisor-csv";
+
+const transactionSort = (a: Transaction, b: Transaction) => {
+  const timeA = Date.parse(a.date);
+  const timeB = Date.parse(b.date);
+  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+    return timeA - timeB;
+  }
+  return 0;
+};
+
+const getTransactionKey = (tx: Transaction) =>
+  [
+    tx.date,
+    tx.ticker,
+    tx.type,
+    tx.quantity,
+    tx.price,
+    tx.fee ?? "",
+    tx.currency ?? "",
+  ].join("|");
+
+const mergeTransactions = (groups: Transaction[][]) => {
+  const merged = new Map<string, Transaction>();
+
+  groups.flat().forEach((tx) => {
+    const key = getTransactionKey(tx);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, tx);
+      return;
+    }
+    if (!existing.name && tx.name) {
+      merged.set(key, { ...existing, name: tx.name });
+    }
+  });
+
+  return Array.from(merged.values()).sort(transactionSort);
+};
 
 export function usePortfolioData() {
   const { fxRate, baseCurrency } = useCurrency();
@@ -48,9 +86,12 @@ export function usePortfolioData() {
 
         const defaultFiles = [
           "/portfolio-seed-2026-03.csv",
+          "/roboadvisor-revolut-2026-03.csv",
           "/DA0F4AD2-C6CC-4ED7-A1EA-612069957DA4.csv",
           "/Mi cartera_2025-11-29.csv",
         ];
+
+        const parsedGroups: Transaction[][] = [];
 
         for (const file of defaultFiles) {
           const response = await fetch(file);
@@ -70,14 +111,18 @@ export function usePortfolioData() {
           });
 
           if (parsed.length > 0) {
-            persistTransactions(parsed, {
-              source: "default",
-              version: DEFAULT_PORTFOLIO_VERSION,
-            });
-            setTransactions(parsed);
-            console.log(`INFO: Loaded default portfolio data from ${file}.`);
-            break;
+            parsedGroups.push(parsed);
           }
+        }
+
+        const merged = mergeTransactions(parsedGroups);
+        if (merged.length > 0) {
+          persistTransactions(merged, {
+            source: "default",
+            version: DEFAULT_PORTFOLIO_VERSION,
+          });
+          setTransactions(merged);
+          console.log(`INFO: Loaded ${merged.length} default portfolio transactions from ${parsedGroups.length} files.`);
         }
       } catch (error) {
         console.error("Failed to load default portfolio", error);
