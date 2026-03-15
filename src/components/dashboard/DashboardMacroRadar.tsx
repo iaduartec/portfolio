@@ -16,6 +16,18 @@ const dateFormatter = new Intl.DateTimeFormat("es-ES", {
   month: "short",
 });
 
+const buildMacroHeadline = (items: MacroRadarItem[]) => {
+  if (items.length === 0) {
+    return "Sin titulares suficientes para construir una lectura macro útil ahora mismo.";
+  }
+
+  const latestDate = items[0]?.publishedAt
+    ? dateFormatter.format(new Date(items[0].publishedAt))
+    : "sin fecha";
+
+  return `${items.length} titulares recientes detectados. Última actualización visible: ${latestDate}. Úsalo como capa de contexto, no como señal aislada.`;
+};
+
 export function DashboardMacroRadar() {
   const [items, setItems] = useState<MacroRadarItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +68,7 @@ export function DashboardMacroRadar() {
 
   const freshItems = items.slice(0, 3);
   const remainingItems = items.slice(3);
+  const headline = buildMacroHeadline(items);
 
   return (
     <Card
@@ -68,21 +81,33 @@ export function DashboardMacroRadar() {
         <p className="text-sm text-danger">{error}</p>
       ) : items.length > 0 ? (
         <div className="grid gap-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Titulares</p>
-              <p className="mt-2 text-2xl font-semibold text-white">{items.length}</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Más reciente</p>
-              <p className="mt-2 text-sm font-semibold text-white">
+          <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-surface-muted/25 to-surface-muted/20 p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="default">{items.length} titulares</Badge>
+              <Badge tone="warning">
                 {items[0]?.publishedAt ? dateFormatter.format(new Date(items[0].publishedAt)) : "Sin fecha"}
-              </p>
+              </Badge>
+              <Badge tone="default">Contexto macro</Badge>
             </div>
-            <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
-              <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Foco</p>
-              <p className="mt-2 text-sm text-text">Contexto macro y mercado para acompañar tus lecturas de activos.</p>
-            </div>
+            <p className="mt-3 text-sm leading-relaxed text-text">{headline}</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MacroSignal
+              label="Cobertura"
+              value={`${items.length} piezas`}
+              detail="Más densidad de noticias para evitar un radar plano."
+            />
+            <MacroSignal
+              label="Más reciente"
+              value={items[0]?.publishedAt ? dateFormatter.format(new Date(items[0].publishedAt)) : "Sin fecha"}
+              detail="La frescura manda más que el volumen."
+            />
+            <MacroSignal
+              label="Uso"
+              value="Contexto"
+              detail="Sirve para interpretar el mercado, no para sustituir una tesis."
+            />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -141,5 +166,23 @@ export function DashboardMacroRadar() {
         <p className="text-sm text-muted">No hay publicaciones recientes disponibles.</p>
       )}
     </Card>
+  );
+}
+
+function MacroSignal({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
+      <p className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
+      <p className="mt-2 text-sm font-semibold text-white">{value}</p>
+      <p className="mt-1 text-xs leading-relaxed text-muted">{detail}</p>
+    </div>
   );
 }

@@ -501,6 +501,8 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
     return { portfolioCount, generalCount, actionableCount };
   }, [automaticSignals]);
 
+  const topAutomaticSignal = automaticSignals[0] ?? null;
+
   const signal = useMemo(() => {
     let score = 0;
 
@@ -683,7 +685,18 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               </button>
             }
           >
-            <div className="space-y-2">
+            <div className="rounded-2xl border border-primary/20 bg-background/20 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={signal.tone}>{signal.label}</Badge>
+                <Badge tone={predictionMeter.tone}>Acción {predictionMeter.action}</Badge>
+                <Badge tone="default">Foco {selectedInsiderTicker}</Badge>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-text/90">
+                El pulso Yahoo resume valoración, consenso y dividendo para el ticker activo. Úsalo como filtro previo antes de profundizar en la señal insider.
+              </p>
+            </div>
+
+            <div className="mt-4 space-y-2">
               {WATCHLIST.map((ticker) => {
                 const quote = quoteMap.get(ticker);
                 return (
@@ -793,19 +806,40 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               </button>
             }
           >
-            <div className="mb-3 grid gap-2 sm:grid-cols-3">
-              <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
-                <p className="text-[11px] text-muted">Tickers cartera</p>
-                <p className="text-sm font-semibold text-white">{insiderOverview.portfolioCount}</p>
+            <div className="rounded-2xl border border-accent/20 bg-background/20 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone="default">{insiderOverview.portfolioCount} cartera</Badge>
+                <Badge tone="default">{insiderOverview.generalCount} generales</Badge>
+                <Badge tone={insiderOverview.actionableCount > 0 ? "success" : "warning"}>
+                  {insiderOverview.actionableCount} señales activas
+                </Badge>
+                {topAutomaticSignal ? (
+                  <Badge tone={topAutomaticSignal.signal.tone}>
+                    Prioridad {topAutomaticSignal.ticker}
+                  </Badge>
+                ) : null}
               </div>
-              <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
-                <p className="text-[11px] text-muted">Tickers generales</p>
-                <p className="text-sm font-semibold text-white">{insiderOverview.generalCount}</p>
-              </div>
-              <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
-                <p className="text-[11px] text-muted">Señales activas</p>
-                <p className="text-sm font-semibold text-white">{insiderOverview.actionableCount}</p>
-              </div>
+              <p className="mt-3 text-sm leading-relaxed text-text/90">
+                El radar mezcla cartera y cesta general para no depender de selección manual. La señal prioritaria sube arriba y el detalle queda debajo.
+              </p>
+            </div>
+
+            <div className="mt-3 mb-3 grid gap-2 sm:grid-cols-3">
+              <SignalSummary
+                label="Tickers cartera"
+                value={String(insiderOverview.portfolioCount)}
+                detail="Compatibles con OpenInsider"
+              />
+              <SignalSummary
+                label="Tickers generales"
+                value={String(insiderOverview.generalCount)}
+                detail="Cesta base para no quedarse ciego"
+              />
+              <SignalSummary
+                label="Señales activas"
+                value={String(insiderOverview.actionableCount)}
+                detail="Compra o venta con más convicción"
+              />
             </div>
             <div className="mb-3 inline-flex rounded-full border border-border/80 bg-surface-muted/20 p-1">
               {[7, 30, 90].map((days) => (
@@ -867,10 +901,6 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </button>
               ))}
             </div>
-
-            <p className="mb-3 rounded-lg border border-border/70 bg-surface-muted/20 px-3 py-2 text-xs text-muted">
-              El radar mezcla automáticamente tus acciones compatibles con OpenInsider y una cesta general USA.
-            </p>
 
             <form onSubmit={addCustomTicker} className="mb-3 flex gap-2">
               <label htmlFor="insider-custom-ticker" className="sr-only">
@@ -943,30 +973,29 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
 
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2 text-center">
-                  <p className="text-[11px] text-muted">Compras</p>
-                  <p className="text-sm font-semibold text-emerald-300">{selectedInsiderSummary.buyCount}</p>
-                </div>
-                <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2 text-center">
-                  <p className="text-[11px] text-muted">Ventas</p>
-                  <p className="text-sm font-semibold text-amber-300">{selectedInsiderSummary.sellCount}</p>
-                </div>
-                <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2 text-center">
-                  <p className="text-[11px] text-muted">Neto</p>
-                  <p
-                    className={`text-sm font-semibold ${
-                      selectedInsiderSummary.netValue > 0
-                        ? "text-emerald-300"
-                        : selectedInsiderSummary.netValue < 0
-                          ? "text-rose-300"
-                          : "text-white"
-                    }`}
-                  >
-                    {formatCurrency(selectedInsiderSummary.netValue, "USD")}
-                  </p>
-                </div>
+                <SignalSummary
+                  label="Compras"
+                  value={String(selectedInsiderSummary.buyCount)}
+                  detail="Operaciones de compra"
+                />
+                <SignalSummary
+                  label="Ventas"
+                  value={String(selectedInsiderSummary.sellCount)}
+                  detail="Operaciones de venta"
+                />
+                <SignalSummary
+                  label="Neto"
+                  value={formatCurrency(selectedInsiderSummary.netValue, "USD")}
+                  detail={`Ventana actual ${insiderWindowDays}d`}
+                  tone={
+                    selectedInsiderSummary.netValue > 0
+                      ? "success"
+                      : selectedInsiderSummary.netValue < 0
+                        ? "danger"
+                        : "default"
+                  }
+                />
               </div>
-              <p className="text-[11px] text-muted">Ventana actual: ultimos {insiderWindowDays} dias.</p>
               {insiderError && (
                 <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
                   {insiderError}
@@ -1013,5 +1042,32 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
         </div>
       </div>
     </section>
+  );
+}
+
+function SignalSummary({
+  label,
+  value,
+  detail,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone?: "default" | "success" | "danger";
+}) {
+  const toneClassName =
+    tone === "success"
+      ? "text-emerald-300"
+      : tone === "danger"
+        ? "text-rose-300"
+        : "text-white";
+
+  return (
+    <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
+      <p className="text-[11px] text-muted">{label}</p>
+      <p className={`mt-1 text-sm font-semibold ${toneClassName}`}>{value}</p>
+      <p className="mt-1 text-[11px] text-muted">{detail}</p>
+    </div>
   );
 }
