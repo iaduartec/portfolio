@@ -82,7 +82,7 @@ export async function POST(req: Request) {
         const result = streamText({
           model,
           system: systemMessage,
-          messages: convertToModelMessages(messages ?? []),
+          messages: await convertToModelMessages(messages ?? []),
           tools: {
             showStock: showStockTool,
             suggestTrade: suggestTradeTool

@@ -5,6 +5,10 @@ import {
   ColorType,
   LineStyle,
   createChart,
+  createSeriesMarkers,
+  CandlestickSeries,
+  HistogramSeries,
+  LineSeries,
   type SeriesMarker,
   type Time,
 } from "lightweight-charts";
@@ -217,18 +221,18 @@ export function PortfolioValueChart({
           markers: [] as SeriesMarker<Time>[],
           lines: points.length > 1
             ? [
-                {
-                  id: `ai-${pattern.name}-${idx}`,
-                  name: pattern.name,
-                  points,
-                  color:
-                    pattern.type.includes("top") || pattern.type.includes("resistance")
-                      ? "#f6465d"
-                      : "#00c074",
-                  width: 3,
-                  style: LineStyle.Solid,
-                },
-              ]
+              {
+                id: `ai-${pattern.name}-${idx}`,
+                name: pattern.name,
+                points,
+                color:
+                  pattern.type.includes("top") || pattern.type.includes("resistance")
+                    ? "#f6465d"
+                    : "#00c074",
+                width: 3,
+                style: LineStyle.Solid,
+              },
+            ]
             : [],
         };
       })
@@ -311,9 +315,9 @@ export function PortfolioValueChart({
 
     const weightedProjection = projectedSignals.length
       ? projectedSignals.reduce(
-          (acc, signal) => acc + (signal.projection ?? lastPrice) * signal.confidence,
-          0
-        ) / projectedSignals.reduce((acc, signal) => acc + signal.confidence, 0)
+        (acc, signal) => acc + (signal.projection ?? lastPrice) * signal.confidence,
+        0
+      ) / projectedSignals.reduce((acc, signal) => acc + signal.confidence, 0)
       : null;
 
     const stopSignals = dominant.filter((signal) => {
@@ -325,9 +329,9 @@ export function PortfolioValueChart({
 
     const weightedStop = stopSignals.length
       ? stopSignals.reduce(
-          (acc, signal) => acc + (signal.stopLoss ?? lastPrice) * signal.confidence,
-          0
-        ) / stopSignals.reduce((acc, signal) => acc + signal.confidence, 0)
+        (acc, signal) => acc + (signal.stopLoss ?? lastPrice) * signal.confidence,
+        0
+      ) / stopSignals.reduce((acc, signal) => acc + signal.confidence, 0)
       : null;
 
     const recentCandles = liveSeries.candles.slice(-20);
@@ -383,16 +387,16 @@ export function PortfolioValueChart({
       },
     });
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#00c074",
       downColor: "#f6465d",
       borderVisible: false,
       wickUpColor: "#00c074",
       wickDownColor: "#f6465d",
-    });
+    }) as any;
     candleSeries.setData(mapChartSeriesData(liveSeries.candles));
 
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       color: "rgba(41,98,255,0.25)",
       priceFormat: { type: "volume" },
       priceScaleId: "",
@@ -406,7 +410,7 @@ export function PortfolioValueChart({
 
     patternsForChart.forEach((pattern) => {
       pattern.lines.forEach((line) => {
-        const series = chart.addLineSeries({
+        const series = chart.addSeries(LineSeries, {
           color: line.color,
           lineWidth: 3,
           lineStyle: line.style ?? LineStyle.Solid,
@@ -460,14 +464,15 @@ export function PortfolioValueChart({
       if (marker.shape && marker.shape !== "circle") existing.shape = marker.shape;
     });
 
-    candleSeries.setMarkers(
+    createSeriesMarkers(
+      candleSeries,
       mapChartMarkers(
         Array.from(groupedMarkers.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
       )
     );
 
     analysis.support.forEach((line) => {
-      const series = chart.addLineSeries({
+      const series = chart.addSeries(LineSeries, {
         color: line.color,
         lineWidth: 1,
         lineStyle: LineStyle.Dotted,
@@ -602,13 +607,12 @@ export function PortfolioValueChart({
               </p>
             </div>
             <div
-              className={`text-2xl font-bold ${
-                technicalOutlook
+              className={`text-2xl font-bold ${technicalOutlook
                   ? technicalOutlook.direction === "bullish"
                     ? "text-success"
                     : "text-danger"
                   : "text-muted"
-              }`}
+                }`}
             >
               {technicalOutlook ? `${Math.round(technicalOutlook.probability * 100)}%` : "--"}
             </div>
@@ -618,9 +622,8 @@ export function PortfolioValueChart({
             <>
               <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-surface-muted/70">
                 <div
-                  className={`h-full rounded-full ${
-                    technicalOutlook.direction === "bullish" ? "bg-success/80" : "bg-danger/80"
-                  }`}
+                  className={`h-full rounded-full ${technicalOutlook.direction === "bullish" ? "bg-success/80" : "bg-danger/80"
+                    }`}
                   style={{ width: `${Math.round(technicalOutlook.probability * 100)}%` }}
                 />
               </div>
@@ -632,9 +635,8 @@ export function PortfolioValueChart({
                 <div className="rounded-lg border border-border/50 bg-surface/45 p-2">
                   <p className="text-[9px] uppercase tracking-[0.1em] text-muted">Objetivo</p>
                   <p
-                    className={`text-xs font-semibold ${
-                      technicalOutlook.direction === "bullish" ? "text-success" : "text-accent"
-                    }`}
+                    className={`text-xs font-semibold ${technicalOutlook.direction === "bullish" ? "text-success" : "text-accent"
+                      }`}
                   >
                     {technicalOutlook.target.toFixed(2)}
                   </p>

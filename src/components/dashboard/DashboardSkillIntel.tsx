@@ -141,18 +141,25 @@ const normalizeFallbackQuotes = (rows: QuotesFallbackItem[]) => {
 };
 
 export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillIntelProps) {
-  const [quotes, setQuotes] = useState<Quote[]>(() => {
-    if (typeof window === "undefined") return [];
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [insiderByTicker, setInsiderByTicker] = useState<Record<string, InsiderTrade[]>>({});
+
+  // Hydrate from localStorage after mount to avoid SSR hydration mismatch
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(SKILL_QUOTES_STORAGE_KEY);
-      if (!raw) return [];
+      if (!raw) return;
       const parsed = JSON.parse(raw) as Quote[];
-      return Array.isArray(parsed) ? normalizeQuotes(parsed) : [];
+      if (Array.isArray(parsed)) {
+        const cached = normalizeQuotes(parsed);
+        if (cached.length > 0) {
+          setQuotes(cached);
+        }
+      }
     } catch {
-      return [];
+      // Ignore corrupted cache
     }
-  });
-  const [insiderByTicker, setInsiderByTicker] = useState<Record<string, InsiderTrade[]>>({});
+  }, []);
   const [insiderSummaryByTicker, setInsiderSummaryByTicker] = useState<Record<string, InsiderSummary>>(
     {}
   );

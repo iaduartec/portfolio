@@ -93,6 +93,30 @@ const chartHistory = async (symbol: string, range = "1mo", interval = "1d", even
   return result;
 };
 
+const getFallbackFundamentals = async (origin: string, normalized: string) => {
+  const fallback = await fetch(
+    `${origin}/api/fundamentals?tickers=${encodeURIComponent(normalized)}`,
+    { next: { revalidate: 300 } }
+  );
+  const fallbackJson = await fallback.json();
+  const row = Array.isArray(fallbackJson?.data) ? fallbackJson.data[0] : null;
+  return row
+    ? {
+        symbol: normalized,
+        trailingPE: toNumber(row.pe),
+        forwardPE: undefined,
+        priceToBook: toNumber(row.pb),
+        priceToSalesTtm: toNumber(row.ps),
+        marketCap: undefined,
+        enterpriseToEbitda: toNumber(row.evEbitda),
+        trailingEps: undefined,
+        returnOnEquity: undefined,
+        returnOnAssets: undefined,
+        targetMeanPrice: undefined,
+      }
+    : null;
+};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const origin = new URL(request.url).origin;
@@ -208,54 +232,54 @@ export async function GET(request: Request) {
           "defaultKeyStatistics",
           "financialData",
         ]);
-        if (!summary) return NextResponse.json({ action, data: null, source: "yahoo-finance" });
+        if (!summary) {
+          const fallbackData = await getFallbackFundamentals(origin, normalized);
+          return NextResponse.json({
+            action,
+            data: fallbackData,
+            source: fallbackData ? "yahoo-finance-fallback" : "yahoo-finance",
+          });
+        }
         const summaryDetail = summary.summaryDetail ?? {};
         const keyStats = summary.defaultKeyStatistics ?? {};
         const financialData = summary.financialData ?? {};
+        const data = {
+          symbol: normalized,
+          trailingPE: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
+          forwardPE: toNumber(summaryDetail.forwardPE?.raw),
+          priceToBook: toNumber(keyStats.priceToBook?.raw),
+          priceToSalesTtm: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
+          marketCap: toNumber(summaryDetail.marketCap?.raw),
+          enterpriseToEbitda: toNumber(
+            keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw
+          ),
+          trailingEps: toNumber(keyStats.trailingEps?.raw),
+          returnOnEquity: toNumber(financialData.returnOnEquity?.raw),
+          returnOnAssets: toNumber(financialData.returnOnAssets?.raw),
+          targetMeanPrice: toNumber(financialData.targetMeanPrice?.raw),
+        };
+        const hasData = Object.entries(data).some(
+          ([key, value]) => key !== "symbol" && value !== undefined && value !== null
+        );
+        if (!hasData) {
+          const fallbackData = await getFallbackFundamentals(origin, normalized);
+          return NextResponse.json({
+            action,
+            data: fallbackData,
+            source: fallbackData ? "yahoo-finance-fallback" : "yahoo-finance",
+          });
+        }
         return NextResponse.json({
           action,
-          data: {
-            symbol: normalized,
-            trailingPE: toNumber(keyStats.trailingPE?.raw ?? summaryDetail.trailingPE?.raw),
-            forwardPE: toNumber(summaryDetail.forwardPE?.raw),
-            priceToBook: toNumber(keyStats.priceToBook?.raw),
-            priceToSalesTtm: toNumber(summaryDetail.priceToSalesTrailing12Months?.raw),
-            marketCap: toNumber(summaryDetail.marketCap?.raw),
-            enterpriseToEbitda: toNumber(
-              keyStats.enterpriseToEbitda?.raw ?? financialData.enterpriseToEbitda?.raw
-            ),
-            trailingEps: toNumber(keyStats.trailingEps?.raw),
-            returnOnEquity: toNumber(financialData.returnOnEquity?.raw),
-            returnOnAssets: toNumber(financialData.returnOnAssets?.raw),
-            targetMeanPrice: toNumber(financialData.targetMeanPrice?.raw),
-          },
+          data,
           source: "yahoo-finance",
         });
       } catch {
-        const fallback = await fetch(
-          `${origin}/api/fundamentals?tickers=${encodeURIComponent(normalized)}`,
-          { next: { revalidate: 300 } }
-        );
-        const fallbackJson = await fallback.json();
-        const row = Array.isArray(fallbackJson?.data) ? fallbackJson.data[0] : null;
+        const fallbackData = await getFallbackFundamentals(origin, normalized);
         return NextResponse.json({
           action,
-          data: row
-            ? {
-                symbol: normalized,
-                trailingPE: toNumber(row.pe),
-                forwardPE: undefined,
-                priceToBook: toNumber(row.pb),
-                priceToSalesTtm: toNumber(row.ps),
-                marketCap: undefined,
-                enterpriseToEbitda: toNumber(row.evEbitda),
-                trailingEps: undefined,
-                returnOnEquity: undefined,
-                returnOnAssets: undefined,
-                targetMeanPrice: undefined,
-              }
-            : null,
-          source: "yahoo-finance-fallback",
+          data: fallbackData,
+          source: fallbackData ? "yahoo-finance-fallback" : "yahoo-finance-unavailable",
         });
       }
     }

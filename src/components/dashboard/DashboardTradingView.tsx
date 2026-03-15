@@ -142,35 +142,42 @@ export function DashboardTradingView({ selectedHolding }: DashboardTradingViewPr
 
       if (ignore) return;
 
-      const parseJson = async <T,>(response: Response) => {
+      const parseObjectJson = async <T,>(response: Response) => {
         const json = (await response.json()) as { data?: T | null };
+        return json.data ?? null;
+      };
+
+      const parseListJson = async <T,>(response: Response) => {
+        const json = (await response.json()) as { data?: T[] | null };
         return json.data ?? null;
       };
 
       const quoteData =
         requests[0].status === "fulfilled" && requests[0].value.ok
-          ? await parseJson<QuoteSnapshot>(requests[0].value)
+          ? await parseListJson<QuoteSnapshot>(requests[0].value)
           : null;
       const fundamentalsData =
         requests[1].status === "fulfilled" && requests[1].value.ok
-          ? await parseJson<FundamentalsSnapshot>(requests[1].value)
+          ? await parseObjectJson<FundamentalsSnapshot>(requests[1].value)
           : null;
       const ratingsData =
         requests[2].status === "fulfilled" && requests[2].value.ok
-          ? await parseJson<RatingsSnapshot>(requests[2].value)
+          ? await parseObjectJson<RatingsSnapshot>(requests[2].value)
           : null;
       const dividendsData =
         requests[3].status === "fulfilled" && requests[3].value.ok
-          ? await parseJson<DividendsSnapshot>(requests[3].value)
+          ? await parseObjectJson<DividendsSnapshot>(requests[3].value)
           : null;
       const profileData =
         requests[4].status === "fulfilled" && requests[4].value.ok
-          ? await parseJson<ProfileSnapshot>(requests[4].value)
+          ? await parseObjectJson<ProfileSnapshot>(requests[4].value)
           : null;
+
+      const resolvedQuoteData = Array.isArray(quoteData) ? quoteData[0] ?? null : quoteData;
 
       setPanelData({
         ticker: activeTicker,
-        quote: quoteData,
+        quote: resolvedQuoteData,
         fundamentals: fundamentalsData,
         ratings: ratingsData,
         dividends: dividendsData,

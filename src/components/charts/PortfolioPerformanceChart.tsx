@@ -103,7 +103,7 @@ export function PortfolioPerformanceChart({ data }: PortfolioPerformanceChartPro
                 borderRadius: 10,
                 color: "#d1d4dc",
               }}
-              formatter={(value: number) => `${formatPercent(value / 100)} rentabilidad`}
+              formatter={(value) => `${formatPercent(Number(value ?? 0) / 100)} rentabilidad`}
             />
             <Area
               type="monotone"

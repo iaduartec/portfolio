@@ -49,7 +49,7 @@ export async function POST(req: Request) {
       const result = streamText({
         model,
         system: 'You are a helpful assistant. Respond to the user in Markdown format.',
-        messages: convertToModelMessages(messages ?? []),
+        messages: await convertToModelMessages(messages ?? []),
         // tools: {
         //   showStock: tool({
         //     description: 'Show stock price and information for a given symbol',

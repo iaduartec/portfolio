@@ -5,6 +5,10 @@ import {
   ColorType,
   LineStyle,
   createChart,
+  createSeriesMarkers,
+  CandlestickSeries,
+  HistogramSeries,
+  LineSeries,
 } from "lightweight-charts";
 import { Chat, useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -412,16 +416,16 @@ export function PatternAnalysisLab() {
       },
     });
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: "#00c074",
       downColor: "#f6465d",
       borderVisible: false,
       wickUpColor: "#00c074",
       wickDownColor: "#f6465d",
-    });
+    }) as any;
     candleSeries.setData(mapChartSeriesData(analysis.candles));
 
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       color: "rgba(41,98,255,0.25)",
       priceFormat: { type: "volume" },
       priceScaleId: "",
@@ -438,7 +442,7 @@ export function PatternAnalysisLab() {
         return a.time > b.time ? 1 : -1;
       });
     if (markers.length > 0) {
-      candleSeries.setMarkers(mapChartMarkers(markers));
+      createSeriesMarkers(candleSeries, mapChartMarkers(markers));
     }
 
     [
@@ -447,7 +451,7 @@ export function PatternAnalysisLab() {
       ...indicatorBundle.lines,
       ...activePatterns.flatMap((pattern) => pattern.lines),
     ].forEach((line) => {
-      const series = chart.addLineSeries({
+      const series = chart.addSeries(LineSeries, {
         color: line.color,
         lineWidth: normalizeLineWidth(line.width),
         lineStyle: line.style ?? LineStyle.Solid,
@@ -530,6 +534,8 @@ export function PatternAnalysisLab() {
           >
             <span className="uppercase tracking-[0.2em] text-muted">Buscar</span>
             <input
+              id="pattern-lab-search"
+              name="pattern_lab_search"
               list="ticker-list"
               value={searchValue}
               onChange={(event) => setSearchValue(event.target.value)}
@@ -584,6 +590,8 @@ export function PatternAnalysisLab() {
             >
               <input
                 type="checkbox"
+                id={`indicator-${item.id}`}
+                name={`indicator_${item.id}`}
                 checked={indicatorFilters[item.id]}
                 onChange={(event) => {
                   setIndicatorFilters((prev) => ({
@@ -610,6 +618,8 @@ export function PatternAnalysisLab() {
             >
               <input
                 type="checkbox"
+                id={`pattern-${item.id}`}
+                name={`pattern_${item.id}`}
                 checked={filters[item.id]}
                 onChange={(event) => {
                   setFilters((prev) => ({ ...prev, [item.id]: event.target.checked }));

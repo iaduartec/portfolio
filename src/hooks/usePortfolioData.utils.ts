@@ -133,7 +133,7 @@ export const toTransaction = (row: ParsedRow): Transaction | null => {
   const quantity = normalizeNumber(qtyRaw) ?? 0;
   const unitPrice = normalizeNumber(unitPriceRaw);
   const totalAmount = normalizeNumber(totalAmountRaw);
-  let price = 0;
+  let price: number;
 
   if (unitPrice !== null && Number.isFinite(unitPrice) && unitPrice !== 0) {
     price = unitPrice;

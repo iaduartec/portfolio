@@ -155,18 +155,25 @@ const buildPulseState = (quotes: MarketQuote[]): MarketPulseState => {
 };
 
 export function DashboardAIPulse() {
-  const [quotes, setQuotes] = useState<MarketQuote[]>(() => {
-    if (typeof window === "undefined") return [];
+  const [quotes, setQuotes] = useState<MarketQuote[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  // Hydrate from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
     try {
       const raw = window.localStorage.getItem(PULSE_STORAGE_KEY);
-      if (!raw) return [];
+      if (!raw) return;
       const parsed = JSON.parse(raw) as MarketQuote[];
-      return Array.isArray(parsed) ? normalizeQuoteSet(parsed) : [];
+      if (Array.isArray(parsed)) {
+        const cached = normalizeQuoteSet(parsed);
+        if (hasEnoughCoverage(cached)) {
+          setQuotes(cached);
+        }
+      }
     } catch {
-      return [];
+      // Ignore corrupted cache
     }
-  });
-  const [hasLoaded, setHasLoaded] = useState(false);
+  }, []);
 
   const loadMarketPulse = useCallback(async () => {
     try {

@@ -94,7 +94,7 @@ export function PortfolioMonthlyIncomeChart({ data }: PortfolioMonthlyIncomeChar
                 borderRadius: 10,
                 color: "#d1d4dc",
               }}
-              formatter={(value: number) => formatCurrency(value, currency)}
+              formatter={(value: any) => formatCurrency(Number(value), currency)}
             />
             <Bar dataKey="displayValue" radius={[8, 8, 0, 0]} maxBarSize={42}>
               {chartData.map((point) => (

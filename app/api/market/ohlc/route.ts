@@ -173,8 +173,8 @@ export async function GET(req: Request) {
 
   // Map our internal intervals to Yahoo's
   // Supported map: "1d" -> "1d", "1wk" -> "1wk", "4h" -> "60m" (we'll fetch 60m for now as 4h isn't always direct)
-  let yahooInterval = "1d";
-  let yahooRange = rangeParam || "3mo";
+  let yahooInterval: string;
+  let yahooRange: string;
 
   if (intervalParam === "1wk") {
     yahooInterval = "1wk";
