@@ -23,6 +23,7 @@ import {
 } from "@/lib/formatters";
 import { AIChat } from "@/components/ai/AIChat";
 import { useCurrency } from "@/components/currency/CurrencyProvider";
+import { UploadCloud } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isFundTicker, isNonInvestmentTicker } from "@/lib/portfolioGroups";
 import { computeCashBalanceBase } from "@/lib/portfolio";
@@ -1067,6 +1068,27 @@ export function PortfolioClient() {
           <div className="grid grid-cols-2 gap-6">
             <Skeleton className="h-[200px] w-full rounded-3xl" />
             <Skeleton className="h-[200px] w-full rounded-3xl" />
+          </div>
+        </div>
+      ) : transactions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-border/80 bg-surface/70 py-24 text-center shadow-panel backdrop-blur-xl md:py-32">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-2">
+            <UploadCloud size={28} className="text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
+            Aún no hay datos
+          </h2>
+          <p className="max-w-md px-6 text-sm leading-relaxed text-muted md:text-base">
+            Importa tus transacciones desde un archivo CSV para generar el análisis automático de tu portfolio de inversión.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/upload"
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/45 bg-primary/15 px-6 py-3 text-sm font-semibold text-primary shadow-[0_0_15px_rgba(62,199,255,0.15)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+            >
+              <UploadCloud size={16} />
+              Importar transacciones
+            </Link>
           </div>
         </div>
       ) : (

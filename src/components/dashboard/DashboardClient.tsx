@@ -61,8 +61,8 @@ export function DashboardClient() {
         <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Resumen ejecutivo"
-            title="Empieza por capital, riesgo y foco"
-            description="Primero vemos el tamaño real de la cartera y qué posición explica más comportamiento."
+            title="Capital, riesgo y enfoque"
+            description="Visión general del valor de la cartera, P&L absoluto y diario, y el peso de tu posición principal."
           />
           <DashboardStats
             summary={summary}
@@ -87,22 +87,22 @@ export function DashboardClient() {
             <div className="mt-3 grid gap-3 md:mt-4">
               <PriorityItem
                 step="1"
-                title="Capital en juego"
-                description={`La primera posición concentra ${topHoldingWeight.toFixed(1)}% del valor; úsala como referencia de riesgo inmediato.`}
+                title="Riesgo de concentración"
+                description={`Tu primera posición concentra un ${topHoldingWeight.toFixed(1)}% del valor total de la cartera. Actúa como el principal vector de riesgo.`}
               />
               <PriorityItem
                 step="2"
-                title="Activo activo"
+                title="Foco de análisis"
                 description={
                   selectedHolding
-                    ? `El panel financiero está preparado para ${selectedHolding.ticker} y debe ser la siguiente parada.`
-                    : "Selecciona una posición dominante para abrir el panel financiero local."
+                    ? `El panel técnico inferior está mostrando datos de ${selectedHolding.ticker}. Puedes rotar el foco pulsando otros activos.`
+                    : "Selecciona una posición del anillo para desplegar su panel técnico."
                 }
               />
               <PriorityItem
                 step="3"
-                title="Contexto de sesión"
-                description={`El mercado abre con ${marketTone}; confirma esa lectura con mercado, futuros y radar macro.`}
+                title="Contexto macro"
+                description={`El sesgo de sesión actual es ${marketTone.replace("sesgo ", "")}. Contrasta este rendimiento con los futuros y la salud macro del mercado.`}
               />
             </div>
           </aside>
@@ -110,9 +110,9 @@ export function DashboardClient() {
 
         <section className="grid gap-4 md:gap-5">
           <SectionHeading
-            eyebrow="Foco principal"
-            title="Activa el análisis sobre la posición que más importa"
-            description="Movemos el panel local antes del resto de inteligencia para que el activo seleccionado tenga prioridad."
+            eyebrow="Análisis activo"
+            title="Panel técnico de la posición prioritaria"
+            description="Gráfico avanzado con soporte para indicadores técnicos y acción de precio en vivo del activo seleccionado."
           />
           <div className="min-h-[520px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
             <DashboardTradingView selectedHolding={selectedHolding} />
@@ -123,7 +123,7 @@ export function DashboardClient() {
           <SectionHeading
             eyebrow="Posiciones"
             title="Detalle de cartera"
-            description="Después del activo priorizado, aquí queda el resto de posiciones para comparar y rotar el foco."
+            description="Desglose de posiciones actuales, con opciones de ordenación por peso, rentabilidad acumulada e impacto diario."
           />
           <DashboardHoldings
             holdings={holdings}
@@ -137,8 +137,8 @@ export function DashboardClient() {
         <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Mercado"
-            title="Tono de sesión y drivers cruzados"
-            description="Aquí agrupamos apertura, amplitud y macro para que el contexto global quede junto."
+            title="Tono de sesión y macro"
+            description="Contexto global de la jornada: apertura de grandes índices, amplitud temporal de mercado y mapa de futuros."
           />
           <div className="grid gap-5 md:gap-6">
             <DashboardMarketBoard holdings={holdings} />
@@ -149,8 +149,8 @@ export function DashboardClient() {
         <section className="grid gap-4 md:gap-5">
           <SectionHeading
             eyebrow="Inteligencia"
-            title="Señales y contexto complementario"
-            description="La capa IA queda después del mercado para complementar la decisión, no para competir con lo crítico."
+            title="Señales y monitoreo IA"
+            description="Capa paramétrica y de inteligencia artificial diseñada para validar hipótesis y auditar la salud general del entorno."
           />
           <DashboardAIPulse />
           <DashboardSkillIntel portfolioTickers={portfolioTickers} />
