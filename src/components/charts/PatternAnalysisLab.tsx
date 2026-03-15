@@ -45,6 +45,7 @@ import {
   runStrategyBacktest,
   type StrategyBacktestId,
 } from "@/lib/strategyBacktest";
+import { buildPullbackPlaybook } from "@/lib/pullbackPlaybook";
 
 const ANALYSIS_WORKER_TIMEOUT_MS = 4500;
 const EMPTY_ANALYSIS: AnalysisResult = {
@@ -105,6 +106,10 @@ export function PatternAnalysisLab() {
     return Array.from(merged).sort();
   }, [portfolioTickers, fallbackTickers]);
   const selected = { symbol: ticker };
+  const selectedHolding = useMemo(
+    () => holdings.find((holding) => holding.ticker.toUpperCase() === ticker.toUpperCase()),
+    [holdings, ticker]
+  );
   const [liveSeries, setLiveSeries] = useState<{ candles: CandlePoint[]; volumes: VolumePoint[] }>(
     { candles: [], volumes: [] }
   );
@@ -181,6 +186,19 @@ export function PatternAnalysisLab() {
     () => runStrategyBacktest(analysis.candles, selectedBacktestId),
     [analysis.candles, selectedBacktestId]
   );
+  const pullbackPlaybook = useMemo(
+    () =>
+      buildPullbackPlaybook(
+        analysis.candles,
+        selectedHolding
+          ? {
+              averageBuyPrice: selectedHolding.averageBuyPrice,
+              quantity: selectedHolding.totalQuantity,
+            }
+          : undefined
+      ),
+    [analysis.candles, selectedHolding]
+  );
   const latestText = latestAssistant
     ? (() => {
       const isTextPart = (part: unknown): part is { type: "text"; text: string } =>
@@ -252,17 +270,25 @@ export function PatternAnalysisLab() {
     ]
       .filter(Boolean)
       .join(", ");
+    const playbookText = pullbackPlaybook
+      ? `Playbook de entrada: regimen=${pullbackPlaybook.regimeLabel}, precio_actual=${pullbackPlaybook.currentPrice}, fib_38_2=${pullbackPlaybook.fib382}, fib_50=${pullbackPlaybook.fib50}, fib_61_8=${pullbackPlaybook.fib618}, zona=${pullbackPlaybook.zoneLabel}.`
+      : "";
+    const holdingText = selectedHolding
+      ? `Posicion abierta: cantidad=${selectedHolding.totalQuantity.toFixed(4)}, precio_medio=${selectedHolding.averageBuyPrice.toFixed(2)}, pnl=${selectedHolding.pnlPercent.toFixed(2)}%.`
+      : "";
     return [
       "Eres un analista tecnico.",
       `Ticker: ${selected.symbol}.`,
       "Fuente de datos: Alpha Vantage.",
       `Patrones detectados: ${patternNames}.`,
       indicatorText ? `Indicadores: ${indicatorText}.` : "",
+      playbookText,
+      holdingText,
       "Usa las ultimas 20 velas para comentar estructura, sesgo y niveles.",
       "Devuelve un resumen breve y niveles de soporte/resistencia.",
       `Velas: ${JSON.stringify(recent)}`,
     ].join(" ");
-  }, [activePatterns, analysis.candles, indicatorBundle.summary, selected.symbol]);
+  }, [activePatterns, analysis.candles, indicatorBundle.summary, pullbackPlaybook, selected.symbol, selectedHolding]);
 
   useEffect(() => {
     let ignore = false;
@@ -931,6 +957,149 @@ export function PatternAnalysisLab() {
             ) : (
               <p className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
                 Necesito al menos unas 60 velas para lanzar el backtest y compararlo con buy &amp; hold.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        <Card
+          title="Playbook de entrada"
+          subtitle="Aplicación práctica de comprar por tramos en retrocesos, en vez de perseguir el precio."
+        >
+          <div className="flex flex-col gap-4 text-sm text-muted">
+            {pullbackPlaybook ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    {
+                      label: "Regimen",
+                      value: pullbackPlaybook.regimeLabel,
+                      tone:
+                        pullbackPlaybook.regime === "BULLISH"
+                          ? "text-success"
+                          : pullbackPlaybook.regime === "WEAK"
+                            ? "text-danger"
+                            : "text-text",
+                    },
+                    {
+                      label: "Precio actual",
+                      value: `${pullbackPlaybook.currentPrice.toFixed(2)}`,
+                      tone: "text-text",
+                    },
+                    {
+                      label: "Zona",
+                      value: pullbackPlaybook.zoneLabel,
+                      tone: "text-text",
+                    },
+                    {
+                      label: "Entrada media por tramos",
+                      value: `${pullbackPlaybook.stagedEntryAverage.toFixed(2)}`,
+                      tone: "text-accent",
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{item.label}</p>
+                      <p className={cn("mt-2 text-base font-semibold", item.tone)}>{item.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Retrocesos Fibonacci</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {[
+                      { label: "38.2%", value: pullbackPlaybook.fib382 },
+                      { label: "50%", value: pullbackPlaybook.fib50 },
+                      { label: "61.8%", value: pullbackPlaybook.fib618 },
+                    ].map((level) => (
+                      <div
+                        key={level.label}
+                        className="rounded-lg border border-border/60 bg-surface/60 p-3"
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{level.label}</p>
+                        <p className="mt-2 text-lg font-semibold text-text">{level.value.toFixed(2)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-xs text-muted">
+                    Swing de referencia: {pullbackPlaybook.swingLow.toFixed(2)} → {pullbackPlaybook.swingHigh.toFixed(2)}.
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Compras escalonadas</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    {pullbackPlaybook.tranches.map((tranche) => (
+                      <div
+                        key={tranche.label}
+                        className="rounded-lg border border-border/60 bg-surface/60 p-3"
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{tranche.label}</p>
+                        <p className="mt-2 text-lg font-semibold text-text">{tranche.price.toFixed(2)}</p>
+                        <p className="mt-1 text-xs text-muted">Asignación sugerida: {tranche.allocationPct}%</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {pullbackPlaybook.positionContext ? (
+                  <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+                    <p className="uppercase tracking-[0.2em] text-muted">Tu posición</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <span className="text-muted">Precio medio actual:</span>{" "}
+                        <span className="font-semibold text-text">
+                          {pullbackPlaybook.positionContext.averageBuyPrice.toFixed(2)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted">P/L actual:</span>{" "}
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            pullbackPlaybook.positionContext.currentPnlPct >= 0
+                              ? "text-success"
+                              : "text-danger"
+                          )}
+                        >
+                          {pullbackPlaybook.positionContext.currentPnlPct >= 0 ? "+" : ""}
+                          {pullbackPlaybook.positionContext.currentPnlPct.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted">Tu entrada vs plan:</span>{" "}
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            pullbackPlaybook.positionContext.vsPlaybookPct <= 0
+                              ? "text-success"
+                              : "text-danger"
+                          )}
+                        >
+                          {pullbackPlaybook.positionContext.vsPlaybookPct >= 0 ? "+" : ""}
+                          {pullbackPlaybook.positionContext.vsPlaybookPct.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted">Nuevo precio medio si duplicas:</span>{" "}
+                        <span className="font-semibold text-text">
+                          {pullbackPlaybook.positionContext.equalSizeAveragePrice.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+                    Si añades este valor a cartera, el plan usa retrocesos 38.2/50/61.8 con tamaño adaptado al régimen.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="rounded-lg border border-border/60 bg-surface-muted/40 p-3 text-xs text-muted">
+                Necesito suficiente histórico para construir el playbook de pullback y compras escalonadas.
               </p>
             )}
           </div>

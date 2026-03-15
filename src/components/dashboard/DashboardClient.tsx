@@ -7,6 +7,7 @@ import { AIChat } from "@/components/ai/AIChat";
 import { DashboardHero } from "./DashboardHero";
 import { DashboardStats } from "./DashboardStats";
 import { DashboardComposition } from "./DashboardComposition";
+import { DashboardMarketBoard } from "./DashboardMarketBoard";
 import { DashboardAIPulse } from "./DashboardAIPulse";
 import { DashboardHoldings } from "./DashboardHoldings";
 import { DashboardTradingView } from "./DashboardTradingView";
@@ -65,6 +66,10 @@ export function DashboardClient() {
             activeTicker={activeTicker}
             onSelectTicker={setSelectedTicker}
           />
+        </section>
+
+        <section>
+          <DashboardMarketBoard holdings={holdings} />
         </section>
 
         <section>
