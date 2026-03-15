@@ -6,6 +6,7 @@ import { Radar, CandlestickChart, ArrowRight, RefreshCw, Plus } from "lucide-rea
 import { formatCurrency } from "@/lib/formatters";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { MarketSearchResult } from "@/types/marketSearch";
 
 type Quote = {
@@ -763,10 +764,10 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   <Badge tone={predictionMeter.tone}>Acción: {predictionMeter.action}</Badge>
                 </div>
                 <div className="relative">
-                  <div className="grid h-3 grid-cols-3 overflow-hidden rounded-full border border-border/70">
-                    <div className="bg-rose-500/45" />
-                    <div className="bg-amber-500/45" />
-                    <div className="bg-emerald-500/45" />
+                  <div className="flex h-3 overflow-hidden rounded-full border border-border/70">
+                    <div className="h-full flex-1 bg-rose-500/45" />
+                    <div className="h-full flex-1 bg-amber-500/45" />
+                    <div className="h-full flex-1 bg-emerald-500/45" />
                   </div>
                   <span
                     className="absolute top-1/2 h-4 w-4 -translate-y-1/2 -translate-x-1/2 rounded-full border-2 border-background bg-white shadow-[0_0_18px_rgba(255,255,255,0.45)]"
@@ -824,7 +825,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
               </p>
             </div>
 
-            <div className="mt-3 mb-3 grid gap-2 sm:grid-cols-3">
+            <div className="mt-3 mb-3 grid gap-2 sm:grid-cols-2">
               <SignalSummary
                 label="Tickers cartera"
                 value={String(insiderOverview.portfolioCount)}
@@ -839,6 +840,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 label="Señales activas"
                 value={String(insiderOverview.actionableCount)}
                 detail="Compra o venta con más convicción"
+                className="sm:col-span-2"
               />
             </div>
             <div className="mb-3 inline-flex rounded-full border border-border/80 bg-surface-muted/20 p-1">
@@ -857,29 +859,29 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                 </button>
               ))}
             </div>
-            <div className="mb-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="mb-3 grid gap-2 sm:grid-cols-2">
               {automaticSignals.map(({ ticker, summary, signal: tickerSignal, source }) => (
                 <button
                   key={ticker}
                   type="button"
                   onClick={() => setSelectedInsiderTicker(ticker)}
-                  className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                  className={`min-h-[88px] rounded-2xl border px-3 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors ${
                     selectedInsiderTicker === ticker
-                      ? "border-accent/70 bg-accent/15"
-                      : "border-border/80 bg-surface-muted/20 hover:border-accent/40"
+                      ? "border-accent/60 bg-[linear-gradient(180deg,rgba(124,155,255,0.16),rgba(24,36,58,0.72))]"
+                      : "border-primary/10 bg-[linear-gradient(180deg,rgba(20,31,49,0.7),rgba(14,23,38,0.52))] hover:border-accent/32"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <span className="text-sm font-semibold text-white">{ticker}</span>
                       <Badge tone={source === "Cartera" ? "success" : "default"}>{source}</Badge>
                     </div>
                     <Badge tone={tickerSignal.tone}>{tickerSignal.label}</Badge>
                   </div>
-                  <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-muted">
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] text-muted">
                     <span>C {summary.buyCount}</span>
-                    <span>V {summary.sellCount}</span>
-                    <span className="text-right">{summary.totalTrades} ops</span>
+                    <span className="text-right">V {summary.sellCount}</span>
+                    <span className="col-span-2">{summary.totalTrades} ops</span>
                   </div>
                 </button>
               ))}
@@ -972,7 +974,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
             </form>
 
             <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <SignalSummary
                   label="Compras"
                   value={String(selectedInsiderSummary.buyCount)}
@@ -987,6 +989,7 @@ export function DashboardSkillIntel({ portfolioTickers = [] }: DashboardSkillInt
                   label="Neto"
                   value={formatCurrency(selectedInsiderSummary.netValue, "USD")}
                   detail={`Ventana actual ${insiderWindowDays}d`}
+                  className="sm:col-span-2"
                   tone={
                     selectedInsiderSummary.netValue > 0
                       ? "success"
@@ -1050,11 +1053,13 @@ function SignalSummary({
   value,
   detail,
   tone = "default",
+  className,
 }: {
   label: string;
   value: string;
   detail: string;
   tone?: "default" | "success" | "danger";
+  className?: string;
 }) {
   const toneClassName =
     tone === "success"
@@ -1064,10 +1069,10 @@ function SignalSummary({
         : "text-white";
 
   return (
-    <div className="rounded-xl border border-border/80 bg-surface-muted/20 px-3 py-2">
-      <p className="text-[11px] text-muted">{label}</p>
+    <div className={cn("flex min-h-[92px] flex-col rounded-2xl border border-primary/10 bg-[linear-gradient(180deg,rgba(20,31,49,0.7),rgba(14,23,38,0.52))] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]", className)}>
+      <p className="text-[11px] uppercase tracking-[0.1em] text-muted">{label}</p>
       <p className={`mt-1 text-sm font-semibold ${toneClassName}`}>{value}</p>
-      <p className="mt-1 text-[11px] text-muted">{detail}</p>
+      <p className="mt-2 text-[11px] leading-relaxed text-muted">{detail}</p>
     </div>
   );
 }

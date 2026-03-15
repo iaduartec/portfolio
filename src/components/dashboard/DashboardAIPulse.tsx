@@ -260,18 +260,18 @@ export function DashboardAIPulse() {
         </div>
         <DashboardMacroRadar />
         <Card title="Cómo leer el panel" subtitle="Qué te aporta cada bloque antes de entrar en un valor.">
-          <div className="grid gap-3 p-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/70 bg-surface-muted/25 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Pulso</p>
-              <p className="mt-2 text-sm text-text/85">Mide apetito por riesgo con índices amplios y volatilidad.</p>
+          <div className="grid gap-3 p-4 sm:grid-cols-2">
+            <div className="min-h-[112px] rounded-2xl border border-primary/12 bg-[linear-gradient(180deg,rgba(19,31,50,0.7),rgba(14,23,38,0.55))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Pulso</p>
+              <p className="mt-2 text-sm leading-relaxed text-text/85">Mide apetito por riesgo con índices amplios y volatilidad.</p>
             </div>
-            <div className="rounded-xl border border-border/70 bg-surface-muted/25 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Radar macro</p>
-              <p className="mt-2 text-sm text-text/85">Te da titulares recientes para contexto sectorial y global.</p>
+            <div className="min-h-[112px] rounded-2xl border border-primary/12 bg-[linear-gradient(180deg,rgba(19,31,50,0.7),rgba(14,23,38,0.55))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Radar macro</p>
+              <p className="mt-2 text-sm leading-relaxed text-text/85">Te da titulares recientes para contexto sectorial y global.</p>
             </div>
-            <div className="rounded-xl border border-border/70 bg-surface-muted/25 p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">Escenarios</p>
-              <p className="mt-2 text-sm text-text/85">Sirve para traducir movimiento macro en impacto sobre tu cartera.</p>
+            <div className="min-h-[112px] rounded-2xl border border-primary/12 bg-[linear-gradient(180deg,rgba(19,31,50,0.7),rgba(14,23,38,0.55))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Escenarios</p>
+              <p className="mt-2 text-sm leading-relaxed text-text/85">Sirve para traducir movimiento macro en impacto sobre tu cartera.</p>
             </div>
           </div>
         </Card>

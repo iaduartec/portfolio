@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type MacroRadarItem = {
   title: string;
@@ -92,7 +93,7 @@ export function DashboardMacroRadar() {
             <p className="mt-3 text-sm leading-relaxed text-text">{headline}</p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <MacroSignal
               label="Cobertura"
               value={`${items.length} piezas`}
@@ -107,17 +108,18 @@ export function DashboardMacroRadar() {
               label="Uso"
               value="Contexto"
               detail="Sirve para interpretar el mercado, no para sustituir una tesis."
+              className="sm:col-span-2"
             />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             {freshItems.map((item) => (
               <a
                 key={item.link}
                 href={item.link}
                 target="_blank"
                 rel="noreferrer"
-                className="block rounded-2xl border border-border/70 bg-surface-muted/20 p-4 transition-colors hover:border-primary/35 hover:bg-surface-muted/30"
+                className="block min-h-[132px] rounded-2xl border border-primary/12 bg-[linear-gradient(180deg,rgba(20,31,49,0.74),rgba(14,23,38,0.58))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:border-primary/28 hover:bg-surface-muted/30"
               >
                 <div className="flex items-center justify-between gap-3">
                   <Badge tone="warning">Reciente</Badge>
@@ -138,14 +140,14 @@ export function DashboardMacroRadar() {
                 <p className="text-[11px] uppercase tracking-[0.16em] text-muted">Más titulares</p>
                 <Badge tone="default">{remainingItems.length} adicionales</Badge>
               </div>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 {remainingItems.map((item) => (
                   <a
                     key={item.link}
                     href={item.link}
                     target="_blank"
                     rel="noreferrer"
-                    className="block rounded-xl border border-border/60 bg-surface/40 p-3 transition-colors hover:border-primary/35 hover:bg-surface/55"
+                  className="block min-h-[116px] rounded-xl border border-primary/10 bg-[linear-gradient(180deg,rgba(18,28,45,0.74),rgba(14,21,34,0.52))] p-3 transition-colors hover:border-primary/24 hover:bg-surface/55"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <Badge tone="default">Macro</Badge>
@@ -173,16 +175,18 @@ function MacroSignal({
   label,
   value,
   detail,
+  className,
 }: {
   label: string;
   value: string;
   detail: string;
+  className?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-surface-muted/20 p-4">
+    <div className={cn("flex min-h-[120px] flex-col rounded-2xl border border-primary/12 bg-[linear-gradient(180deg,rgba(20,31,49,0.74),rgba(14,23,38,0.58))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]", className)}>
       <p className="text-[11px] uppercase tracking-[0.16em] text-muted">{label}</p>
       <p className="mt-2 text-sm font-semibold text-white">{value}</p>
-      <p className="mt-1 text-xs leading-relaxed text-muted">{detail}</p>
+      <p className="mt-2 text-xs leading-relaxed text-muted">{detail}</p>
     </div>
   );
 }

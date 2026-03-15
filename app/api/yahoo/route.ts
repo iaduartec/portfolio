@@ -11,6 +11,10 @@ const exchangeYahooSuffixMap: Record<string, string> = {
 };
 
 const YAHOO_BASES = ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"];
+const YAHOO_DISABLED_TTL_MS = 10 * 60 * 1000;
+const yahooStore = globalThis as typeof globalThis & {
+  __yahooDisabledUntil?: number;
+};
 
 const toNumber = (value: unknown) => {
   const n = Number(value);
@@ -25,7 +29,19 @@ const parseSymbols = (raw: string) =>
 
 const normalizeSymbol = (symbol: string) => resolveYahooSymbol(symbol, exchangeYahooSuffixMap);
 
+const isYahooDisabled = () =>
+  typeof yahooStore.__yahooDisabledUntil === "number" && yahooStore.__yahooDisabledUntil > Date.now();
+
+const disableYahooTemporarily = () => {
+  yahooStore.__yahooDisabledUntil = Date.now() + YAHOO_DISABLED_TTL_MS;
+};
+
 const fetchYahoo = async (path: string, ignoreError = false) => {
+  if (isYahooDisabled()) {
+    if (ignoreError) return null;
+    throw new Error("Yahoo request skipped (temporarily disabled)");
+  }
+
   let lastStatus = 0;
   const headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -43,6 +59,9 @@ const fetchYahoo = async (path: string, ignoreError = false) => {
       });
       if (res.ok) return res.json();
       lastStatus = res.status;
+      if ([401, 403, 429, 999].includes(res.status)) {
+        disableYahooTemporarily();
+      }
       // If we get 401, Yahoo is asking for a crumb/session which we don't have.
       // We'll try common bases but if all fail, we handle it based on ignoreError.
       if (![401, 403, 429, 500, 502, 503].includes(res.status)) {
@@ -299,6 +318,9 @@ const parseYahooWorldIndicesHtml = (html: string) =>
   });
 
 const quoteSummaryModules = async (symbol: string, modules: string[]) => {
+  if (isYahooDisabled()) {
+    return null;
+  }
   const path = `/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.join(",")}`;
   try {
     const json = await fetchYahoo(path);
@@ -320,6 +342,9 @@ const quoteSummaryModules = async (symbol: string, modules: string[]) => {
 };
 
 const fetchYahooChart = async (symbol: string) => {
+  if (isYahooDisabled()) {
+    return null;
+  }
   const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
   try {
     const json = await fetchYahoo(path, true);
@@ -331,6 +356,9 @@ const fetchYahooChart = async (symbol: string) => {
 };
 
 const chartHistory = async (symbol: string, range = "1mo", interval = "1d", events = "history") => {
+  if (isYahooDisabled()) {
+    return null;
+  }
   const path = `/v8/finance/chart/${encodeURIComponent(
     symbol
   )}?range=${encodeURIComponent(range)}&interval=${encodeURIComponent(interval)}&events=${encodeURIComponent(
@@ -566,18 +594,13 @@ export async function GET(request: Request) {
         }
       }
 
-      let summary: any = null;
-      try {
-        summary = await quoteSummaryModules(normalized, [
-          "summaryDetail",
-          "defaultKeyStatistics",
-          "financialData",
-          "recommendationTrend",
-          "assetProfile"
-        ]);
-      } catch (err) {
-        console.error(`Snapshot summary modules failed for ${normalized}:`, err);
-      }
+      const summary = await quoteSummaryModules(normalized, [
+        "summaryDetail",
+        "defaultKeyStatistics",
+        "financialData",
+        "recommendationTrend",
+        "assetProfile"
+      ]);
 
       const chartData = shouldFetchChartFallback(q, summary) ? await fetchYahooChart(normalized) : null;
       const chartMeta = chartData?.meta;

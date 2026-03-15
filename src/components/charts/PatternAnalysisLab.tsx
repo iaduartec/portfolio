@@ -890,7 +890,7 @@ export function PatternAnalysisLab() {
 
             {backtestResult ? (
               <>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {[
                     {
                       label: "Retorno estrategia",
@@ -928,10 +928,13 @@ export function PatternAnalysisLab() {
                           : "N/D",
                       tone: "text-text",
                     },
-                  ].map((item) => (
+                  ].map((item, index, array) => (
                     <div
                       key={item.label}
-                      className="rounded-lg border border-border/60 bg-surface-muted/40 p-3"
+                      className={cn(
+                        "rounded-lg border border-border/60 bg-surface-muted/40 p-3",
+                        array.length % 2 === 1 && index === array.length - 1 ? "sm:col-span-2" : ""
+                      )}
                     >
                       <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{item.label}</p>
                       <p className={cn("mt-2 text-lg font-semibold", item.tone)}>{item.value}</p>
@@ -1009,15 +1012,18 @@ export function PatternAnalysisLab() {
 
                 <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Retrocesos Fibonacci</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     {[
                       { label: "38.2%", value: pullbackPlaybook.fib382 },
                       { label: "50%", value: pullbackPlaybook.fib50 },
                       { label: "61.8%", value: pullbackPlaybook.fib618 },
-                    ].map((level) => (
+                    ].map((level, index, array) => (
                       <div
                         key={level.label}
-                        className="rounded-lg border border-border/60 bg-surface/60 p-3"
+                        className={cn(
+                          "rounded-lg border border-border/60 bg-surface/60 p-3",
+                          array.length % 2 === 1 && index === array.length - 1 ? "sm:col-span-2" : ""
+                        )}
                       >
                         <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{level.label}</p>
                         <p className="mt-2 text-lg font-semibold text-text">{level.value.toFixed(2)}</p>
@@ -1031,11 +1037,14 @@ export function PatternAnalysisLab() {
 
                 <div className="rounded-lg border border-border/60 bg-surface-muted/40 p-3">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Compras escalonadas</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    {pullbackPlaybook.tranches.map((tranche) => (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {pullbackPlaybook.tranches.map((tranche, index, array) => (
                       <div
                         key={tranche.label}
-                        className="rounded-lg border border-border/60 bg-surface/60 p-3"
+                        className={cn(
+                          "rounded-lg border border-border/60 bg-surface/60 p-3",
+                          array.length % 2 === 1 && index === array.length - 1 ? "sm:col-span-2" : ""
+                        )}
                       >
                         <p className="text-[11px] uppercase tracking-[0.2em] text-muted">{tranche.label}</p>
                         <p className="mt-2 text-lg font-semibold text-text">{tranche.price.toFixed(2)}</p>

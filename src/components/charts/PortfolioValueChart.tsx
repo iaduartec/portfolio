@@ -785,7 +785,7 @@ export function PortfolioValueChart({
             </div>
           ) : aiResult ? (
             <div className="space-y-4">
-              <div className="grid gap-2 md:grid-cols-3">
+              <div className="grid gap-2 md:grid-cols-2">
                 <div className="rounded border border-border/50 bg-surface/40 p-3">
                   <p className="mb-1 text-[8px] uppercase tracking-widest text-muted">Contexto geo/macro</p>
                   <p className="text-[10px] leading-relaxed text-text/85">{aiResult.macroContext}</p>
@@ -794,7 +794,7 @@ export function PortfolioValueChart({
                   <p className="mb-1 text-[8px] uppercase tracking-widest text-muted">Tu cartera</p>
                   <p className="text-[10px] leading-relaxed text-text/85">{aiResult.portfolioContext}</p>
                 </div>
-                <div className="rounded border border-border/50 bg-surface/40 p-3">
+                <div className="rounded border border-border/50 bg-surface/40 p-3 md:col-span-2">
                   <p className="mb-1 text-[8px] uppercase tracking-widest text-muted">Noticias</p>
                   <p className="text-[10px] leading-relaxed text-text/85">{aiResult.newsImpact}</p>
                 </div>
@@ -831,7 +831,7 @@ export function PortfolioValueChart({
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <div className="rounded border border-success/10 bg-success/5 p-2">
                   <p className="mb-0.5 text-[8px] uppercase tracking-tighter text-success/60">Entrada</p>
                   <p className="text-[11px] font-bold text-success">{aiResult.entry || "-"}</p>
@@ -840,7 +840,7 @@ export function PortfolioValueChart({
                   <p className="mb-0.5 text-[8px] uppercase tracking-tighter text-accent/60">Objetivo</p>
                   <p className="text-[11px] font-bold text-accent">{aiResult.target || "-"}</p>
                 </div>
-                <div className="rounded border border-danger/10 bg-danger/5 p-2">
+                <div className="rounded border border-danger/10 bg-danger/5 p-2 sm:col-span-2">
                   <p className="mb-0.5 text-[8px] uppercase tracking-tighter text-danger/60">Stop Loss</p>
                   <p className="text-[11px] font-bold text-danger">{aiResult.stopLoss || "-"}</p>
                 </div>
