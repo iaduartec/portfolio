@@ -13,6 +13,7 @@ import { DashboardAIPulse } from "./DashboardAIPulse";
 import { DashboardHoldings } from "./DashboardHoldings";
 import { DashboardTradingView } from "./DashboardTradingView";
 import { DashboardSkillIntel } from "./DashboardSkillIntel";
+import { DashboardNewsFeed } from "./DashboardNewsFeed";
 
 export function DashboardClient() {
   const { holdings, summary, realizedTrades, isLoading } = usePortfolioData();
@@ -114,8 +115,13 @@ export function DashboardClient() {
             title="Panel técnico de la posición prioritaria"
             description="Gráfico avanzado con soporte para indicadores técnicos y acción de precio en vivo del activo seleccionado."
           />
-          <div className="min-h-[520px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
-            <DashboardTradingView selectedHolding={selectedHolding} />
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.5fr)]">
+            <div className="min-h-[520px] overflow-hidden rounded-2xl border border-border/80 bg-surface/70 p-1 md:min-h-[600px]">
+              <DashboardTradingView selectedHolding={selectedHolding} />
+            </div>
+            <div className="min-h-[520px] md:min-h-[600px]">
+              <DashboardNewsFeed activeTicker={activeTicker} />
+            </div>
           </div>
         </section>
 

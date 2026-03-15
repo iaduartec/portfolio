@@ -18,11 +18,12 @@ import type { Transaction } from "@/types/transactions";
 interface PortfolioDividendsChartProps {
   transactions: Transaction[];
   holdings: Holding[];
+  range?: "all" | "1m" | "3m" | "6m" | "ytd" | "1y";
 }
 
 const MONTH_LABELS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
-export function PortfolioDividendsChart({ transactions, holdings }: PortfolioDividendsChartProps) {
+export function PortfolioDividendsChart({ transactions, holdings, range }: PortfolioDividendsChartProps) {
   const { currency, baseCurrency, fxRate } = useCurrency();
 
   // Total invested across all current holdings
@@ -42,9 +43,17 @@ export function PortfolioDividendsChart({ transactions, holdings }: PortfolioDiv
     let total = 0;
     const monthlyData = new Map<string, number>();
 
-    // Initialize last 12 months
+    // Determine how many months to show based on range
     const now = new Date();
-    for (let i = 11; i >= 0; i--) {
+    let monthCount = 12; // Default to 12m
+    if (range === "1m") monthCount = 2; // Show 2 periods for comparison even in 1m?
+    if (range === "3m") monthCount = 3;
+    if (range === "6m") monthCount = 6;
+    if (range === "1y") monthCount = 12;
+    if (range === "ytd") monthCount = now.getMonth() + 1;
+    if (range === "all") monthCount = 12; // Let's keep 12 for now or increase if needed
+
+    for (let i = monthCount - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       monthlyData.set(key, 0);
@@ -74,7 +83,7 @@ export function PortfolioDividendsChart({ transactions, holdings }: PortfolioDiv
     });
 
     return { chartData: data, totalDividends: total };
-  }, [transactions, baseCurrency, fxRate]);
+  }, [transactions, baseCurrency, fxRate, range]);
 
   // Current display total
   const displayTotal = convertCurrency(totalDividends, currency, fxRate, baseCurrency);
@@ -88,7 +97,7 @@ export function PortfolioDividendsChart({ transactions, holdings }: PortfolioDiv
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-3">
           <div className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-sm text-primary">
-            {formatCurrency(displayTotal, currency)} cobrados (12m)
+            {formatCurrency(displayTotal, currency)} cobrados ({range === "all" ? "Histórico" : range})
           </div>
           <div className="rounded-full border border-success/25 bg-success/10 px-3 py-1 text-sm text-success">
             {yieldOnCost.toFixed(2)}% Yield on Cost

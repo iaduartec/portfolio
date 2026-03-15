@@ -915,12 +915,15 @@ export function PortfolioClient() {
   const displayedValueChange =
     filteredValueSeries.length >= 2
       ? (filteredValueSeries[filteredValueSeries.length - 1]?.value ?? 0) - (filteredValueSeries[0]?.value ?? 0)
-      : selectedMetrics.totalValue;
+      : (dateRange === "all" ? selectedMetrics.totalValue : 0);
   const displayedProfitChange =
     filteredProfitSeries.length >= 2
       ? (filteredProfitSeries[filteredProfitSeries.length - 1]?.value ?? 0) - (filteredProfitSeries[0]?.value ?? 0)
-      : filteredProfitSeries[filteredProfitSeries.length - 1]?.value ?? selectedMetrics.totalPnl;
-  const displayedReturnPct = filteredRoiSeries[filteredRoiSeries.length - 1]?.value ?? selectedMetrics.roi;
+      : (dateRange === "all" ? selectedMetrics.totalPnl : 0);
+  const displayedReturnPct =
+    filteredRoiSeries.length >= 2
+      ? (filteredRoiSeries[filteredRoiSeries.length - 1]?.value ?? 0) - (filteredRoiSeries[0]?.value ?? 0)
+      : (dateRange === "all" ? selectedMetrics.roi : 0);
 
   const fallbackPerformanceSeries = useMemo(
     () => buildPerformanceSeries(selectedTransactions, fxRate, baseCurrency),
@@ -1272,6 +1275,7 @@ export function PortfolioClient() {
                 <PortfolioDividendsChart 
                   transactions={selectedTransactions} 
                   holdings={selectedHoldings}
+                  range={dateRange}
                 />
               </div>
             </Card>
