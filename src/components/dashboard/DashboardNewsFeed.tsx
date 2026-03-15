@@ -61,7 +61,7 @@ export function DashboardNewsFeed({ activeTicker }: DashboardNewsFeedProps) {
       <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
         <div className="flex items-center gap-2">
           <Newspaper className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-white">Market Feed</h3>
+          <h3 className="font-semibold text-white">Noticias del activo</h3>
           {activeTicker && (
             <span className="ml-2 rounded-md bg-white/10 px-2 py-0.5 text-xs font-medium text-white">
               {activeTicker}
