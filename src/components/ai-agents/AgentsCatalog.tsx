@@ -10,7 +10,7 @@ import { useCurrency } from "@/components/currency/CurrencyProvider";
 
 type RecommendationMap = Record<string, string>;
 
-type Provider = "gemini" | "anthropic" | "ollama";
+type Provider = "gemini" | "anthropic" | "openrouter" | "ollama";
 
 const formatNumber = (value: number | undefined, digits = 2) =>
   Number.isFinite(value) ? value!.toFixed(digits) : "0";
@@ -57,6 +57,7 @@ Cambio diario: ${dayChange}%`;
 const defaultProvider = (): Provider => {
   const preferred = process.env.NEXT_PUBLIC_AGENTS_DEFAULT_PROVIDER;
   if (preferred === "ollama") return "ollama";
+  if (preferred === "openrouter") return "openrouter";
   if (preferred === "anthropic") return "anthropic";
   return "gemini";
 };
@@ -329,6 +330,16 @@ export function AgentsCatalog() {
                       onChange={() => setProvider("anthropic")}
                     />
                     Anthropic
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value="openrouter"
+                      checked={provider === "openrouter"}
+                      onChange={() => setProvider("openrouter")}
+                    />
+                    OpenRouter
                   </label>
                   <label className="flex items-center gap-1">
                     <input

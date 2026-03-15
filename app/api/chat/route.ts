@@ -1,14 +1,33 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, convertToModelMessages } from 'ai';
 // import { z } from 'zod';
 
 export const maxDuration = 30;
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash';
 
 const getGeminiModels = () => {
   const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY2].filter(Boolean) as string[];
   return keys.map((apiKey) => createGoogleGenerativeAI({ apiKey })(GEMINI_MODEL));
+};
+
+const getOpenRouterModels = () => {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) return [];
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://portfolio-duartec.vercel.app');
+  const openrouter = createOpenAI({
+    apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+    headers: {
+      'HTTP-Referer': siteUrl,
+      'X-Title': 'MyInvestView',
+    },
+  });
+  return [openrouter(OPENROUTER_MODEL)];
 };
 
 const buildErrorResponse = (message: string) =>
@@ -19,9 +38,9 @@ const buildErrorResponse = (message: string) =>
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
-  const models = getGeminiModels();
+  const models = [...getGeminiModels(), ...getOpenRouterModels()];
   if (models.length === 0) {
-    return buildErrorResponse('GEMINI_API_KEY falta en el servidor.');
+    return buildErrorResponse('GEMINI_API_KEY y OPENROUTER_API_KEY faltan en el servidor.');
   }
 
   let lastError: unknown;
@@ -58,5 +77,5 @@ export async function POST(req: Request) {
   }
 
   const detail = lastError instanceof Error ? lastError.message : 'Error desconocido';
-  return buildErrorResponse(`Error en Gemini: ${detail}`);
+  return buildErrorResponse(`Error en Gemini/OpenRouter: ${detail}`);
 }

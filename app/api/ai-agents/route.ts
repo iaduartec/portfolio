@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { generateText } from "ai";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_API_KEY2 = process.env.GEMINI_API_KEY2 || "";
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "";
 const GEMINI_MODEL = "gemini-2.5-flash";
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
+
+function toMessage(body: unknown) {
+  if (!body) return "";
+  if (typeof body === "string") return body;
+  if (typeof body === "object") {
+    const maybeBody = body as Record<string, unknown>;
+    return String(maybeBody.error || maybeBody.detail || maybeBody.message || "");
+  }
+  return "";
+}
 
 async function callGemini(prompt: string) {
   const keys = [GEMINI_API_KEY, GEMINI_API_KEY2].filter(Boolean);
-  if (keys.length === 0) {
-    return { ok: false, status: 500, body: { error: "GEMINI_API_KEY falta en el servidor." } };
-  }
   let lastError: unknown;
+
   for (const apiKey of keys) {
     try {
       const model = createGoogleGenerativeAI({ apiKey })(GEMINI_MODEL);
@@ -26,8 +37,25 @@ async function callGemini(prompt: string) {
       lastError = error;
     }
   }
-  const message = lastError instanceof Error ? lastError.message : "Error desconocido";
-  return { ok: false, status: 500, body: { error: `Error en Gemini: ${message}` } };
+
+  const fallbackResponse = await callOpenRouter(prompt);
+  if (fallbackResponse.ok) {
+    return fallbackResponse;
+  }
+
+  if (keys.length === 0) {
+    return { ok: false, status: 500, body: { error: "GEMINI_API_KEY y OPENROUTER_API_KEY faltan en el servidor." } };
+  }
+
+  const geminiMessage = lastError instanceof Error ? lastError.message : "Error desconocido";
+  const fallbackMessage = toMessage(fallbackResponse.body);
+  return {
+    ok: false,
+    status: 500,
+    body: {
+      error: `Error en Gemini: ${geminiMessage}. Fallback OpenRouter: ${fallbackMessage || "no disponible"}`,
+    },
+  };
 }
 
 async function callAnthropic(prompt: string) {
@@ -54,6 +82,38 @@ async function callAnthropic(prompt: string) {
   return { ok: res.ok, status: res.status, body: rawBody };
 }
 
+async function callOpenRouter(prompt: string) {
+  if (!OPENROUTER_API_KEY) {
+    return { ok: false, status: 500, body: { error: "OPENROUTER_API_KEY falta en el servidor." } };
+  }
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://portfolio-duartec.vercel.app");
+
+  try {
+    const openrouter = createOpenAI({
+      apiKey: OPENROUTER_API_KEY,
+      baseURL: "https://openrouter.ai/api/v1",
+      headers: {
+        "HTTP-Referer": siteUrl,
+        "X-Title": "MyInvestView",
+      },
+    });
+
+    const { text } = await generateText({
+      model: openrouter(OPENROUTER_MODEL),
+      system: "Eres un agente de trading y research conciso.",
+      prompt,
+    });
+
+    return { ok: true, status: 200, body: { text } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    return { ok: false, status: 500, body: { error: `Error en OpenRouter: ${message}` } };
+  }
+}
+
 const normalizeError = (msg: string) => {
   const lower = msg.toLowerCase();
   if (lower.includes("gemini_api_key")) {
@@ -62,13 +122,10 @@ const normalizeError = (msg: string) => {
   if (lower.includes("anthropic") && lower.includes("api") && lower.includes("key")) {
     return "ANTHROPIC_API_KEY falta en el servidor. Configurala o cambia de proveedor.";
   }
+  if (lower.includes("openrouter_api_key")) {
+    return "OPENROUTER_API_KEY falta en el servidor. Configurala o cambia de proveedor.";
+  }
   return msg;
-};
-
-const toMessage = (body: any) => {
-  if (!body) return "";
-  if (typeof body === "string") return body;
-  return body.error || body.detail || body.message || "";
 };
 
 export async function POST(req: NextRequest) {
@@ -81,12 +138,14 @@ export async function POST(req: NextRequest) {
     const response =
       selectedProvider === "anthropic"
         ? await callAnthropic(prompt)
+        : selectedProvider === "openrouter"
+          ? await callOpenRouter(prompt)
         : selectedProvider === "gemini"
           ? await callGemini(prompt)
           : {
               ok: false,
               status: 400,
-              body: { error: "Proveedor no soportado. Usa gemini o anthropic." },
+              body: { error: "Proveedor no soportado. Usa gemini, anthropic u openrouter." },
             };
 
     if (!response.ok) {
@@ -99,6 +158,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (selectedProvider === "gemini") {
+      const text = response.body?.text;
+      return NextResponse.json({ reply: typeof text === "string" ? text.trim() : "" });
+    }
+
+    if (selectedProvider === "openrouter") {
       const text = response.body?.text;
       return NextResponse.json({ reply: typeof text === "string" ? text.trim() : "" });
     }
